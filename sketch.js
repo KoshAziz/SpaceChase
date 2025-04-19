@@ -1,6 +1,6 @@
 // --- Features ---
 // - Rainbow Bullets (Hue Cycling)
-// - Ship Upgrade System (Fire Rate, Spread Shot) via Keyboard ('1', '2')
+// - Ship Upgrade System (Automatic Cheapest) // MODIFIED
 // - Score-based Shield System (Gain shield charge every 50 points, max 10)
 // - Redesigned Spaceship Look (Score-based color/shape, added details)
 // - Dynamic Parallax Star Background
@@ -21,7 +21,7 @@
 // - Ship no longer resets position on non-fatal hit.
 // - Added brief invulnerability after losing a life.
 // - Added Touch Controls: Tap to shoot and move towards tap.
-// - Mobile Adjustments: Lower asteroid spawn rate, tap HUD text to upgrade. // NEW
+// - Mobile Adjustments: Lower asteroid spawn rate. // Touch upgrade removed
 // --------------------------
 
 let ship;
@@ -53,10 +53,11 @@ let currentTopColor;
 let currentBottomColor;
 const BACKGROUND_CHANGE_INTERVAL = 600;
 
-// --- NEW: Mobile Detection & Controls ---
+// --- Mobile Detection ---
 let isMobile = false;
-let upgradeArea1 = null; // Bounding box for fire rate upgrade text
-let upgradeArea2 = null; // Bounding box for spread shot upgrade text
+// REMOVED: Upgrade area variables no longer needed
+// let upgradeArea1 = null;
+// let upgradeArea2 = null;
 
 
 // ==================
@@ -66,13 +67,11 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
 
-  // --- NEW: Mobile Detection ---
+  // Mobile Detection & Spawn Rate Adjustment
   let ua = navigator.userAgent;
   if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
     isMobile = true;
-    // Adjust base spawn rate for mobile
     baseAsteroidSpawnRate = 0.007; // Lower rate for mobile
-    // Consider adjusting other factors for mobile if needed (e.g., speeds)
   } else {
     baseAsteroidSpawnRate = 0.01; // Default rate for desktop
   }
@@ -148,7 +147,7 @@ function draw() {
 
   // Update & Draw Game Elements
   ship.update();
-  ship.draw(); // Draw handles blinking when invulnerable
+  ship.draw();
 
   // Bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
@@ -168,14 +167,13 @@ function draw() {
     }
   }
 
-  // Asteroids & Collisions
+  // Asteroids & Collisions (Handles score increase and auto-upgrade check)
   handleAsteroidsAndCollisions();
 
   // Handle Potions
   handlePotions();
 
   // Spawn New Asteroids
-  // Note: Base rate is already adjusted for mobile in setup()
   currentAsteroidSpawnRate = baseAsteroidSpawnRate + (score * 0.0001);
   if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) {
     asteroids.push(new Asteroid());
@@ -186,7 +184,7 @@ function draw() {
       potions.push(new HealthPotion());
   }
 
-  // Display HUD (this now also calculates upgrade text bounds)
+  // Display HUD
   displayHUD();
 
   // Display Info Messages
@@ -226,13 +224,41 @@ function handleAsteroidsAndCollisions() {
                 let oldShapeLevel = floor(oldScore / SHAPE_CHANGE_THRESHOLD);
                 let newShapeLevel = floor(score / SHAPE_CHANGE_THRESHOLD);
                 if (newShapeLevel > oldShapeLevel) {
-                    ship.changeShape(newShapeLevel); // Tell ship to change shape state
-                    // Override shield message if shape changes
-                    infoMessage = "SHIP SHAPE EVOLVED!";
-                    infoMessageTimeout = 120; // Show longer
+                    ship.changeShape(newShapeLevel);
+                    infoMessage = "SHIP SHAPE EVOLVED!"; // Override other messages
+                    infoMessageTimeout = 120;
                 }
-                // --- End Shape Change Logic ---
 
+                // --- NEW: Automatic Upgrade Logic ---
+                let upgradedInLoop = true; // Flag to keep checking if upgrades are possible
+                while (upgradedInLoop) {
+                    upgradedInLoop = false; // Assume no upgrade this iteration unless one happens
+                    let cost1 = ship.getUpgradeCost('fireRate');
+                    let cost2 = ship.getUpgradeCost('spreadShot');
+                    let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity;
+                    let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity;
+
+                    let cheapestCost = Math.min(numCost1, numCost2);
+
+                    // If no upgrades are possible or affordable, exit loop
+                    if (cheapestCost === Infinity || score < cheapestCost) {
+                        break;
+                    }
+
+                    // Prioritize fire rate if costs are equal
+                    if (numCost1 <= numCost2) {
+                        if (ship.attemptUpgrade('fireRate')) { // attemptUpgrade now returns true on success
+                            upgradedInLoop = true; // An upgrade happened, loop again
+                        }
+                    } else { // Spread shot is cheaper
+                        if (ship.attemptUpgrade('spreadShot')) {
+                            upgradedInLoop = true; // An upgrade happened, loop again
+                        }
+                    }
+                } // --- End Auto Upgrade Loop ---
+
+
+                // --- Process Asteroid Destruction ---
                 let currentAsteroid = asteroids[i];
                 let asteroidPos = currentAsteroid.pos.copy();
                 let asteroidSize = currentAsteroid.size;
@@ -251,38 +277,32 @@ function handleAsteroidsAndCollisions() {
                     asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
                     asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
                 }
-                break;
+                break; // Exit bullet loop
             }
         }
 
         if (asteroidHitByBullet) continue;
 
         // --- Ship vs Asteroid ---
-        // Check for invulnerability first
         if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
-            // Shield Check
             if (ship.shieldCharges > 0) {
                 ship.loseShield();
-                createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); // Shield burst
-                createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); // Asteroid explodes
-                asteroids.splice(i, 1); // Destroy asteroid
+                createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100));
+                createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
+                asteroids.splice(i, 1);
             } else {
-                // No Shield: Lose Life
                 lives--;
-                createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); // Ship explodes
-
+                createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100));
                 if (lives <= 0) {
-                    isGameOver = true; // Game over
+                    isGameOver = true;
                 } else {
-                    // No reset, just invulnerability
-                    ship.setInvulnerable(); // Start invulnerability timer
-                    // Destroy the asteroid that hit the ship
+                    ship.setInvulnerable();
                     createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
                     asteroids.splice(i, 1);
                 }
             }
-        } // End Ship vs Asteroid hit check (including invulnerability)
-    } // End Asteroid Loop
+        }
+    }
 }
 
 // Handle Potions
@@ -290,22 +310,20 @@ function handlePotions() {
     for (let i = potions.length - 1; i >= 0; i--) {
         potions[i].update();
         potions[i].draw();
-
-        // Check for collision with ship
         if (potions[i].hitsShip(ship)) {
             if (lives < MAX_LIVES) {
                 lives++;
                 infoMessage = "+1 LIFE!";
                 infoMessageTimeout = 90;
             } else {
-                 score += 10; // Give points if at max health
+                 score += 10;
                  infoMessage = "+10 SCORE (MAX LIVES)!";
                  infoMessageTimeout = 90;
             }
-            potions.splice(i, 1); // Remove potion
+            potions.splice(i, 1);
         }
         else if (potions[i].isOffscreen()) {
-             potions.splice(i, 1); // Remove if offscreen
+             potions.splice(i, 1);
         }
     }
 }
@@ -332,12 +350,12 @@ function drawBackgroundAndStars() {
 // Display Functions
 // ==================
 
-// MODIFIED: Draws HUD and calculates tap areas for upgrades
+// MODIFIED: Simplified HUD for automatic upgrades
 function displayHUD() {
-  let hudTextSize = 18; // Define text size for consistency
+  let hudTextSize = 18;
   textSize(hudTextSize);
 
-  // --- Left Aligned Info ---
+  // Left Aligned Info
   fill(0, 0, 100, 80);
   noStroke();
   textAlign(LEFT, TOP);
@@ -345,51 +363,16 @@ function displayHUD() {
   text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 40);
   text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 65);
 
-  // --- Right Aligned Upgrade Info ---
+  // Right Aligned Upgrade Info (Simplified)
   textAlign(RIGHT, TOP);
-  let fireRateCost = ship.getUpgradeCost('fireRate');
-  let spreadShotCost = ship.getUpgradeCost('spreadShot');
+  // Show current levels, color doesn't need to indicate affordability anymore
+  fill(0, 0, 100, 80); // Consistent white text
+  text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15);
+  text(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, width - 15, 40);
 
-  // Draw Fire Rate Upgrade Text
-  let rateColor = ship.fireRateLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50);
-  fill(rateColor);
-  let txt1 = `[1] Rate (${ship.fireRateLevel}/${ship.maxLevel}): ${fireRateCost} pts`;
-  text(txt1, width - 15, 15);
-
-  // Calculate bounding box for Fire Rate text
-  let w1 = textWidth(txt1);
-  let x1 = width - 15 - w1;
-  let y1 = 15;
-  let h1 = hudTextSize * 1.2; // Add a little vertical padding
-  upgradeArea1 = { x: x1, y: y1 - h1*0.1, w: w1, h: h1 }; // Store bounds
-
-  // Draw Spread Shot Upgrade Text
-  let spreadColor = ship.spreadShotLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50);
-  fill(spreadColor);
-  let txt2 = `[2] Spread (${ship.spreadShotLevel}/${ship.maxLevel}): ${spreadShotCost} pts`;
-  text(txt2, width - 15, 40);
-
-  // Calculate bounding box for Spread Shot text
-  let w2 = textWidth(txt2);
-  let x2 = width - 15 - w2;
-  let y2 = 40;
-  let h2 = hudTextSize * 1.2; // Add a little vertical padding
-  upgradeArea2 = { x: x2, y: y2 - h2*0.1, w: w2, h: h2 }; // Store bounds
-
-  // --- Debug: Draw bounding boxes (optional) ---
-  /*
-  if (upgradeArea1) {
-      noFill();
-      stroke(0, 100, 100); // Red stroke
-      rect(upgradeArea1.x, upgradeArea1.y, upgradeArea1.w, upgradeArea1.h);
-  }
-  if (upgradeArea2) {
-      noFill();
-      stroke(120, 100, 100); // Green stroke
-      rect(upgradeArea2.x, upgradeArea2.y, upgradeArea2.w, upgradeArea2.h);
-  }
-  */
-  // --- End Debug ---
+  // REMOVED: Bounding box calculation no longer needed
+  // upgradeArea1 = null;
+  // upgradeArea2 = null;
 }
 
 
@@ -428,8 +411,7 @@ function resetGame() {
     potions = [];
     score = 0;
     lives = 3;
-    // Re-initialize spawn rate based on platform detection
-    currentAsteroidSpawnRate = isMobile ? 0.007 : 0.01;
+    currentAsteroidSpawnRate = isMobile ? 0.007 : 0.01; // Use mobile rate if applicable
     isGameOver = false;
     spawnInitialAsteroids();
     createStarfield(200);
@@ -438,8 +420,9 @@ function resetGame() {
     frameCount = 0;
     infoMessage = "";
     infoMessageTimeout = 0;
-    upgradeArea1 = null; // Reset upgrade areas
-    upgradeArea2 = null;
+    // REMOVED: Upgrade area reset no longer needed
+    // upgradeArea1 = null;
+    // upgradeArea2 = null;
 }
 
 
@@ -450,48 +433,30 @@ function mousePressed() {
   if (isGameOver) {
      resetGame();
   } else {
-    // Allow shooting with mouse even on mobile if user prefers
     ship.shoot();
   }
-  // return false; // Might prevent issues on mobile/touch?
+  // return false;
 }
 
+// MODIFIED: Removed upgrade keys
 function keyPressed() {
     if (isGameOver) return;
-    if (key === '1') {
-        ship.attemptUpgrade('fireRate');
-    } else if (key === '2') {
-        ship.attemptUpgrade('spreadShot');
-    } else if (keyCode === 32) { // SPACEBAR
+    // Removed '1' and '2' key checks for upgrades
+    if (keyCode === 32) { // SPACEBAR
         ship.shoot();
         return false; // Prevent default spacebar action (scrolling)
     }
 }
 
-// MODIFIED: Handle touch events for mobile (shooting + upgrades)
+// MODIFIED: Removed upgrade tap checks
 function touchStarted() {
     if (isGameOver) {
         resetGame();
         return false; // Prevent default
     }
 
-    let upgradeTapped = false;
-    // Only check for upgrade taps on mobile
-    if (isMobile) {
-        // Check tap against calculated upgrade text areas
-        if (upgradeArea1 && mouseX > upgradeArea1.x && mouseX < upgradeArea1.x + upgradeArea1.w && mouseY > upgradeArea1.y && mouseY < upgradeArea1.y + upgradeArea1.h) {
-            ship.attemptUpgrade('fireRate');
-            upgradeTapped = true;
-        } else if (upgradeArea2 && mouseX > upgradeArea2.x && mouseX < upgradeArea2.x + upgradeArea2.w && mouseY > upgradeArea2.y && mouseY < upgradeArea2.y + upgradeArea2.h) {
-            ship.attemptUpgrade('spreadShot');
-            upgradeTapped = true;
-        }
-    }
-
-    // If an upgrade area wasn't tapped, then shoot
-    if (!upgradeTapped) {
-        ship.shoot();
-    }
+    // No longer checking for upgrade area taps
+    ship.shoot();
 
     // Prevent default touch behavior (like scrolling or zooming)
     return false;
@@ -581,27 +546,37 @@ class Ship {
       return floor(this.baseUpgradeCost * pow(this.costMultiplier, level));
   }
 
+  // MODIFIED: Returns true on success, false otherwise
   attemptUpgrade(upgradeType) {
       let cost = this.getUpgradeCost(upgradeType);
       let currentLevel;
       let upgradeName = upgradeType.replace(/([A-Z])/g, ' $1').toUpperCase();
+
       if (upgradeType === 'fireRate') currentLevel = this.fireRateLevel;
       else if (upgradeType === 'spreadShot') currentLevel = this.spreadShotLevel;
-      else return;
+      else return false; // Unknown type
+
       if (currentLevel < this.maxLevel && typeof cost === 'number' && score >= cost) {
-          score -= cost;
+          score -= cost; // Deduct score
           if (upgradeType === 'fireRate') this.fireRateLevel++;
           else if (upgradeType === 'spreadShot') this.spreadShotLevel++;
-          infoMessage = `${upgradeName} UPGRADED! (Level ${currentLevel + 1})`;
-      } else if (currentLevel >= this.maxLevel) {
-          infoMessage = `${upgradeName} MAX LEVEL!`;
-      } else if (typeof cost === 'number') {
-          infoMessage = `NEED ${cost} PTS FOR ${upgradeName}!`;
+          // Don't overwrite existing message if one is already showing briefly
+          if (infoMessageTimeout <= 0) {
+             infoMessage = `${upgradeName} UPGRADED! (Lvl ${currentLevel + 1})`;
+             infoMessageTimeout = 120;
+          }
+          return true; // Upgrade successful
       } else {
-           infoMessage = `CANNOT UPGRADE ${upgradeName}`;
+          // Optional: Display message if max level or not enough points?
+          // For automatic, maybe better not to spam messages if unaffordable.
+          // if (currentLevel >= this.maxLevel && infoMessageTimeout <= 0) {
+          //     infoMessage = `${upgradeName} MAX LEVEL!`;
+          //     infoMessageTimeout = 120;
+          // }
+          return false; // Upgrade failed (max level or not enough points)
       }
-      infoMessageTimeout = 120;
   }
+
 
   resetUpgrades() {
       this.fireRateLevel = 0;
@@ -618,40 +593,33 @@ class Ship {
   update() {
     if (this.invulnerableTimer > 0) { this.invulnerableTimer--; }
 
-    // --- Movement Logic: Touch OR Keyboard ---
     let isTouching = touches.length > 0;
     if (isTouching) {
-        // Touch Movement
         let touchPos = createVector(touches[0].x, touches[0].y);
         let direction = p5.Vector.sub(touchPos, this.pos);
-        if (direction.magSq() > 1) { // Avoid applying thrust if tap is on ship
+        if (direction.magSq() > 1) {
              direction.normalize();
-             // Apply thrust towards the touch point
              this.vel.add(direction.mult(this.thrust * this.touchThrustMultiplier));
         }
     } else {
-        // Keyboard Movement
-        let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);    // W
-        let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);  // S
-        let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);   // A
-        let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); // D
+        let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);
+        let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);
+        let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
+        let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
         if (movingUp) { this.vel.y -= this.thrust; }
         if (movingDown) { this.vel.y += this.thrust; }
         if (movingLeft) { this.vel.x -= this.thrust; }
         if (movingRight) { this.vel.x += this.thrust; }
     }
 
-    // Apply friction & speed limit regardless of input
     this.vel.mult(this.friction);
     this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel);
 
-    // Screen Constraints
     let margin = this.size * 0.7;
     this.pos.x = constrain(this.pos.x, margin, width - margin);
     this.pos.y = constrain(this.pos.y, margin, height - margin);
 
-    // Shooting Cooldown
     if (this.shootCooldown > 0) { this.shootCooldown--; }
   }
 
@@ -678,7 +646,6 @@ class Ship {
   }
 
   draw() {
-    // Only draw if not blinking or during visible part of blink
     if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) {
         push();
         translate(this.pos.x, this.pos.y);
