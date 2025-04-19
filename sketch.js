@@ -2,7 +2,7 @@
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Fire Rate, Spread Shot) via Keyboard ('1', '2')
 // - Score-based Shield System (Gain shield charge every 50 points, max 10)
-// - Redesigned Spaceship Look
+// - Redesigned Spaceship Look (Score-based color, added fins) // MODIFIED
 // - Dynamic Parallax Star Background
 // - Enhanced Engine Thrust Effect
 // - Asteroid Splitting
@@ -18,8 +18,8 @@
 // - Added Spacebar as an alternative shooting key.
 // - Score per asteroid hit increased to 2 points.
 // - Background gradient color changes every 10 seconds.
-// - Ship no longer resets position on non-fatal hit. // NEW
-// - Added brief invulnerability after losing a life. // NEW
+// - Ship no longer resets position on non-fatal hit.
+// - Added brief invulnerability after losing a life.
 // --------------------------
 
 let ship;
@@ -223,7 +223,7 @@ function handleAsteroidsAndCollisions() {
         if (asteroidHitByBullet) continue;
 
         // --- Ship vs Asteroid ---
-        // NEW: Check for invulnerability first
+        // Check for invulnerability first
         if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
             // Shield Check
             if (ship.shieldCharges > 0) {
@@ -239,9 +239,8 @@ function handleAsteroidsAndCollisions() {
                 if (lives <= 0) {
                     isGameOver = true; // Game over
                 } else {
-                    // --- MODIFIED: No reset, just invulnerability ---
-                    // ship.resetPosition(); // REMOVED: Don't reset position
-                    ship.setInvulnerable(); // NEW: Start invulnerability timer
+                    // No reset, just invulnerability
+                    ship.setInvulnerable(); // Start invulnerability timer
                     // Destroy the asteroid that hit the ship
                     createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
                     asteroids.splice(i, 1);
@@ -411,10 +410,11 @@ class Ship {
 
     // Appearance
     this.size = 30;
-    this.color = color(200, 80, 95);
+    // this.color = color(200, 80, 95); // Base color no longer used for main fill
     this.cockpitColor = color(180, 100, 100);
     this.engineColor1 = color(30, 100, 100);
     this.engineColor2 = color(0, 100, 100);
+    this.finColor = color(220, 60, 70); // Color for the new fins
 
     // Weapon
     this.shootCooldown = 0;
@@ -424,8 +424,8 @@ class Ship {
     // Shields & Health
     this.shieldCharges = 0;
     this.shieldVisualRadius = this.size * 1.1;
-    this.invulnerableTimer = 0; // NEW: Timer for invulnerability
-    this.invulnerabilityDuration = 120; // NEW: Duration in frames (2 seconds at 60fps)
+    this.invulnerableTimer = 0;
+    this.invulnerabilityDuration = 120;
 
     // Upgrades
     this.maxLevel = 5;
@@ -447,7 +447,6 @@ class Ship {
       }
   }
 
-  // NEW: Method to activate invulnerability
   setInvulnerable() {
       this.invulnerableTimer = this.invulnerabilityDuration;
   }
@@ -495,16 +494,12 @@ class Ship {
   resetPosition() {
       this.pos.set(width / 2, height - 50);
       this.vel.set(0, 0);
-      this.invulnerableTimer = 0; // Also reset invulnerability on manual reset if needed
+      this.invulnerableTimer = 0;
   }
 
   update() {
-    // --- Invulnerability Timer ---
-    if (this.invulnerableTimer > 0) {
-        this.invulnerableTimer--;
-    }
+    if (this.invulnerableTimer > 0) { this.invulnerableTimer--; }
 
-    // --- Keyboard Movement ---
     let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);
     let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);
     let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
@@ -517,12 +512,10 @@ class Ship {
     this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel);
 
-    // --- Screen Constraints ---
     let margin = this.size * 0.7;
     this.pos.x = constrain(this.pos.x, margin, width - margin);
     this.pos.y = constrain(this.pos.y, margin, height - margin);
 
-    // --- Shooting Cooldown ---
     if (this.shootCooldown > 0) { this.shootCooldown--; }
   }
 
@@ -548,15 +541,14 @@ class Ship {
       }
   }
 
-  // Draw the ship - includes blinking logic when invulnerable
+  // MODIFIED: Draw the ship - includes score-based color and cooler look
   draw() {
-    // --- Blinking effect when invulnerable ---
-    // Only draw the ship if the timer is inactive OR if the frameCount is even during the timer
+    // Only draw if not blinking or during visible part of blink
     if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) {
         push();
         translate(this.pos.x, this.pos.y);
 
-        // Draw Shield Visual
+        // --- Draw Shield Visual ---
         if (this.shieldCharges > 0) {
             let shieldAlpha = map(sin(frameCount * 0.15), -1, 1, 40, 80);
             let shieldHue = 180;
@@ -569,7 +561,7 @@ class Ship {
             ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2);
         }
 
-        // Draw Engine Glow
+        // --- Draw Engine Glow ---
         let enginePulseFactor = 1.0 + abs(this.vel.y) * 0.1;
         let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor;
         let engineSize = this.size * 0.5 * enginePulse;
@@ -583,22 +575,49 @@ class Ship {
         fill(hue(this.engineColor1), 100, 100);
         ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2);
 
-        // Draw Ship Body
-        stroke(0, 0, 80);
+        // --- Draw Ship Body ---
+        stroke(0, 0, 80); // Outline color
         strokeWeight(1.5);
-        fill(this.color);
+
+        // --- Score-Based Color ---
+        // Calculate hue based on score, cycling through the spectrum
+        // Starts at hue 200 (cyan), shifts 0.2 degrees per point. Adjust 0.2 to change speed.
+        let scoreHue = (200 + score * 0.2) % 360;
+        fill(scoreHue, 80, 95); // Use calculated hue for fill
+
+        // Main body shape (slightly adjusted points for sleeker wings)
         beginShape();
-        vertex(0, -this.size * 0.7);
-        bezierVertex( this.size * 0.5, -this.size * 0.4, this.size * 0.6,  this.size * 0.1, this.size * 0.7,  this.size * 0.4);
-        bezierVertex( this.size * 0.4,  this.size * 0.5, -this.size * 0.4,  this.size * 0.5, -this.size * 0.7,  this.size * 0.4);
-        bezierVertex(-this.size * 0.6,  this.size * 0.1, -this.size * 0.5, -this.size * 0.4, 0, -this.size * 0.7);
+        vertex(0, -this.size * 0.7); // Nose
+        bezierVertex( this.size * 0.6, -this.size * 0.3, // Control point 1 (right top) - adjusted
+                      this.size * 0.7,  this.size * 0.0, // Control point 2 (right mid) - adjusted
+                      this.size * 0.8,  this.size * 0.4); // Wing tip (right bottom) - adjusted
+        bezierVertex( this.size * 0.4,  this.size * 0.6, // Control point 3 (right bottom inner) - adjusted
+                     -this.size * 0.4,  this.size * 0.6, // Control point 4 (left bottom inner) - adjusted
+                     -this.size * 0.8,  this.size * 0.4); // Wing tip (left bottom) - adjusted
+        bezierVertex(-this.size * 0.7,  this.size * 0.0, // Control point 5 (left mid) - adjusted
+                     -this.size * 0.6, -this.size * 0.3, // Control point 6 (left top) - adjusted
+                      0, -this.size * 0.7); // Back to Nose tip
         endShape(CLOSE);
 
-        // Draw Cockpit
+        // --- Draw Fins ---
+        fill(this.finColor); // Use a specific color for fins
+        stroke(0, 0, 60); // Slightly darker outline for fins
+        strokeWeight(1);
+        // Right Fin
+        triangle( this.size * 0.5, this.size * 0.3,  // Inner point
+                  this.size * 0.9, this.size * 0.4,  // Outer tip
+                  this.size * 0.6, this.size * 0.6); // Rear point
+        // Left Fin
+        triangle(-this.size * 0.5, this.size * 0.3,
+                 -this.size * 0.9, this.size * 0.4,
+                 -this.size * 0.6, this.size * 0.6);
+
+
+        // --- Draw Cockpit ---
         fill(this.cockpitColor);
         noStroke();
         ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5);
-        fill(0, 0, 100, 50);
+        fill(0, 0, 100, 50); // Glare
         ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25);
 
         pop();
