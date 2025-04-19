@@ -2,7 +2,7 @@
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Fire Rate, Spread Shot) via Keyboard ('1', '2')
 // - Score-based Shield System (Gain shield charge every 50 points, max 10)
-// - Redesigned Spaceship Look (Score-based color, added fins) // MODIFIED
+// - Redesigned Spaceship Look (Score-based color, added fins)
 // - Dynamic Parallax Star Background
 // - Enhanced Engine Thrust Effect
 // - Asteroid Splitting
@@ -20,6 +20,7 @@
 // - Background gradient color changes every 10 seconds.
 // - Ship no longer resets position on non-fatal hit.
 // - Added brief invulnerability after losing a life.
+// - Added Touch Controls: Tap to shoot and move towards tap. // NEW
 // --------------------------
 
 let ship;
@@ -62,6 +63,7 @@ function setup() {
   createStarfield(200);
   textAlign(CENTER, CENTER);
   textSize(20);
+  // Removed noCursor() for better desktop experience alongside touch
 
   // Initialize background colors
   currentTopColor = color(260, 80, 10);
@@ -368,24 +370,47 @@ function resetGame() {
 // Input Handling Functions
 // ==================
 function mousePressed() {
+  // If the game is over, clicking restarts the game
   if (isGameOver) {
      resetGame();
   } else {
+    // If the game is active, clicking fires the ship's weapon
     ship.shoot();
   }
+  // Prevent default behavior (might help on mobile)
+  // return false;
 }
 
 function keyPressed() {
+    // Ignore key presses if the game is over
     if (isGameOver) return;
+    // Handle upgrade keys ('1' and '2')
     if (key === '1') {
         ship.attemptUpgrade('fireRate');
     } else if (key === '2') {
         ship.attemptUpgrade('spreadShot');
-    } else if (keyCode === 32) { // SPACEBAR
+    }
+    // Handle Spacebar shooting
+    else if (keyCode === 32) { // 32 is the keyCode for SPACEBAR
         ship.shoot();
-        // return false; // Prevent default spacebar action (optional)
+        return false; // Prevent default spacebar action (scrolling)
     }
 }
+
+// NEW: Handle touch events for mobile
+function touchStarted() {
+    // If the game is over, tapping restarts the game
+    if (isGameOver) {
+        resetGame();
+    } else {
+        // If the game is active, tapping fires the ship's weapon
+        // Movement is handled based on touch position in ship.update()
+        ship.shoot();
+    }
+    // Prevent default touch behavior (like scrolling or zooming)
+    return false;
+}
+
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
@@ -405,16 +430,16 @@ class Ship {
     this.pos = createVector(width / 2, height - 50);
     this.vel = createVector(0, 0);
     this.thrust = 0.3;
+    this.touchThrustMultiplier = 1.1; // Slightly stronger thrust for touch control
     this.friction = 0.98;
     this.maxSpeed = 7;
 
     // Appearance
     this.size = 30;
-    // this.color = color(200, 80, 95); // Base color no longer used for main fill
     this.cockpitColor = color(180, 100, 100);
     this.engineColor1 = color(30, 100, 100);
     this.engineColor2 = color(0, 100, 100);
-    this.finColor = color(220, 60, 70); // Color for the new fins
+    this.finColor = color(220, 60, 70);
 
     // Weapon
     this.shootCooldown = 0;
@@ -497,25 +522,56 @@ class Ship {
       this.invulnerableTimer = 0;
   }
 
+  // MODIFIED: Update ship's state each frame (handles movement: touch OR keyboard)
   update() {
-    if (this.invulnerableTimer > 0) { this.invulnerableTimer--; }
+    // --- Invulnerability Timer ---
+    if (this.invulnerableTimer > 0) {
+        this.invulnerableTimer--;
+    }
 
-    let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);
-    let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);
-    let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
-    let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
-    if (movingUp) { this.vel.y -= this.thrust; }
-    if (movingDown) { this.vel.y += this.thrust; }
-    if (movingLeft) { this.vel.x -= this.thrust; }
-    if (movingRight) { this.vel.x += this.thrust; }
+    // --- Movement Logic ---
+    let isTouching = touches.length > 0; // Check for active touches
+
+    if (isTouching) {
+        // --- Touch Movement ---
+        // Calculate direction vector from ship to the first touch point
+        let touchPos = createVector(touches[0].x, touches[0].y);
+        let direction = p5.Vector.sub(touchPos, this.pos);
+
+        // Only apply thrust if the touch is not right on the ship (prevents division by zero)
+        if (direction.magSq() > 1) { // Use magSq() for efficiency
+             direction.normalize();
+             // Apply thrust in the direction of the touch
+             this.vel.add(direction.mult(this.thrust * this.touchThrustMultiplier)); // Slightly more thrust for touch
+        }
+    } else {
+        // --- Keyboard Movement (Only if not touching) ---
+        let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);    // W
+        let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);  // S
+        let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);   // A
+        let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); // D
+
+        if (movingUp) { this.vel.y -= this.thrust; }
+        if (movingDown) { this.vel.y += this.thrust; }
+        if (movingLeft) { this.vel.x -= this.thrust; }
+        if (movingRight) { this.vel.x += this.thrust; }
+    }
+
+    // Apply friction regardless of input method
     this.vel.mult(this.friction);
+
+    // Limit maximum speed
     this.vel.limit(this.maxSpeed);
+
+    // Update position based on velocity
     this.pos.add(this.vel);
 
+    // --- Screen Constraints ---
     let margin = this.size * 0.7;
     this.pos.x = constrain(this.pos.x, margin, width - margin);
     this.pos.y = constrain(this.pos.y, margin, height - margin);
 
+    // --- Shooting Cooldown ---
     if (this.shootCooldown > 0) { this.shootCooldown--; }
   }
 
@@ -541,14 +597,13 @@ class Ship {
       }
   }
 
-  // MODIFIED: Draw the ship - includes score-based color and cooler look
   draw() {
     // Only draw if not blinking or during visible part of blink
     if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) {
         push();
         translate(this.pos.x, this.pos.y);
 
-        // --- Draw Shield Visual ---
+        // Draw Shield Visual
         if (this.shieldCharges > 0) {
             let shieldAlpha = map(sin(frameCount * 0.15), -1, 1, 40, 80);
             let shieldHue = 180;
@@ -561,8 +616,8 @@ class Ship {
             ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2);
         }
 
-        // --- Draw Engine Glow ---
-        let enginePulseFactor = 1.0 + abs(this.vel.y) * 0.1;
+        // Draw Engine Glow
+        let enginePulseFactor = 1.0 + this.vel.mag() * 0.05; // Pulse based on overall speed magnitude
         let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor;
         let engineSize = this.size * 0.5 * enginePulse;
         let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100);
@@ -575,53 +630,35 @@ class Ship {
         fill(hue(this.engineColor1), 100, 100);
         ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2);
 
-        // --- Draw Ship Body ---
-        stroke(0, 0, 80); // Outline color
+        // Draw Ship Body
+        stroke(0, 0, 80);
         strokeWeight(1.5);
-
-        // --- Score-Based Color ---
-        // Calculate hue based on score, cycling through the spectrum
-        // Starts at hue 200 (cyan), shifts 0.2 degrees per point. Adjust 0.2 to change speed.
         let scoreHue = (200 + score * 0.2) % 360;
-        fill(scoreHue, 80, 95); // Use calculated hue for fill
+        fill(scoreHue, 80, 95); // Score-based color
 
-        // Main body shape (slightly adjusted points for sleeker wings)
         beginShape();
-        vertex(0, -this.size * 0.7); // Nose
-        bezierVertex( this.size * 0.6, -this.size * 0.3, // Control point 1 (right top) - adjusted
-                      this.size * 0.7,  this.size * 0.0, // Control point 2 (right mid) - adjusted
-                      this.size * 0.8,  this.size * 0.4); // Wing tip (right bottom) - adjusted
-        bezierVertex( this.size * 0.4,  this.size * 0.6, // Control point 3 (right bottom inner) - adjusted
-                     -this.size * 0.4,  this.size * 0.6, // Control point 4 (left bottom inner) - adjusted
-                     -this.size * 0.8,  this.size * 0.4); // Wing tip (left bottom) - adjusted
-        bezierVertex(-this.size * 0.7,  this.size * 0.0, // Control point 5 (left mid) - adjusted
-                     -this.size * 0.6, -this.size * 0.3, // Control point 6 (left top) - adjusted
-                      0, -this.size * 0.7); // Back to Nose tip
+        vertex(0, -this.size * 0.7);
+        bezierVertex( this.size * 0.6, -this.size * 0.3, this.size * 0.7,  this.size * 0.0, this.size * 0.8,  this.size * 0.4);
+        bezierVertex( this.size * 0.4,  this.size * 0.6, -this.size * 0.4,  this.size * 0.6, -this.size * 0.8,  this.size * 0.4);
+        bezierVertex(-this.size * 0.7,  this.size * 0.0, -this.size * 0.6, -this.size * 0.3, 0, -this.size * 0.7);
         endShape(CLOSE);
 
-        // --- Draw Fins ---
-        fill(this.finColor); // Use a specific color for fins
-        stroke(0, 0, 60); // Slightly darker outline for fins
+        // Draw Fins
+        fill(this.finColor);
+        stroke(0, 0, 60);
         strokeWeight(1);
-        // Right Fin
-        triangle( this.size * 0.5, this.size * 0.3,  // Inner point
-                  this.size * 0.9, this.size * 0.4,  // Outer tip
-                  this.size * 0.6, this.size * 0.6); // Rear point
-        // Left Fin
-        triangle(-this.size * 0.5, this.size * 0.3,
-                 -this.size * 0.9, this.size * 0.4,
-                 -this.size * 0.6, this.size * 0.6);
+        triangle( this.size * 0.5, this.size * 0.3, this.size * 0.9, this.size * 0.4, this.size * 0.6, this.size * 0.6);
+        triangle(-this.size * 0.5, this.size * 0.3, -this.size * 0.9, this.size * 0.4, -this.size * 0.6, this.size * 0.6);
 
-
-        // --- Draw Cockpit ---
+        // Draw Cockpit
         fill(this.cockpitColor);
         noStroke();
         ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5);
-        fill(0, 0, 100, 50); // Glare
+        fill(0, 0, 100, 50);
         ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25);
 
         pop();
-     } // End of drawing condition (for blinking)
+     }
   }
 }
 
