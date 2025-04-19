@@ -1,5 +1,4 @@
 // --- Features ---
-// - Name Input Screen & Persistent Leaderboard (localStorage) - Added Start Button // MODIFIED
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Automatic Cheapest, includes Auto-Fire) - Uses Money
 // - Score-based Shield System (Gain shield charge every 50 points, max 10) - Uses Points
@@ -12,7 +11,8 @@
 // - Score-based Difficulty Increase - Uses Points
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // --- Modifications ---
-// - Implemented separate Points (leaderboard/milestones) and Money (upgrades) systems.
+// - Removed Name Input and Leaderboard. // NEW
+// - Implemented separate Points (milestones) and Money (upgrades) systems.
 // - Upgrade costs reduced.
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Asteroid speed reduced.
@@ -34,8 +34,8 @@ let stars = [];
 let potions = [];
 
 // Game State Management
-const GAME_STATE = { NAME_INPUT: 0, PLAYING: 1, GAME_OVER: 2 };
-let gameState = GAME_STATE.NAME_INPUT; // Start with name input
+const GAME_STATE = { PLAYING: 1, GAME_OVER: 2 };
+let gameState = GAME_STATE.PLAYING; // Start directly in PLAYING state
 
 // Score & Resources
 let points = 0;
@@ -52,15 +52,16 @@ let minAsteroidSize = 15;
 const SHIELD_POINTS_THRESHOLD = 50;
 const MAX_SHIELD_CHARGES = 10;
 const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
-const LEADERBOARD_SIZE = 10; // Max entries on leaderboard
-const LEADERBOARD_KEY = "asteroidGameLeaderboard_v1"; // Key for localStorage
+// REMOVED: Leaderboard constants
 
 // --- UI & Messages ---
 let infoMessage = "";
 let infoMessageTimeout = 0;
-let nameInput; // HTML Input Element
-let startButton; // NEW: HTML Button Element
-let playerName = ""; // Store player's name
+// REMOVED: Name input elements and variables
+// let nameInput;
+// let submitButton;
+// let playerName = "";
+// let scoreSubmitted = false;
 
 // --- Background ---
 let currentTopColor;
@@ -88,29 +89,18 @@ function setup() {
   }
   currentAsteroidSpawnRate = baseAsteroidSpawnRate;
 
-  // Initialize game objects (ship will be created in resetGame)
+  // Initialize background elements
   createStarfield(200);
   textAlign(CENTER, CENTER);
   textSize(20);
-
-  // Initialize background colors
   currentTopColor = color(260, 80, 10);
   currentBottomColor = color(240, 70, 25);
 
-  // --- Create Name Input & Start Button ---
-  // Requires the p5.dom library
-  nameInput = createInput('');
-  nameInput.position(width / 2 - 100, height / 2 - 10);
-  nameInput.size(200);
-  nameInput.attribute('placeholder', 'Enter your name');
-  nameInput.hide(); // Hide initially
+  // REMOVED: Name Input & Submit Button creation
 
-  startButton = createButton('Start Game'); // NEW: Create button
-  startButton.position(width / 2 - 50, height / 2 + 30); // NEW: Position button
-  startButton.mousePressed(startGame); // NEW: Attach event listener
-  startButton.hide(); // NEW: Hide initially
-
-  // Initialize game state (starts in NAME_INPUT)
+  // Start the game immediately
+  resetGame(); // Initialize ship and other game elements
+  gameState = GAME_STATE.PLAYING; // Set initial state
 }
 
 // ==================
@@ -151,35 +141,7 @@ function createStarfield(numStars) {
     }
 }
 
-// --- Leaderboard Functions ---
-function getLeaderboard() {
-    let board = [];
-    try {
-        const storedBoard = localStorage.getItem(LEADERBOARD_KEY);
-        if (storedBoard) {
-            board = JSON.parse(storedBoard);
-        }
-    } catch (e) {
-        console.error("Error reading leaderboard from localStorage:", e);
-        board = [];
-    }
-    return Array.isArray(board) ? board : [];
-}
-
-function saveToLeaderboard(name, score) {
-    if (!name || typeof name !== 'string' || name.trim() === "") {
-        name = "Anon";
-    }
-    let leaderboard = getLeaderboard();
-    leaderboard.push({ name: name.trim().substring(0, 15), score: score });
-    leaderboard.sort((a, b) => b.score - a.score);
-    leaderboard = leaderboard.slice(0, LEADERBOARD_SIZE);
-    try {
-        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
-    } catch (e) {
-        console.error("Error saving leaderboard to localStorage:", e);
-    }
-}
+// REMOVED: Leaderboard Functions
 
 
 // ==================
@@ -187,7 +149,7 @@ function saveToLeaderboard(name, score) {
 // ==================
 function draw() {
   // Background color change logic
-  if (gameState !== GAME_STATE.NAME_INPUT && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) {
+  if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) {
       let topH = random(180, 300);
       let bottomH = (topH + random(20, 60)) % 360;
       currentTopColor = color(topH, random(70, 90), random(10, 20));
@@ -197,45 +159,22 @@ function draw() {
 
   // --- Game State Machine ---
   switch (gameState) {
-    case GAME_STATE.NAME_INPUT:
-      displayNameInputScreen();
-      break;
     case GAME_STATE.PLAYING:
       runGameLogic();
       break;
     case GAME_STATE.GAME_OVER:
       runGameLogic(); // Still draw the game state behind the overlay
-      displayGameOver(); // Draw the game over screen on top
+      displayGameOver(); // Draw the game over screen
       break;
   }
 
-  // Display Info Messages (common to PLAYING and GAME_OVER)
+  // Display Info Messages
   if (infoMessageTimeout > 0) {
       displayInfoMessage();
-      if (gameState === GAME_STATE.PLAYING) { // Only decrement timer during play
+      if (gameState === GAME_STATE.PLAYING) {
          infoMessageTimeout--;
       }
   }
-}
-
-// --- Function for Name Input Screen ---
-function displayNameInputScreen() {
-    nameInput.show(); // Show input field
-    startButton.show(); // Show start button
-
-    // Draw instructions
-    fill(0, 0, 100); // White text
-    textSize(24);
-    textAlign(CENTER, CENTER);
-    text("Enter Your Name", width / 2, height / 2 - 60);
-    textSize(16);
-    // MODIFIED: Updated instructions
-    text("Press Enter or Click Start", width / 2, height / 2 + 75);
-
-    // Draw title
-    textSize(48);
-    fill(50, 90, 100); // Orange/Yellow
-    text("ASTEROID ATTACK", width/2, height/4);
 }
 
 // --- Function for Main Game Logic ---
@@ -268,20 +207,21 @@ function runGameLogic() {
   // Handle Potions
   handlePotions();
 
-  // Spawn New Asteroids
-  if (gameState === GAME_STATE.PLAYING) { // Only spawn when playing
+  // Spawn New Asteroids & Potions only when playing
+  if (gameState === GAME_STATE.PLAYING) {
       currentAsteroidSpawnRate = baseAsteroidSpawnRate + (points * 0.00005);
       if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) {
         asteroids.push(new Asteroid());
       }
-      // Spawn Health Potions
       if (random(1) < potionSpawnRate && potions.length < 2) {
           potions.push(new HealthPotion());
       }
   }
 
-  // Display HUD
-  displayHUD();
+  // Display HUD only when playing
+  if (gameState === GAME_STATE.PLAYING) {
+      displayHUD();
+  }
 }
 
 // ==================
@@ -290,87 +230,87 @@ function runGameLogic() {
 function handleAsteroidsAndCollisions() {
     for (let i = asteroids.length - 1; i >= 0; i--) {
         if (!asteroids[i]) continue;
-        asteroids[i].update();
-        asteroids[i].draw();
-
-        // Bullet vs Asteroid
-        let asteroidHitByBullet = false;
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
-                let oldPoints = points;
-                let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
-
-                // --- Points and Money Gain ---
-                points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15));
-                money += 2;
-
-                // --- Shield Gain Logic (Based on Points) ---
-                let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD);
-                if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
-                    let actualAdded = ship.gainShields(shieldsToAdd);
-                    if (actualAdded > 0) {
-                         infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`;
-                         infoMessageTimeout = 90;
-                    }
-                }
-
-                // --- Shape Change Logic (Based on Points) ---
-                let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD);
-                let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
-                if (newShapeLevel > oldShapeLevel) {
-                    ship.changeShape(newShapeLevel);
-                    infoMessage = "SHIP SHAPE EVOLVED!";
-                    infoMessageTimeout = 120;
-                }
-
-                // --- Automatic Upgrade Logic (Based on Money) ---
-                let upgradedInLoop = true;
-                while (upgradedInLoop) {
-                    upgradedInLoop = false;
-                    let cost1 = ship.getUpgradeCost('fireRate');
-                    let cost2 = ship.getUpgradeCost('spreadShot');
-                    let cost3 = ship.getUpgradeCost('autoFire');
-                    let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity;
-                    let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity;
-                    let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity;
-                    let cheapestCost = Math.min(numCost1, numCost2, numCost3);
-
-                    if (cheapestCost === Infinity || money < cheapestCost) break;
-
-                    if (numCost1 <= numCost2 && numCost1 <= numCost3) {
-                         if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true;
-                    } else if (numCost2 <= numCost1 && numCost2 <= numCost3) {
-                         if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true;
-                    } else {
-                         if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true;
-                    }
-                     if (!upgradedInLoop) break;
-                } // --- End Auto Upgrade Loop ---
-
-                // --- Process Asteroid Destruction ---
-                let currentAsteroid = asteroids[i];
-                let asteroidPos = currentAsteroid.pos.copy();
-                let asteroidColor = currentAsteroid.color;
-                asteroids.splice(i, 1);
-                bullets.splice(j, 1);
-                asteroidHitByBullet = true;
-                createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
-                if (asteroidSizeValue > minAsteroidSize * 2) {
-                    let newSize = asteroidSizeValue * 0.6;
-                    let splitSpeedMultiplier = random(0.8, 2.0);
-                    let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier);
-                    let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier);
-                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
-                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
-                }
-                break; // Exit bullet loop
-            }
+        // Only update asteroids if game is playing
+        if (gameState === GAME_STATE.PLAYING) {
+            asteroids[i].update();
         }
+        asteroids[i].draw(); // Always draw asteroids
+
+        // --- Bullet vs Asteroid (Only check if playing) ---
+        let asteroidHitByBullet = false;
+        if (gameState === GAME_STATE.PLAYING) {
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
+                    let oldPoints = points;
+                    let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
+
+                    points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15));
+                    money += 2;
+
+                    let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD);
+                    if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
+                        let actualAdded = ship.gainShields(shieldsToAdd);
+                        if (actualAdded > 0) {
+                             infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`;
+                             infoMessageTimeout = 90;
+                        }
+                    }
+
+                    let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD);
+                    let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
+                    if (newShapeLevel > oldShapeLevel) {
+                        ship.changeShape(newShapeLevel);
+                        infoMessage = "SHIP SHAPE EVOLVED!";
+                        infoMessageTimeout = 120;
+                    }
+
+                    let upgradedInLoop = true;
+                    while (upgradedInLoop) {
+                        upgradedInLoop = false;
+                        let cost1 = ship.getUpgradeCost('fireRate');
+                        let cost2 = ship.getUpgradeCost('spreadShot');
+                        let cost3 = ship.getUpgradeCost('autoFire');
+                        let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity;
+                        let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity;
+                        let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity;
+                        let cheapestCost = Math.min(numCost1, numCost2, numCost3);
+
+                        if (cheapestCost === Infinity || money < cheapestCost) break;
+
+                        if (numCost1 <= numCost2 && numCost1 <= numCost3) {
+                             if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true;
+                        } else if (numCost2 <= numCost1 && numCost2 <= numCost3) {
+                             if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true;
+                        } else {
+                             if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true;
+                        }
+                         if (!upgradedInLoop) break;
+                    }
+
+                    let currentAsteroid = asteroids[i];
+                    let asteroidPos = currentAsteroid.pos.copy();
+                    let asteroidColor = currentAsteroid.color;
+                    asteroids.splice(i, 1);
+                    bullets.splice(j, 1);
+                    asteroidHitByBullet = true;
+                    createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
+                    if (asteroidSizeValue > minAsteroidSize * 2) {
+                        let newSize = asteroidSizeValue * 0.6;
+                        let splitSpeedMultiplier = random(0.8, 2.0);
+                        let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier);
+                        let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier);
+                        asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
+                        asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
+                    }
+                    break;
+                }
+            }
+        } // End bullet collision check block
 
         if (asteroidHitByBullet) continue;
 
-        // --- Ship vs Asteroid ---
-        if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
+        // --- Ship vs Asteroid (Only check if playing) ---
+        if (gameState === GAME_STATE.PLAYING && ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
             if (ship.shieldCharges > 0) {
                 ship.loseShield();
                 createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100));
@@ -380,10 +320,11 @@ function handleAsteroidsAndCollisions() {
                 lives--;
                 createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100));
                 if (lives <= 0) {
-                    saveToLeaderboard(playerName, points);
+                    // --- MODIFIED: Just set GAME_OVER state ---
                     gameState = GAME_STATE.GAME_OVER;
-                    infoMessage = "";
+                    infoMessage = ""; // Clear any active message
                     infoMessageTimeout = 0;
+                    cursor(ARROW); // Show cursor
                 } else {
                     ship.setInvulnerable();
                     createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
@@ -394,12 +335,15 @@ function handleAsteroidsAndCollisions() {
     }
 }
 
-// Handle Potions
+// Handle Potions (Only check collision if playing)
 function handlePotions() {
     for (let i = potions.length - 1; i >= 0; i--) {
-        potions[i].update();
-        potions[i].draw();
-        if (potions[i].hitsShip(ship)) {
+        if (gameState === GAME_STATE.PLAYING) {
+            potions[i].update();
+        }
+        potions[i].draw(); // Always draw
+
+        if (gameState === GAME_STATE.PLAYING && potions[i].hitsShip(ship)) {
             if (lives < MAX_LIVES) {
                 lives++;
                 infoMessage = "+1 LIFE!";
@@ -442,8 +386,6 @@ function drawBackgroundAndStars() {
 function displayHUD() {
   let hudTextSize = 18;
   textSize(hudTextSize);
-
-  // Left Aligned Info
   fill(0, 0, 100, 80);
   noStroke();
   textAlign(LEFT, TOP);
@@ -451,8 +393,6 @@ function displayHUD() {
   text(`Money: $${money}`, 15, 40);
   text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65);
   text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90);
-
-  // Right Aligned Upgrade Info
   textAlign(RIGHT, TOP);
   fill(0, 0, 100, 80);
   text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15);
@@ -460,8 +400,6 @@ function displayHUD() {
   text(`Auto-Fire: ${ship.autoFireLevel > 0 ? 'ON' : 'OFF'}`, width - 15, 65);
 }
 
-
-// Displays temporary info messages
 function displayInfoMessage() {
     fill(0, 0, 100);
     textSize(16);
@@ -469,6 +407,7 @@ function displayInfoMessage() {
     text(infoMessage, width / 2, height - 20);
 }
 
+// MODIFIED: Simplified Game Over screen
 function displayGameOver() {
     // Dim background
     fill(0, 0, 0, 50);
@@ -478,81 +417,26 @@ function displayGameOver() {
     fill(0, 90, 100);
     textSize(60);
     textAlign(CENTER, CENTER);
-    text("GAME OVER", width / 2, height / 4);
+    text("GAME OVER", width / 2, height / 3); // Adjusted position
 
     // Final Points
     fill(0, 0, 100);
     textSize(30);
-    text("Final Points: " + points, width / 2, height / 4 + 60);
+    text("Final Points: " + points, width / 2, height / 3 + 60);
 
-    // Leaderboard Display
-    textSize(20);
-    text("Leaderboard", width / 2, height / 2 - 40);
-    let leaderboard = getLeaderboard();
-    textAlign(LEFT, TOP);
-    let leaderboardY = height / 2 - 10;
-    let rankX = width / 2 - 150;
-    let nameX = width / 2 - 100;
-    let scoreX = width / 2 + 100;
-    fill(0, 0, 85);
-    textSize(16);
-    if (leaderboard.length === 0) {
-        textAlign(CENTER, CENTER);
-        text("No scores yet!", width / 2, leaderboardY + 20);
-    } else {
-        for (let i = 0; i < leaderboard.length; i++) {
-            let entry = leaderboard[i];
-            textAlign(RIGHT, TOP);
-            text(`${i + 1}.`, rankX, leaderboardY + i * 25);
-            textAlign(LEFT, TOP);
-            text(entry.name, nameX, leaderboardY + i * 25);
-            textAlign(RIGHT, TOP);
-            text(entry.score, scoreX, leaderboardY + i * 25);
-        }
-    }
+    // REMOVED: Leaderboard display and name input logic
 
     // Restart Prompt
     textAlign(CENTER, CENTER);
     textSize(22);
     let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100);
     fill(0, 0, pulse);
-    text("Click or Tap to Restart", width / 2, height * 0.85);
+    text("Click or Tap to Restart", width / 2, height * 0.7); // Adjusted position
 
-    cursor(ARROW);
+    cursor(ARROW); // Show cursor
 }
 
-// Starts the game after name input
-function startGame() {
-    playerName = nameInput.value();
-    if (playerName.trim() === "") {
-        playerName = "Anon";
-    }
-    nameInput.hide();
-    startButton.hide(); // NEW: Hide start button
-
-    // Initialize game variables
-    ship = new Ship();
-    bullets = [];
-    particles = [];
-    asteroids = [];
-    potions = [];
-    points = 0;
-    money = 0;
-    lives = 3;
-    currentAsteroidSpawnRate = isMobile ? 0.007 : 0.01;
-    isGameOver = false;
-    spawnInitialAsteroids();
-    createStarfield(200);
-    currentTopColor = color(260, 80, 10);
-    currentBottomColor = color(240, 70, 25);
-    frameCount = 0;
-    infoMessage = "";
-    infoMessageTimeout = 0;
-
-    gameState = GAME_STATE.PLAYING;
-}
-
-// Resets game state for restarting (goes directly to PLAYING)
+// MODIFIED: Resets game state for restarting (goes directly to PLAYING)
 function resetGame() {
     ship = new Ship();
     bullets = [];
@@ -563,14 +447,16 @@ function resetGame() {
     money = 0;
     lives = 3;
     currentAsteroidSpawnRate = isMobile ? 0.007 : 0.01;
-    isGameOver = false;
+    isGameOver = false; // Not really used now state handles it
+    // scoreSubmitted = false; // Removed
     spawnInitialAsteroids();
-    createStarfield(200);
+    // createStarfield(200); // Stars persist
     currentTopColor = color(260, 80, 10);
     currentBottomColor = color(240, 70, 25);
     frameCount = 0;
     infoMessage = "";
     infoMessageTimeout = 0;
+    cursor(); // Use default cursor (no longer need ARROW always)
 
     gameState = GAME_STATE.PLAYING;
 }
@@ -581,40 +467,30 @@ function resetGame() {
 // ==================
 function mousePressed() {
   if (gameState === GAME_STATE.GAME_OVER) {
-     resetGame();
+     resetGame(); // Click anywhere on game over to restart
   } else if (gameState === GAME_STATE.PLAYING) {
     ship.shoot();
   }
-  // Clicks in NAME_INPUT state are handled by the button's .mousePressed()
 }
 
 function keyPressed() {
-    if (gameState === GAME_STATE.NAME_INPUT) {
-        if (keyCode === ENTER || keyCode === RETURN) {
-            startGame(); // Start game on Enter
-        }
-    } else if (gameState === GAME_STATE.PLAYING) {
+    if (gameState === GAME_STATE.PLAYING) {
         if (keyCode === 32) { // SPACEBAR for shooting
             ship.shoot();
-            return false; // Prevent default spacebar action
+            return false;
         }
     } else if (gameState === GAME_STATE.GAME_OVER) {
-        if (keyCode === ENTER || keyCode === RETURN || keyCode === 32) {
-             resetGame(); // Restart on Enter/Space from Game Over
-        }
+         // Any key press restarts on game over
+         resetGame();
     }
 }
 
 function touchStarted() {
     if (gameState === GAME_STATE.GAME_OVER) {
-        resetGame();
+        resetGame(); // Tap anywhere on game over to restart
         return false;
     } else if (gameState === GAME_STATE.PLAYING) {
         ship.shoot(); // Tap shoots in game
-        return false;
-    } else if (gameState === GAME_STATE.NAME_INPUT) {
-        // Touch on the button is handled by button.mousePressed(startGame)
-        // Tapping elsewhere does nothing here
         return false;
     }
 }
@@ -623,14 +499,9 @@ function touchStarted() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   createStarfield(200);
-  // Reposition UI elements on resize
-  if (gameState === GAME_STATE.NAME_INPUT && nameInput && startButton) {
-      nameInput.position(width / 2 - 100, height / 2 - 10);
-      startButton.position(width / 2 - 50, height / 2 + 30); // NEW: Reposition button
-  }
+  // REMOVED: Positioning logic for removed input/button
   if (ship) {
-      // Ship position constraint handles resize ok, reset only if needed
-      // ship.resetPosition();
+      // ship.resetPosition(); // Optionally reset ship pos on resize
   }
 }
 
@@ -744,7 +615,7 @@ class Ship {
       }
 
       if (currentLevel < maxLevelForType && money >= cost) {
-          money -= cost;
+          money -= cost; // Deduct MONEY
           if (upgradeType === 'fireRate') this.fireRateLevel++;
           else if (upgradeType === 'spreadShot') this.spreadShotLevel++;
           else if (upgradeType === 'autoFire') this.autoFireLevel++;
