@@ -3,14 +3,14 @@
 // - Name Input on Game Over Screen & Persistent Leaderboard (localStorage)
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Automatic Cheapest, includes Auto-Fire) - Uses Money
-// - Score-based Shield System (Gain shield charge every 50 points, max 1) // MODIFIED
-// - Redesigned Spaceship Look (Score-based color/shape, added details) - Uses Points
+// - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
+// - Redesigned Spaceship Look (Score-based color/shape, added details, thinner) // MODIFIED
 // - Dynamic Parallax Star Background (with occasional planet)
 // - Enhanced Engine Thrust Effect (More reactive)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
-// - Simple Explosion Particles
-// - Score-based Difficulty Increase - Uses Levels
+// - Simple Explosion Particles (Asteroid destruction + Bullet impact) // MODIFIED
+// - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // --- Modifications ---
 // - Implemented separate Points (leaderboard/milestones) and Money (upgrades) systems.
@@ -24,8 +24,9 @@
 // - Added brief invulnerability after losing a life.
 // - Added Touch Controls: Tap to shoot and move towards tap.
 // - Mobile Adjustments: Lower base asteroid spawn rate.
-// - Max shield charges reduced to 1. // NEW
-// - Asteroids visuals enhanced (shading, craters, rotation). // NEW
+// - Max shield charges reduced to 1.
+// - Asteroids visuals enhanced (shading, craters, rotation).
+// - Added occasional background planet.
 // --------------------------
 
 // --- Game Objects & State ---
@@ -55,7 +56,7 @@ let potionSpawnRate = 0.001;
 let initialAsteroids = 5;
 let minAsteroidSize = 15;
 const SHIELD_POINTS_THRESHOLD = 50;
-const MAX_SHIELD_CHARGES = 1; // MODIFIED: Max shields set to 1
+const MAX_SHIELD_CHARGES = 1;
 const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const LEADERBOARD_SIZE = 10;
 const LEADERBOARD_KEY = "asteroidGameLeaderboard_v1";
@@ -95,15 +96,11 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
 
-  // Mobile Detection & Spawn Rate Adjustment
+  // Mobile Detection
   let ua = navigator.userAgent;
   if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
     isMobile = true;
-    // baseAsteroidSpawnRate will be set in resetGame based on level
-  } else {
-    // baseAsteroidSpawnRate will be set in resetGame based on level
   }
-  // currentAsteroidSpawnRate will be set in resetGame
 
   // Initialize background elements
   createStarfield(200);
@@ -125,7 +122,7 @@ function setup() {
   submitButton.hide();
 
   // Start the game immediately
-  resetGame(); // Initialize ship, level, spawn rate etc.
+  resetGame();
   gameState = GAME_STATE.PLAYING;
 }
 
@@ -145,7 +142,7 @@ function spawnInitialAsteroids() {
     }
 }
 
-function createParticles(x, y, count, particleColor) {
+function createParticles(x, y, count, particleColor, particleSize = null, particleSpeedMult = 1) {
     let baseHue = hue(particleColor);
     let baseSat = saturation(particleColor);
     let baseBri = brightness(particleColor);
@@ -156,9 +153,11 @@ function createParticles(x, y, count, particleColor) {
             baseBri * random(0.9, 1.0),
             100
         );
-        particles.push(new Particle(x, y, pColor));
+        // Pass size and speed multiplier to particle constructor
+        particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult));
     }
 }
+
 
 function createStarfield(numStars) {
     stars = [];
@@ -199,8 +198,9 @@ function submitScore() {
 // --- Function to set difficulty based on level ---
 function setDifficultyForLevel(level) {
     let mobileFactor = isMobile ? 0.7 : 1.0;
-    baseAsteroidSpawnRate = (0.01 + (level - 1) * 0.0015) * mobileFactor;
-    currentAsteroidSpawnRate = baseAsteroidSpawnRate;
+    // Base rate increases more slowly now, time adds pressure
+    baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.001) * mobileFactor;
+    // currentAsteroidSpawnRate is calculated in draw() using base + time factor
 }
 
 
@@ -222,11 +222,11 @@ function draw() {
       if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height));
       let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.4));
       let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70));
-      lastPlanetAppearanceTime = currentTime; // Reset timer immediately when it appears
+      lastPlanetAppearanceTime = currentTime;
   }
   if (planetVisible) {
       planetPos.add(planetVel); let buffer = planetSize * 0.6;
-      if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; /* Don't reset timer here, wait for interval */ }
+      if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; }
   }
 
   drawBackgroundAndStars(); // Draw background, planet, stars
@@ -251,6 +251,12 @@ function runGameLogic() {
 
   // Spawn New Asteroids & Potions only when playing
   if (gameState === GAME_STATE.PLAYING) {
+      // --- MODIFIED: Time-based difficulty increase ---
+      // Increase spawn rate based on level (set via setDifficultyForLevel) AND elapsed time
+      let timeFactor = floor(frameCount / 1800) * 0.0005; // Small increase every 30s (at 60fps)
+      currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
+      // --- End Time Difficulty ---
+
       if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) { asteroids.push(new Asteroid()); }
       if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); }
   }
@@ -272,16 +278,19 @@ function handleAsteroidsAndCollisions() {
         if (gameState === GAME_STATE.PLAYING) {
             for (let j = bullets.length - 1; j >= 0; j--) {
                 if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
+                    // --- NEW: Bullet Impact Effect ---
+                    createParticles(bullets[j].pos.x, bullets[j].pos.y, 3, color(60, 60, 100), 2, 0.5); // Small, fast yellow/white sparks
+
                     let oldPoints = points;
                     let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
                     points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15));
                     money += 2;
 
-                    // Shield Gain Logic (Based on Points) - Uses MAX_SHIELD_CHARGES (now 1)
+                    // Shield Gain Logic
                     let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD);
                     if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
 
-                    // Shape Change Logic (Based on Points)
+                    // Shape Change Logic
                     let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD);
                     let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
                     if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
@@ -289,7 +298,7 @@ function handleAsteroidsAndCollisions() {
                     // Level Up Check
                     if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `REACHED LEVEL ${currentLevel}!`; infoMessageTimeout = 150; }
 
-                    // Automatic Upgrade Logic (Based on Money)
+                    // Automatic Upgrade Logic
                     let upgradedInLoop = true;
                     while (upgradedInLoop) {
                         upgradedInLoop = false;
@@ -306,6 +315,7 @@ function handleAsteroidsAndCollisions() {
                     // Process Asteroid Destruction
                     let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color;
                     asteroids.splice(i, 1); bullets.splice(j, 1); asteroidHitByBullet = true;
+                    // Regular asteroid explosion particles
                     createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
                     if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
                     break;
@@ -353,7 +363,6 @@ function drawPlanet() {
 // ==================
 // Display Functions
 // ==================
-// MODIFIED: Shows max shields correctly (now 1)
 function displayHUD() {
   let hudTextSize = 18;
   textSize(hudTextSize);
@@ -363,9 +372,8 @@ function displayHUD() {
   text("Points: " + points, 15, 15);
   text(`Money: $${money}`, 15, 40);
   text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65);
-  text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90); // Uses updated MAX_SHIELD_CHARGES
+  text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90);
   text(`Level: ${currentLevel}`, 15, 115);
-
   textAlign(RIGHT, TOP);
   fill(0, 0, 100, 80);
   text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15);
@@ -384,13 +392,13 @@ function displayGameOver() {
     cursor(ARROW);
 }
 
-// MODIFIED: Resets level and sets initial difficulty
+// Resets game state for restarting
 function resetGame() {
     ship = new Ship();
     bullets = []; particles = []; asteroids = []; potions = [];
     points = 0; money = 0; lives = 3;
-    currentLevel = 1; // Reset level
-    setDifficultyForLevel(currentLevel); // Set initial difficulty
+    currentLevel = 1;
+    setDifficultyForLevel(currentLevel);
     isGameOver = false;
     scoreSubmitted = false;
     spawnInitialAsteroids();
@@ -412,10 +420,18 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 
 // ==================
 // Ship Class
+// MODIFIED: Thinner shape
 // ==================
 class Ship {
-  constructor() { this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0); this.thrust = 0.3; this.touchThrustMultiplier = 1.1; this.friction = 0.98; this.maxSpeed = 7; this.size = 30; this.cockpitColor = color(180, 100, 100); this.engineColor1 = color(30, 100, 100); this.engineColor2 = color(0, 100, 100); this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60); this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.1; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0; this.autoFireLevel = 0; this.maxAutoFireLevel = 1; this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.autoFireCost = 50; }
-  gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; } // Uses MAX_SHIELD_CHARGES (now 1)
+  constructor() {
+    this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0); this.thrust = 0.3; this.touchThrustMultiplier = 1.1; this.friction = 0.98; this.maxSpeed = 7;
+    this.size = 30; // Base size reference
+    this.cockpitColor = color(180, 100, 100); this.engineColor1 = color(30, 100, 100); this.engineColor2 = color(0, 100, 100); this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60); this.shapeState = 0;
+    this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2;
+    this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.1; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120;
+    this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0; this.autoFireLevel = 0; this.maxAutoFireLevel = 1; this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.autoFireCost = 50;
+  }
+  gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
   loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
   setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
   changeShape(level) { this.shapeState = (level % 2); }
@@ -426,7 +442,53 @@ class Ship {
   resetPosition() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 0; this.shapeState = 0; }
   update() { if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.autoFireLevel > 0 && keyIsDown(32)) { this.shoot(); } let isTouching = touches.length > 0; if (isTouching) { let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos); if (direction.magSq() > 1) { direction.normalize(); this.vel.add(direction.mult(this.thrust * this.touchThrustMultiplier)); } } else { let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { this.vel.y -= this.thrust; } if (movingDown) { this.vel.y += this.thrust; } if (movingLeft) { this.vel.x -= this.thrust; } if (movingRight) { this.vel.x += this.thrust; } } this.vel.mult(this.friction); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin); if (this.shootCooldown > 0) { this.shootCooldown--; } }
   shoot() { if (this.shootCooldown <= 0) { let bulletX = this.pos.x; let bulletY = this.pos.y - this.size * 0.6; let numShots = 1; let spreadAngle = 0; if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { numShots = 3; spreadAngle = PI / 20; } else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { numShots = 3; spreadAngle = PI / 15; } else if (this.spreadShotLevel >= this.maxLevel) { numShots = 5; spreadAngle = PI / 12; } for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } bullets.push(new Bullet(bulletX, bulletY, angle)); } this.shootCooldown = this.currentShootDelay; } }
-  draw() { if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) { push(); translate(this.pos.x, this.pos.y); if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.15), -1, 1, 40, 80); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2); strokeWeight(1.5); stroke(shieldHue, 90, 100, shieldAlpha + 30); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2); } let enginePulseFactor = 1.0 + this.vel.mag() * 0.3; let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor; let engineSize = this.size * 0.5 * enginePulse; let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100); noStroke(); for (let i = engineSize * 1.5; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.5, 0, 30); fill(hue(this.engineColor2), 100, engineBrightness, alpha); ellipse(0, this.size * 0.5, i, i * 1.5); } fill(hue(this.engineColor1), 100, 100); ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2); stroke(0, 0, 80); strokeWeight(1.5); let pointsHue = (200 + points * 0.2) % 360; fill(pointsHue, 80, 95); beginShape(); if (this.shapeState === 0) { vertex(0, -this.size * 0.7); bezierVertex( this.size * 0.6, -this.size * 0.3, this.size * 0.7,  this.size * 0.0, this.size * 0.8,  this.size * 0.4); bezierVertex( this.size * 0.4,  this.size * 0.6, -this.size * 0.4,  this.size * 0.6, -this.size * 0.8,  this.size * 0.4); bezierVertex(-this.size * 0.7,  this.size * 0.0, -this.size * 0.6, -this.size * 0.3, 0, -this.size * 0.7); } else { let s = this.size * 1.1; vertex(0, -s * 0.8); bezierVertex( s * 0.7, -s * 0.2, s * 0.8,  s * 0.1, s * 0.9,  s * 0.5); bezierVertex( s * 0.5,  s * 0.7, -s * 0.5,  s * 0.7, -s * 0.9,  s * 0.5); bezierVertex(-s * 0.8,  s * 0.1, -s * 0.7, -s * 0.2, 0, -s * 0.8); } endShape(CLOSE); strokeWeight(1); stroke(this.detailColor); if (this.shapeState === 0) { line(-this.size * 0.4, -this.size * 0.1, -this.size * 0.6, this.size * 0.3); line( this.size * 0.4, -this.size * 0.1,  this.size * 0.6, this.size * 0.3); } else { let s = this.size * 1.1; line(-s * 0.5, -s * 0.05, -s * 0.7, s * 0.4); line( s * 0.5, -s * 0.05,  s * 0.7, s * 0.4); line(0, -s*0.4, 0, s*0.1); } let finYOffset = this.shapeState === 0 ? this.size * 0.3 : this.size * 1.1 * 0.35; let finXOffset = this.shapeState === 0 ? this.size * 0.5 : this.size * 1.1 * 0.6; let finTipX = this.shapeState === 0 ? this.size * 0.9 : this.size * 1.1 * 1.0; let finRearX = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7; let finRearY = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7; fill(this.finColor); stroke(0, 0, 60); strokeWeight(1); triangle( finXOffset, finYOffset, finTipX, finYOffset + this.size*0.1, finRearX, finRearY); triangle(-finXOffset, finYOffset, -finTipX, finYOffset + this.size*0.1, -finRearX, finRearY); fill(this.cockpitColor); noStroke(); ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5); fill(0, 0, 100, 50); ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25); pop(); } }
+
+  // MODIFIED: Draw thinner ship shape
+  draw() {
+    if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) {
+        push();
+        translate(this.pos.x, this.pos.y);
+        // Draw Shield Visual
+        if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.15), -1, 1, 40, 80); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2); strokeWeight(1.5); stroke(shieldHue, 90, 100, shieldAlpha + 30); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2); }
+        // Draw Engine Glow
+        let enginePulseFactor = 1.0 + this.vel.mag() * 0.3; let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor; let engineSize = this.size * 0.5 * enginePulse; let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100); noStroke(); for (let i = engineSize * 1.5; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.5, 0, 30); fill(hue(this.engineColor2), 100, engineBrightness, alpha); ellipse(0, this.size * 0.5, i, i * 1.5); } fill(hue(this.engineColor1), 100, 100); ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2);
+        // Draw Ship Body
+        stroke(0, 0, 80); strokeWeight(1.5); let pointsHue = (200 + points * 0.2) % 360; fill(pointsHue, 80, 95);
+        // --- Shape State Logic (with Thinner Profile) ---
+        let bodyWidthFactor = 0.6; // Factor to make ship thinner (original was closer to 0.8)
+        beginShape();
+        if (this.shapeState === 0) { // Base Shape (Thinner)
+            vertex(0, -this.size * 0.7);
+            bezierVertex( this.size * bodyWidthFactor * 0.8, -this.size * 0.3, this.size * bodyWidthFactor * 0.9,  this.size * 0.0, this.size * bodyWidthFactor * 1.0,  this.size * 0.4); // Right wing
+            bezierVertex( this.size * bodyWidthFactor * 0.5,  this.size * 0.6, -this.size * bodyWidthFactor * 0.5,  this.size * 0.6, -this.size * bodyWidthFactor * 1.0,  this.size * 0.4); // Bottom
+            bezierVertex(-this.size * bodyWidthFactor * 0.9,  this.size * 0.0, -this.size * bodyWidthFactor * 0.8, -this.size * 0.3, 0, -this.size * 0.7); // Left wing
+        } else { // Evolved Shape (State 1 - Thinner)
+            let s = this.size * 1.1; // Base size for evolved shape
+            let evolvedWidthFactor = bodyWidthFactor * 1.1; // Slightly wider than base, but still thinner than original
+            vertex(0, -s * 0.8); // Sharper nose
+            bezierVertex( s * evolvedWidthFactor * 0.8, -s * 0.2, s * evolvedWidthFactor * 0.9,  s * 0.1, s * evolvedWidthFactor * 1.0,  s * 0.5); // Right wing
+            bezierVertex( s * evolvedWidthFactor * 0.5,  s * 0.7, -s * evolvedWidthFactor * 0.5,  s * 0.7, -s * evolvedWidthFactor * 1.0,  s * 0.5); // Bottom
+            bezierVertex(-s * evolvedWidthFactor * 0.9,  s * 0.1, -s * evolvedWidthFactor * 0.8, -s * 0.2, 0, -s * 0.8); // Left wing
+        }
+        endShape(CLOSE);
+        // Draw Details (Adjusted for thinner shape)
+        strokeWeight(1); stroke(this.detailColor);
+        if (this.shapeState === 0) { line(-this.size * bodyWidthFactor * 0.5, -this.size * 0.1, -this.size * bodyWidthFactor * 0.75, this.size * 0.3); line( this.size * bodyWidthFactor * 0.5, -this.size * 0.1,  this.size * bodyWidthFactor * 0.75, this.size * 0.3); }
+        else { let s = this.size * 1.1; let ewf = bodyWidthFactor * 1.1; line(-s * ewf * 0.6, -s * 0.05, -s * ewf * 0.8, s * 0.4); line( s * ewf * 0.6, -s * 0.05,  s * ewf * 0.8, s * 0.4); line(0, -s*0.4, 0, s*0.1); }
+        // Draw Fins (Adjusted for thinner shape)
+        let finYOffset = this.shapeState === 0 ? this.size * 0.3 : this.size * 1.1 * 0.35;
+        let finXBase = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.6 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.7;
+        let finTipX = this.shapeState === 0 ? this.size * bodyWidthFactor * 1.1 : this.size * 1.1 * bodyWidthFactor * 1.1 * 1.1;
+        let finRearX = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.75 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.8;
+        let finRearY = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7;
+        fill(this.finColor); stroke(0, 0, 60); strokeWeight(1);
+        triangle( finXBase, finYOffset, finTipX, finYOffset + this.size*0.1, finRearX, finRearY);
+        triangle(-finXBase, finYOffset, -finTipX, finYOffset + this.size*0.1, -finRearX, finRearY);
+        // Draw Cockpit
+        fill(this.cockpitColor); noStroke(); ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5); fill(0, 0, 100, 50); ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25);
+        pop();
+     }
+  }
 }
 
 // ==================
@@ -455,74 +517,36 @@ class Asteroid {
     this.color = color(random(20, 50), random(30, 70), random(30, 60));
     this.rotation = random(TWO_PI);
     this.rotationSpeed = random(-0.025, 0.025);
-    this.rotationAccel = 0.0001; // For uneven rotation
+    this.rotationAccel = 0.0001;
     this.vertices = [];
     let numVertices = floor(random(8, 16));
     for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.4, this.size * 0.3); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); }
-    // NEW: Crater data
     this.craters = [];
     let numCraters = floor(random(2, 6));
-    for (let i = 0; i < numCraters; i++) {
-        let angle = random(TWO_PI);
-        let radius = random(this.size * 0.1, this.size * 0.35); // Relative distance from center
-        let craterSize = random(this.size * 0.1, this.size * 0.25);
-        let craterPos = p5.Vector.fromAngle(angle).mult(radius);
-        this.craters.push({ pos: craterPos, size: craterSize });
-    }
+    for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.35); let craterSize = random(this.size * 0.1, this.size * 0.25); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); }
   }
 
-  // MODIFIED: Add uneven rotation
   update() {
     this.pos.add(this.vel);
-    // Add slight random change to rotation speed
     this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel);
-    this.rotationSpeed = constrain(this.rotationSpeed, -0.05, 0.05); // Limit speed
+    this.rotationSpeed = constrain(this.rotationSpeed, -0.05, 0.05);
     this.rotation += this.rotationSpeed;
-
     let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer;
   }
 
-  // MODIFIED: Draw with shading, highlight, and craters
   draw() {
     push();
     translate(this.pos.x, this.pos.y);
     rotate(this.rotation);
-
-    let mainBri = brightness(this.color);
-    let mainSat = saturation(this.color);
-    let mainHue = hue(this.color);
-
-    // --- Highlight ---
-    let highlightColor = color(mainHue, mainSat * 0.8, mainBri * 1.2); // Lighter, less saturated
-    fill(highlightColor);
-    noStroke(); // No stroke for highlight/shadow layers
-    beginShape();
-    for (let v of this.vertices) { vertex(v.x - 1, v.y - 1); } // Offset up-left
-    endShape(CLOSE);
-
-    // --- Shadow ---
-    let shadowColor = color(mainHue, mainSat * 1.1, mainBri * 0.7); // Darker, more saturated
-    fill(shadowColor);
-    noStroke();
-    beginShape();
-    for (let v of this.vertices) { vertex(v.x + 1, v.y + 1); } // Offset down-right
-    endShape(CLOSE);
-
-    // --- Main Shape ---
-    fill(this.color);
-    stroke(mainHue, mainSat * 0.5, mainBri * random(1.3, 1.7)); // Rough outline
-    strokeWeight(1.5); // Slightly thinner outline?
-    beginShape();
-    for (let v of this.vertices) { vertex(v.x, v.y); }
-    endShape(CLOSE);
-
-    // --- Craters ---
-    noStroke();
-    fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color) * 0.5, 80); // Darker, semi-transparent fill
-    for (let crater of this.craters) {
-        ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.8, 1.2)); // Slightly irregular crater shape
-    }
-
+    let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color);
+    // Highlight
+    let highlightColor = color(mainHue, mainSat * 0.8, mainBri * 1.2); fill(highlightColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x - 1, v.y - 1); } endShape(CLOSE);
+    // Shadow
+    let shadowColor = color(mainHue, mainSat * 1.1, mainBri * 0.7); fill(shadowColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x + 1, v.y + 1); } endShape(CLOSE);
+    // Main Shape
+    fill(this.color); stroke(mainHue, mainSat * 0.5, mainBri * random(1.3, 1.7)); strokeWeight(1.5); beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE);
+    // Craters
+    noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color) * 0.5, 80); for (let crater of this.craters) { ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.8, 1.2)); }
     pop();
   }
 
@@ -532,9 +556,19 @@ class Asteroid {
 
 // ==================
 // Particle Class
+// MODIFIED: Added size and speed multiplier options
 // ==================
 class Particle {
-  constructor(x, y, particleColor) { this.pos = createVector(x, y); this.vel = p5.Vector.random2D(); this.vel.mult(random(1.5, 5)); this.lifespan = 100; this.baseHue = hue(particleColor); this.baseSat = saturation(particleColor); this.baseBri = brightness(particleColor); this.size = random(2, 6); }
+  constructor(x, y, particleColor, size = null, speedMult = 1) {
+    this.pos = createVector(x, y);
+    this.vel = p5.Vector.random2D();
+    this.vel.mult(random(1.5, 5) * speedMult); // Apply speed multiplier
+    this.lifespan = 100;
+    this.baseHue = hue(particleColor);
+    this.baseSat = saturation(particleColor);
+    this.baseBri = brightness(particleColor);
+    this.size = size !== null ? size : random(2, 6); // Use provided size or random
+  }
   update() { this.pos.add(this.vel); this.lifespan -= 3; this.vel.mult(0.97); }
   draw() { noStroke(); fill(this.baseHue, this.baseSat, this.baseBri, this.lifespan); ellipse(this.pos.x, this.pos.y, this.size); }
   isDead() { return this.lifespan <= 0; }
