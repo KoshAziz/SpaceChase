@@ -2,9 +2,9 @@
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Fire Rate, Spread Shot) via Keyboard ('1', '2')
 // - Score-based Shield System (Gain shield charge every 50 points, max 10)
-// - Redesigned Spaceship Look (Score-based color/shape, added details) // MODIFIED
+// - Redesigned Spaceship Look (Score-based color/shape, added details)
 // - Dynamic Parallax Star Background
-// - Enhanced Engine Thrust Effect (More reactive) // MODIFIED
+// - Enhanced Engine Thrust Effect (More reactive)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
 // - Simple Explosion Particles
@@ -21,6 +21,7 @@
 // - Ship no longer resets position on non-fatal hit.
 // - Added brief invulnerability after losing a life.
 // - Added Touch Controls: Tap to shoot and move towards tap.
+// - Mobile Adjustments: Lower asteroid spawn rate, tap HUD text to upgrade. // NEW
 // --------------------------
 
 let ship;
@@ -31,8 +32,8 @@ let stars = [];
 let potions = [];
 
 let score = 0;
-let baseAsteroidSpawnRate = 0.01;
-let currentAsteroidSpawnRate = baseAsteroidSpawnRate;
+let baseAsteroidSpawnRate = 0.01; // Default for desktop
+let currentAsteroidSpawnRate; // Will be initialized in setup
 let potionSpawnRate = 0.001;
 let isGameOver = false;
 let lives = 3;
@@ -41,7 +42,7 @@ let initialAsteroids = 5;
 let minAsteroidSize = 15;
 const SHIELD_SCORE_THRESHOLD = 50;
 const MAX_SHIELD_CHARGES = 10;
-const SHAPE_CHANGE_THRESHOLD = 100; // NEW: Score needed to change shape
+const SHAPE_CHANGE_THRESHOLD = 100;
 
 // --- Info Message System Variables ---
 let infoMessage = "";
@@ -52,6 +53,11 @@ let currentTopColor;
 let currentBottomColor;
 const BACKGROUND_CHANGE_INTERVAL = 600;
 
+// --- NEW: Mobile Detection & Controls ---
+let isMobile = false;
+let upgradeArea1 = null; // Bounding box for fire rate upgrade text
+let upgradeArea2 = null; // Bounding box for spread shot upgrade text
+
 
 // ==================
 // p5.js Setup Function
@@ -59,6 +65,19 @@ const BACKGROUND_CHANGE_INTERVAL = 600;
 function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
+
+  // --- NEW: Mobile Detection ---
+  let ua = navigator.userAgent;
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+    isMobile = true;
+    // Adjust base spawn rate for mobile
+    baseAsteroidSpawnRate = 0.007; // Lower rate for mobile
+    // Consider adjusting other factors for mobile if needed (e.g., speeds)
+  } else {
+    baseAsteroidSpawnRate = 0.01; // Default rate for desktop
+  }
+  currentAsteroidSpawnRate = baseAsteroidSpawnRate; // Initialize current rate
+
   ship = new Ship();
   spawnInitialAsteroids();
   createStarfield(200);
@@ -156,6 +175,7 @@ function draw() {
   handlePotions();
 
   // Spawn New Asteroids
+  // Note: Base rate is already adjusted for mobile in setup()
   currentAsteroidSpawnRate = baseAsteroidSpawnRate + (score * 0.0001);
   if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) {
     asteroids.push(new Asteroid());
@@ -166,7 +186,7 @@ function draw() {
       potions.push(new HealthPotion());
   }
 
-  // Display HUD
+  // Display HUD (this now also calculates upgrade text bounds)
   displayHUD();
 
   // Display Info Messages
@@ -202,7 +222,7 @@ function handleAsteroidsAndCollisions() {
                     }
                 }
 
-                // --- NEW: Shape Change Logic ---
+                // --- Shape Change Logic ---
                 let oldShapeLevel = floor(oldScore / SHAPE_CHANGE_THRESHOLD);
                 let newShapeLevel = floor(score / SHAPE_CHANGE_THRESHOLD);
                 if (newShapeLevel > oldShapeLevel) {
@@ -312,25 +332,66 @@ function drawBackgroundAndStars() {
 // Display Functions
 // ==================
 
+// MODIFIED: Draws HUD and calculates tap areas for upgrades
 function displayHUD() {
+  let hudTextSize = 18; // Define text size for consistency
+  textSize(hudTextSize);
+
+  // --- Left Aligned Info ---
   fill(0, 0, 100, 80);
   noStroke();
-  textSize(18);
   textAlign(LEFT, TOP);
   text("Score: " + score, 15, 15);
   text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 40);
   text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 65);
 
+  // --- Right Aligned Upgrade Info ---
   textAlign(RIGHT, TOP);
   let fireRateCost = ship.getUpgradeCost('fireRate');
   let spreadShotCost = ship.getUpgradeCost('spreadShot');
 
-  fill(ship.fireRateLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50));
-  text(`[1] Rate (${ship.fireRateLevel}/${ship.maxLevel}): ${fireRateCost} pts`, width - 15, 15);
+  // Draw Fire Rate Upgrade Text
+  let rateColor = ship.fireRateLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50);
+  fill(rateColor);
+  let txt1 = `[1] Rate (${ship.fireRateLevel}/${ship.maxLevel}): ${fireRateCost} pts`;
+  text(txt1, width - 15, 15);
 
-  fill(ship.spreadShotLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50));
-  text(`[2] Spread (${ship.spreadShotLevel}/${ship.maxLevel}): ${spreadShotCost} pts`, width - 15, 40);
+  // Calculate bounding box for Fire Rate text
+  let w1 = textWidth(txt1);
+  let x1 = width - 15 - w1;
+  let y1 = 15;
+  let h1 = hudTextSize * 1.2; // Add a little vertical padding
+  upgradeArea1 = { x: x1, y: y1 - h1*0.1, w: w1, h: h1 }; // Store bounds
+
+  // Draw Spread Shot Upgrade Text
+  let spreadColor = ship.spreadShotLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50);
+  fill(spreadColor);
+  let txt2 = `[2] Spread (${ship.spreadShotLevel}/${ship.maxLevel}): ${spreadShotCost} pts`;
+  text(txt2, width - 15, 40);
+
+  // Calculate bounding box for Spread Shot text
+  let w2 = textWidth(txt2);
+  let x2 = width - 15 - w2;
+  let y2 = 40;
+  let h2 = hudTextSize * 1.2; // Add a little vertical padding
+  upgradeArea2 = { x: x2, y: y2 - h2*0.1, w: w2, h: h2 }; // Store bounds
+
+  // --- Debug: Draw bounding boxes (optional) ---
+  /*
+  if (upgradeArea1) {
+      noFill();
+      stroke(0, 100, 100); // Red stroke
+      rect(upgradeArea1.x, upgradeArea1.y, upgradeArea1.w, upgradeArea1.h);
+  }
+  if (upgradeArea2) {
+      noFill();
+      stroke(120, 100, 100); // Green stroke
+      rect(upgradeArea2.x, upgradeArea2.y, upgradeArea2.w, upgradeArea2.h);
+  }
+  */
+  // --- End Debug ---
 }
+
 
 // Displays temporary info messages
 function displayInfoMessage() {
@@ -367,7 +428,8 @@ function resetGame() {
     potions = [];
     score = 0;
     lives = 3;
-    currentAsteroidSpawnRate = baseAsteroidSpawnRate;
+    // Re-initialize spawn rate based on platform detection
+    currentAsteroidSpawnRate = isMobile ? 0.007 : 0.01;
     isGameOver = false;
     spawnInitialAsteroids();
     createStarfield(200);
@@ -376,6 +438,8 @@ function resetGame() {
     frameCount = 0;
     infoMessage = "";
     infoMessageTimeout = 0;
+    upgradeArea1 = null; // Reset upgrade areas
+    upgradeArea2 = null;
 }
 
 
@@ -386,6 +450,7 @@ function mousePressed() {
   if (isGameOver) {
      resetGame();
   } else {
+    // Allow shooting with mouse even on mobile if user prefers
     ship.shoot();
   }
   // return false; // Might prevent issues on mobile/touch?
@@ -403,13 +468,33 @@ function keyPressed() {
     }
 }
 
+// MODIFIED: Handle touch events for mobile (shooting + upgrades)
 function touchStarted() {
     if (isGameOver) {
         resetGame();
-    } else {
+        return false; // Prevent default
+    }
+
+    let upgradeTapped = false;
+    // Only check for upgrade taps on mobile
+    if (isMobile) {
+        // Check tap against calculated upgrade text areas
+        if (upgradeArea1 && mouseX > upgradeArea1.x && mouseX < upgradeArea1.x + upgradeArea1.w && mouseY > upgradeArea1.y && mouseY < upgradeArea1.y + upgradeArea1.h) {
+            ship.attemptUpgrade('fireRate');
+            upgradeTapped = true;
+        } else if (upgradeArea2 && mouseX > upgradeArea2.x && mouseX < upgradeArea2.x + upgradeArea2.w && mouseY > upgradeArea2.y && mouseY < upgradeArea2.y + upgradeArea2.h) {
+            ship.attemptUpgrade('spreadShot');
+            upgradeTapped = true;
+        }
+    }
+
+    // If an upgrade area wasn't tapped, then shoot
+    if (!upgradeTapped) {
         ship.shoot();
     }
-    return false; // Prevent default touch behavior
+
+    // Prevent default touch behavior (like scrolling or zooming)
+    return false;
 }
 
 
@@ -441,8 +526,8 @@ class Ship {
     this.engineColor1 = color(30, 100, 100);
     this.engineColor2 = color(0, 100, 100);
     this.finColor = color(220, 60, 70);
-    this.detailColor = color(0, 0, 60); // Dark grey for details
-    this.shapeState = 0; // NEW: 0 for base, 1 for evolved
+    this.detailColor = color(0, 0, 60);
+    this.shapeState = 0;
 
     // Weapon
     this.shootCooldown = 0;
@@ -479,12 +564,8 @@ class Ship {
       this.invulnerableTimer = this.invulnerabilityDuration;
   }
 
-  // NEW: Method to change shape state
   changeShape(level) {
-      // Cycle between 2 shapes (0 and 1) based on level (every 100 points)
-      this.shapeState = (level % 2); // Simple toggle for now
-      // Could have more complex logic for more shapes:
-      // this.shapeState = min(level, MAX_SHAPE_STATE);
+      this.shapeState = (level % 2);
   }
 
   get currentShootDelay() {
@@ -531,39 +612,46 @@ class Ship {
       this.pos.set(width / 2, height - 50);
       this.vel.set(0, 0);
       this.invulnerableTimer = 0;
-      this.shapeState = 0; // NEW: Reset shape state
+      this.shapeState = 0;
   }
 
   update() {
     if (this.invulnerableTimer > 0) { this.invulnerableTimer--; }
 
+    // --- Movement Logic: Touch OR Keyboard ---
     let isTouching = touches.length > 0;
     if (isTouching) {
+        // Touch Movement
         let touchPos = createVector(touches[0].x, touches[0].y);
         let direction = p5.Vector.sub(touchPos, this.pos);
-        if (direction.magSq() > 1) {
+        if (direction.magSq() > 1) { // Avoid applying thrust if tap is on ship
              direction.normalize();
+             // Apply thrust towards the touch point
              this.vel.add(direction.mult(this.thrust * this.touchThrustMultiplier));
         }
     } else {
-        let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);
-        let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);
-        let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
-        let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
+        // Keyboard Movement
+        let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);    // W
+        let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);  // S
+        let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);   // A
+        let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); // D
         if (movingUp) { this.vel.y -= this.thrust; }
         if (movingDown) { this.vel.y += this.thrust; }
         if (movingLeft) { this.vel.x -= this.thrust; }
         if (movingRight) { this.vel.x += this.thrust; }
     }
 
+    // Apply friction & speed limit regardless of input
     this.vel.mult(this.friction);
     this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel);
 
+    // Screen Constraints
     let margin = this.size * 0.7;
     this.pos.x = constrain(this.pos.x, margin, width - margin);
     this.pos.y = constrain(this.pos.y, margin, height - margin);
 
+    // Shooting Cooldown
     if (this.shootCooldown > 0) { this.shootCooldown--; }
   }
 
@@ -589,14 +677,13 @@ class Ship {
       }
   }
 
-  // MODIFIED: Draw the ship - includes shape state, score color, cooler look
   draw() {
     // Only draw if not blinking or during visible part of blink
     if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) {
         push();
         translate(this.pos.x, this.pos.y);
 
-        // --- Draw Shield Visual ---
+        // Draw Shield Visual
         if (this.shieldCharges > 0) {
             let shieldAlpha = map(sin(frameCount * 0.15), -1, 1, 40, 80);
             let shieldHue = 180;
@@ -609,9 +696,8 @@ class Ship {
             ellipse(0, 0, this.shieldVisualRadius * 2, this.shieldVisualRadius * 2);
         }
 
-        // --- Draw Engine Glow ---
-        // MODIFIED: Increased reaction to velocity
-        let enginePulseFactor = 1.0 + this.vel.mag() * 0.3; // Increased multiplier
+        // Draw Engine Glow
+        let enginePulseFactor = 1.0 + this.vel.mag() * 0.3;
         let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor;
         let engineSize = this.size * 0.5 * enginePulse;
         let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100);
@@ -624,69 +710,62 @@ class Ship {
         fill(hue(this.engineColor1), 100, 100);
         ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2);
 
-        // --- Draw Ship Body ---
-        stroke(0, 0, 80); // Base outline color
+        // Draw Ship Body
+        stroke(0, 0, 80);
         strokeWeight(1.5);
-        let scoreHue = (200 + score * 0.2) % 360; // Score-based color
+        let scoreHue = (200 + score * 0.2) % 360;
         fill(scoreHue, 80, 95);
 
-        // --- Shape State Logic ---
+        // Shape State Logic
         beginShape();
         if (this.shapeState === 0) { // Base Shape
-            vertex(0, -this.size * 0.7); // Nose
-            bezierVertex( this.size * 0.6, -this.size * 0.3, this.size * 0.7,  this.size * 0.0, this.size * 0.8,  this.size * 0.4); // Right wing
-            bezierVertex( this.size * 0.4,  this.size * 0.6, -this.size * 0.4,  this.size * 0.6, -this.size * 0.8,  this.size * 0.4); // Bottom
-            bezierVertex(-this.size * 0.7,  this.size * 0.0, -this.size * 0.6, -this.size * 0.3, 0, -this.size * 0.7); // Left wing
-        } else { // Evolved Shape (State 1) - Example: Sharper, slightly larger
-            let s = this.size * 1.1; // Slightly larger scale for evolved shape
-            vertex(0, -s * 0.8); // Sharper nose
-            bezierVertex( s * 0.7, -s * 0.2, s * 0.8,  s * 0.1, s * 0.9,  s * 0.5); // Sharper right wing
-            bezierVertex( s * 0.5,  s * 0.7, -s * 0.5,  s * 0.7, -s * 0.9,  s * 0.5); // Wider bottom
-            bezierVertex(-s * 0.8,  s * 0.1, -s * 0.7, -s * 0.2, 0, -s * 0.8); // Sharper left wing
+            vertex(0, -this.size * 0.7);
+            bezierVertex( this.size * 0.6, -this.size * 0.3, this.size * 0.7,  this.size * 0.0, this.size * 0.8,  this.size * 0.4);
+            bezierVertex( this.size * 0.4,  this.size * 0.6, -this.size * 0.4,  this.size * 0.6, -this.size * 0.8,  this.size * 0.4);
+            bezierVertex(-this.size * 0.7,  this.size * 0.0, -this.size * 0.6, -this.size * 0.3, 0, -this.size * 0.7);
+        } else { // Evolved Shape (State 1)
+            let s = this.size * 1.1;
+            vertex(0, -s * 0.8);
+            bezierVertex( s * 0.7, -s * 0.2, s * 0.8,  s * 0.1, s * 0.9,  s * 0.5);
+            bezierVertex( s * 0.5,  s * 0.7, -s * 0.5,  s * 0.7, -s * 0.9,  s * 0.5);
+            bezierVertex(-s * 0.8,  s * 0.1, -s * 0.7, -s * 0.2, 0, -s * 0.8);
         }
         endShape(CLOSE);
 
-        // --- Draw Details (Panel Lines) ---
+        // Draw Details (Panel Lines)
         strokeWeight(1);
-        stroke(this.detailColor); // Dark grey detail color
-        // Example lines (adjust based on shape)
+        stroke(this.detailColor);
         if (this.shapeState === 0) {
-             line(-this.size * 0.4, -this.size * 0.1, -this.size * 0.6, this.size * 0.3); // Left wing detail
-             line( this.size * 0.4, -this.size * 0.1,  this.size * 0.6, this.size * 0.3); // Right wing detail
+             line(-this.size * 0.4, -this.size * 0.1, -this.size * 0.6, this.size * 0.3);
+             line( this.size * 0.4, -this.size * 0.1,  this.size * 0.6, this.size * 0.3);
         } else {
              let s = this.size * 1.1;
-             line(-s * 0.5, -s * 0.05, -s * 0.7, s * 0.4); // Evolved Left wing detail
-             line( s * 0.5, -s * 0.05,  s * 0.7, s * 0.4); // Evolved Right wing detail
-             line(0, -s*0.4, 0, s*0.1); // Center line detail
+             line(-s * 0.5, -s * 0.05, -s * 0.7, s * 0.4);
+             line( s * 0.5, -s * 0.05,  s * 0.7, s * 0.4);
+             line(0, -s*0.4, 0, s*0.1);
         }
 
-
-        // --- Draw Fins ---
-        // Adjust fin position slightly based on shape state if needed
+        // Draw Fins
         let finYOffset = this.shapeState === 0 ? this.size * 0.3 : this.size * 1.1 * 0.35;
         let finXOffset = this.shapeState === 0 ? this.size * 0.5 : this.size * 1.1 * 0.6;
         let finTipX = this.shapeState === 0 ? this.size * 0.9 : this.size * 1.1 * 1.0;
         let finRearX = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7;
         let finRearY = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7;
-
         fill(this.finColor);
         stroke(0, 0, 60);
         strokeWeight(1);
-        // Right Fin
         triangle( finXOffset, finYOffset, finTipX, finYOffset + this.size*0.1, finRearX, finRearY);
-        // Left Fin
         triangle(-finXOffset, finYOffset, -finTipX, finYOffset + this.size*0.1, -finRearX, finRearY);
 
-
-        // --- Draw Cockpit ---
+        // Draw Cockpit
         fill(this.cockpitColor);
         noStroke();
         ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5);
-        fill(0, 0, 100, 50); // Glare
+        fill(0, 0, 100, 50);
         ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25);
 
         pop();
-     } // End of drawing condition (for blinking)
+     }
   }
 }
 
@@ -787,7 +866,7 @@ class Asteroid {
   hitsShip(ship) {
     let targetX = ship.pos.x;
     let targetY = ship.pos.y;
-    // Use ship size for collision, shape change is visual only for now
+    // Use ship base size for collision, regardless of visual shape state
     let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5;
     let d = dist(this.pos.x, this.pos.y, targetX, targetY);
     return d < this.size / 2 + targetRadius;
