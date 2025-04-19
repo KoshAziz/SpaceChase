@@ -1,11 +1,11 @@
 // --- Features ---
-// - Start Screen (Enter/Tap to Start)
+// - Start Screen (Enter/Tap to Start) - Title changed to "Space-Chase" // MODIFIED
 // - Level System based on Points
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Automatic Cheapest, includes Auto-Fire) - Uses Money
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
 // - Redesigned Spaceship Look (Score-based color/shape, added details, thinner) - Uses Points
-// - Dynamic Parallax Star Background (with occasional planet)
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // MODIFIED
 // - Enhanced Engine Thrust Effect (More reactive)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
@@ -13,14 +13,14 @@
 // - Score-based Difficulty Increase - Uses Levels + Time
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // --- Modifications ---
-// - Removed Name Input and Leaderboard system. // NEW
+// - Removed background freighter.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
 // - Upgrade costs reduced.
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Asteroid speed reduced (but now scales slightly with level).
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - Spacebar tap-to-shoot always enabled; hold-to-shoot enabled via Auto-Fire upgrade.
-// - Background gradient color changes every 10 seconds.
+// - Background gradient color changes every 20 seconds.
 // - Ship no longer resets position on non-fatal hit.
 // - Added brief invulnerability after losing a life.
 // - Added Touch Controls: Tap to shoot and move towards tap.
@@ -28,6 +28,8 @@
 // - Max shield charges reduced to 1.
 // - Asteroids visuals enhanced (shading, craters, rotation).
 // - Added occasional background planet.
+// - Added subtle background galaxy effect.
+// - Added distant black hole effect. // NEW
 // --------------------------
 
 // --- Game Objects & State ---
@@ -37,9 +39,11 @@ let asteroids = [];
 let particles = [];
 let stars = [];
 let potions = [];
+let boss = null;
+let enemyBullets = [];
 
 // Game State Management
-const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2 };
+const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, BOSS_FIGHT: 2, GAME_OVER: 3 };
 let gameState = GAME_STATE.START_SCREEN;
 
 // Score, Level & Resources
@@ -48,7 +52,7 @@ let money = 0;
 let lives = 3;
 const MAX_LIVES = 3;
 let currentLevel = 1;
-const LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 8000, 12000];
+const LEVEL_THRESHOLDS = [0, 400, 1200, 2500, 4500, 7000, 10000];
 
 // Game Settings & Thresholds
 let baseAsteroidSpawnRate;
@@ -59,35 +63,27 @@ let minAsteroidSize = 15;
 const SHIELD_POINTS_THRESHOLD = 50;
 const MAX_SHIELD_CHARGES = 1;
 const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
-// REMOVED: Leaderboard constants
 const MAX_ASTEROID_SPEED = 4.0;
 
 // --- UI & Messages ---
 let infoMessage = "";
 let infoMessageTimeout = 0;
-// REMOVED: Name input elements and variables
-// let nameInput;
-// let submitButton;
-// let playerName = "";
-// let scoreSubmitted = false;
+// REMOVED Name input related variables
 
 // --- Background ---
 let currentTopColor;
 let currentBottomColor;
-const BACKGROUND_CHANGE_INTERVAL = 600;
+const BACKGROUND_CHANGE_INTERVAL = 1200;
 let isMobile = false;
 
-// --- Background Planet Variables ---
+// --- Background Scenery Variables ---
 let planetVisible = false;
-let planetPos;
-let planetVel;
-let planetSize;
-let planetBaseColor;
-let planetDetailColor1;
-let planetDetailColor2;
+let planetPos, planetVel, planetSize, planetBaseColor, planetDetailColor1, planetDetailColor2;
 let lastPlanetAppearanceTime = -Infinity;
 const PLANET_MIN_INTERVAL = 30000;
 const PLANET_MAX_INTERVAL = 60000;
+
+// REMOVED: Freighter variables
 
 
 // ==================
@@ -99,10 +95,7 @@ function setup() {
 
   // Mobile Detection
   let ua = navigator.userAgent;
-  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
-    isMobile = true;
-  }
-  // Base spawn rate set in resetGame/setDifficulty
+  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
 
   // Initialize background elements
   createStarfield(200);
@@ -123,28 +116,19 @@ function spawnInitialAsteroids() {
     asteroids = [];
     for (let i = 0; i < initialAsteroids; i++) {
         let startPos;
-        let shipX = ship ? ship.pos.x : width / 2;
-        let shipY = ship ? ship.pos.y : height - 50;
-        do {
-             startPos = createVector(random(width), random(height * 0.7));
-        } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150);
+        let shipX = ship ? ship.pos.x : width / 2; let shipY = ship ? ship.pos.y : height - 50;
+        do { startPos = createVector(random(width), random(height * 0.7)); } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150);
         asteroids.push(new Asteroid(startPos.x, startPos.y));
     }
 }
 
 function createParticles(x, y, count, particleColor, particleSize = null, particleSpeedMult = 1) {
-    let baseHue = hue(particleColor);
-    let baseSat = saturation(particleColor);
-    let baseBri = brightness(particleColor);
-    for (let i = 0; i < count; i++) {
-        let pColor = color( baseHue + random(-10, 10), baseSat * random(0.8, 1.0), baseBri * random(0.9, 1.0), 100 );
-        particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult));
-    }
+    let baseHue = hue(particleColor); let baseSat = saturation(particleColor); let baseBri = brightness(particleColor);
+    for (let i = 0; i < count; i++) { let pColor = color( baseHue + random(-10, 10), baseSat * random(0.8, 1.0), baseBri * random(0.9, 1.0), 100 ); particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult)); }
 }
 
 function createStarfield(numStars) { stars = []; for (let i = 0; i < numStars; i++) { stars.push(new Star()); } }
-
-// REMOVED: Leaderboard Functions (getLeaderboard, saveToLeaderboard)
+// REMOVED: Leaderboard functions
 // REMOVED: submitScore function
 
 // --- Function to set difficulty based on level ---
@@ -156,134 +140,170 @@ function setDifficultyForLevel(level) { let mobileFactor = isMobile ? 0.7 : 1.0;
 // ==================
 function draw() {
   // Background color change logic
-  if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) {
-      let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360;
-      currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40));
-  }
+  if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
 
-  // Planet Appearance Logic
+  // --- Background Scenery Update Logic ---
   if (gameState !== GAME_STATE.START_SCREEN) {
       let currentTime = millis();
+      // Planet Logic
       if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) {
           planetVisible = true; planetSize = random(width * 0.2, width * 0.5);
-          let edge = floor(random(4));
-          if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height));
-          let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.4));
+          let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height));
+          let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3));
           let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70));
           lastPlanetAppearanceTime = currentTime;
       }
-      if (planetVisible) {
-          planetPos.add(planetVel); let buffer = planetSize * 0.6;
-          if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; }
-      }
+      if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } }
+
+      // REMOVED: Freighter appearance and update logic
   }
 
-  drawBackgroundAndStars(); // Draw background, planet, stars
+  drawBackgroundAndStars(); // Draw background, galaxy, planet, stars
 
   // --- Game State Machine ---
   switch (gameState) {
-    case GAME_STATE.START_SCREEN:
-      displayStartScreen();
-      break;
-    case GAME_STATE.PLAYING:
-      runGameLogic();
-      break;
-    case GAME_STATE.GAME_OVER:
-      runGameLogic(); // Still draw the game state behind the overlay
-      displayGameOver();
-      break;
+    case GAME_STATE.START_SCREEN: displayStartScreen(); break;
+    case GAME_STATE.PLAYING: runGameLogic(); break;
+    case GAME_STATE.BOSS_FIGHT: runBossFightLogic(); break;
+    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
   }
 
   // Display Info Messages
-  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING) { infoMessageTimeout--; } }
+  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { infoMessageTimeout--; } }
 }
 
 // --- Function for Start Screen ---
 function displayStartScreen() {
-    textSize(48); fill(50, 90, 100); textAlign(CENTER, CENTER); text("ASTEROID ATTACK", width/2, height/3);
+    // MODIFIED: Changed title
+    textSize(48); fill(50, 90, 100); textAlign(CENTER, CENTER); text("Space-Chase", width/2, height/3);
     textSize(22); fill(0, 0, 100); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 50);
 }
 
 
-// --- Function for Main Game Logic ---
+// --- Function for Main Game Logic (Asteroids) ---
 function runGameLogic() {
+  if (!ship) return;
   ship.update(); ship.draw();
   for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
   for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
   handleAsteroidsAndCollisions();
   handlePotions();
+  if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) { asteroids.push(new Asteroid()); } if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); } }
+  if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { displayHUD(); }
+}
 
-  if (gameState === GAME_STATE.PLAYING) {
-      let timeFactor = floor(frameCount / 1800) * 0.0005;
-      currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
-      if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) { asteroids.push(new Asteroid()); }
-      if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); }
-  }
-
-  if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
+// --- Function for Boss Fight Logic ---
+function runBossFightLogic() {
+    if (!ship) return;
+    ship.update(); ship.draw();
+    for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
+    for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
+    if (boss) { boss.update(); boss.draw(); displayBossHealth(); } else { console.warn("In BOSS_FIGHT state but boss is null!"); gameState = GAME_STATE.PLAYING; return; }
+    for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
+    for (let i = bullets.length - 1; i >= 0; i--) { if (boss && boss.hits(bullets[i])) { createParticles(bullets[i].pos.x, bullets[i].pos.y, 4, color(90, 50, 100), 3, 0.8); let defeated = boss.takeHit(); bullets.splice(i, 1); if (defeated) { points += 250 * currentLevel; money += 50 * currentLevel; createParticles(boss.pos.x, boss.pos.y, 150, color(0, 80, 100), null, 2.0); boss = null; enemyBullets = []; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; gameState = GAME_STATE.PLAYING; if (lives < MAX_LIVES) potions.push(new HealthPotion(width/2, height/2)); break; } } }
+    if (ship.invulnerableTimer <= 0) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i].hitsShip(ship)) { enemyBullets.splice(i, 1); if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; /*scoreSubmitted = false;*/ infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); } } break; } } }
+     displayHUD();
 }
 
 // ==================
 // Collision Handling Functions
 // ==================
 function handleAsteroidsAndCollisions() {
+    if (gameState !== GAME_STATE.PLAYING) return;
     for (let i = asteroids.length - 1; i >= 0; i--) {
         if (!asteroids[i]) continue;
-        if (gameState === GAME_STATE.PLAYING) { asteroids[i].update(); }
-        asteroids[i].draw();
-
+        asteroids[i].update(); asteroids[i].draw();
         let asteroidHitByBullet = false;
-        if (gameState === GAME_STATE.PLAYING) {
-            for (let j = bullets.length - 1; j >= 0; j--) {
-                if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
-                    createParticles(bullets[j].pos.x, bullets[j].pos.y, 3, color(60, 60, 100), 2, 0.5);
-                    let oldPoints = points;
-                    let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
-                    points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15));
-                    money += 2;
-                    let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD);
-                    if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
-                    let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD);
-                    let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
-                    if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
-                    if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `REACHED LEVEL ${currentLevel}!`; infoMessageTimeout = 150; }
-                    let upgradedInLoop = true;
-                    while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; }
-                    let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color;
-                    asteroids.splice(i, 1); bullets.splice(j, 1); asteroidHitByBullet = true;
-                    createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
-                    if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
-                    break;
-                }
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
+                createParticles(bullets[j].pos.x, bullets[j].pos.y, 3, color(60, 60, 100), 2, 0.5);
+                let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
+                points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2;
+                let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
+                let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
+                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyBullets = []; boss = new Boss(currentLevel); gameState = GAME_STATE.BOSS_FIGHT; infoMessage = `WARNING: Level ${currentLevel} Boss Approaching!`; infoMessageTimeout = 180; return; }
+                else { let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } }
+                let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); asteroidHitByBullet = true; createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } break;
             }
         }
-
         if (asteroidHitByBullet) continue;
-
-        if (gameState === GAME_STATE.PLAYING && ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
-            if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); }
-            else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } }
-        }
+        if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) { if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; /*scoreSubmitted = false;*/ infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } } }
     }
 }
 
 function handlePotions() {
-    for (let i = potions.length - 1; i >= 0; i--) {
-        if (gameState === GAME_STATE.PLAYING) { potions[i].update(); }
-        potions[i].draw();
-        if (gameState === GAME_STATE.PLAYING && potions[i].hitsShip(ship)) { if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); }
-        else if (potions[i].isOffscreen()) { potions.splice(i, 1); }
-    }
+    if (gameState !== GAME_STATE.PLAYING) return;
+    for (let i = potions.length - 1; i >= 0; i--) { potions[i].update(); potions[i].draw(); if (potions[i].hitsShip(ship)) { if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); } else if (potions[i].isOffscreen()) { potions.splice(i, 1); } }
 }
 
 // ==================
 // Background Drawing Function
+// MODIFIED: Calls drawBlackHole, drawGalaxy, drawPlanet, drawFreighter(removed)
 // ==================
 function drawBackgroundAndStars() {
+    // Draw Gradient
     for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke();
+
+    // Draw Black Hole (distant)
+    drawBlackHole(); // NEW CALL
+
+    // Draw Galaxy (Subtle)
+    drawGalaxy();
+
+    // Draw Planet (if visible)
     if (planetVisible) { drawPlanet(); }
+
+    // REMOVED: Draw Freighter call
+
+    // Draw Stars (on top)
     for (let star of stars) { star.update(); star.draw(); }
 }
+
+// --- NEW: Function to draw distant black hole ---
+function drawBlackHole() {
+    push();
+    let bhX = width * 0.8; // Position example (top right quadrant)
+    let bhY = height * 0.2;
+    let bhSize = width * 0.05; // Size relative to width
+
+    // Central Blackness
+    fill(0); // Pure black
+    noStroke();
+    ellipse(bhX, bhY, bhSize, bhSize);
+
+    // Accretion Disk / Lensing Effect (simple rings)
+    let ringCount = 5;
+    let maxRingSize = bhSize * 3;
+    let minRingSize = bhSize * 1.1;
+    noFill();
+    for (let i = 0; i < ringCount; i++) {
+        let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1));
+        let hue = random(0, 60); // Yellows/Oranges/Reds
+        let alpha = map(i, 0, ringCount - 1, 40, 5); // Fade out
+        let sw = map(i, 0, ringCount - 1, 1, 4); // Stroke weight
+        strokeWeight(sw);
+        stroke(hue, 90, 90, alpha);
+        ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05)); // Slightly irregular rings
+    }
+    pop();
+}
+
+
+// --- Function to draw subtle galaxy ---
+function drawGalaxy() {
+    push();
+    let centerX = width / 2; let centerY = height / 2;
+    let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2; // Reduced alpha further
+    let angle = frameCount * 0.0003; // Slower rotation
+    translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY);
+    noStroke();
+    fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.2, height * 0.3);
+    fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.1, height * 0.4);
+    fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.8); ellipse(centerX, centerY, width * 0.9, height * 0.5);
+    pop();
+}
+
+// REMOVED: drawFreighter() function
 
 function drawPlanet() {
     push(); translate(planetPos.x, planetPos.y); noStroke();
@@ -317,7 +337,7 @@ function displayHUD() {
 
 function displayInfoMessage() { fill(0, 0, 100); textSize(16); textAlign(CENTER, BOTTOM); text(infoMessage, width / 2, height - 20); }
 
-// MODIFIED: Simplified Game Over screen (no name input/leaderboard)
+// MODIFIED: Simplified Game Over screen
 function displayGameOver() {
     fill(0, 0, 0, 50); rect(0, 0, width, height);
     fill(0, 90, 100); textSize(60); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
@@ -329,10 +349,11 @@ function displayGameOver() {
 // MODIFIED: Resets game state for restarting
 function resetGame() {
     ship = new Ship();
-    bullets = []; particles = []; asteroids = []; potions = [];
+    bullets = []; particles = []; asteroids = []; potions = []; enemyBullets = []; boss = null;
     points = 0; money = 0; lives = 3;
     currentLevel = 1;
     setDifficultyForLevel(currentLevel);
+    isGameOver = false;
     // scoreSubmitted = false; // Removed
     spawnInitialAsteroids();
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
@@ -340,59 +361,36 @@ function resetGame() {
     // nameInput.hide(); // Removed
     // submitButton.hide(); // Removed
     cursor();
-    lastPlanetAppearanceTime = -Infinity;
-    planetVisible = false;
+    lastPlanetAppearanceTime = -Infinity; planetVisible = false;
+    // REMOVED: Freighter reset
     // gameState = GAME_STATE.PLAYING; // State is set by the function calling resetGame
 }
 
 // --- Function to start the game ---
 function startGame() {
-    resetGame(); // Setup initial game state
-    gameState = GAME_STATE.PLAYING; // Change state to playing
+    resetGame();
+    gameState = GAME_STATE.PLAYING;
 }
 
 
 // ==================
 // Input Handling Functions
-// MODIFIED: Simplified restart logic
 // ==================
 function mousePressed() {
-  if (gameState === GAME_STATE.GAME_OVER) {
-     // Click anywhere on game over to restart
-     startGame();
-  } else if (gameState === GAME_STATE.PLAYING) {
-    ship.shoot();
-  }
+  if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
+  else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { ship.shoot(); }
 }
 
 function keyPressed() {
-    if (gameState === GAME_STATE.START_SCREEN) {
-        if (keyCode === ENTER || keyCode === RETURN) {
-            startGame();
-        }
-    } else if (gameState === GAME_STATE.PLAYING) {
-        if (keyCode === 32) { // SPACEBAR for shooting
-            ship.shoot();
-            return false;
-        }
-    } else if (gameState === GAME_STATE.GAME_OVER) {
-         // Any key press restarts on game over
-         startGame();
-    }
+    if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
+    else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { if (keyCode === 32) { ship.shoot(); return false; } }
+    else if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
 }
 
 function touchStarted() {
-    if (gameState === GAME_STATE.START_SCREEN) {
-        startGame();
-        return false;
-    } else if (gameState === GAME_STATE.GAME_OVER) {
-         // Tap anywhere on game over to restart
-         startGame();
-        return false;
-    } else if (gameState === GAME_STATE.PLAYING) {
-        ship.shoot(); // Tap shoots in game
-        return false;
-    }
+    if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; }
+    else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; }
+    else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { ship.shoot(); return false; }
 }
 
 
@@ -400,9 +398,7 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   createStarfield(200);
   // REMOVED: Positioning logic for removed input/button
-  if (ship) {
-      // ship.resetPosition(); // Optionally reset ship pos on resize
-  }
+  if (ship) { /* ship.resetPosition(); */ }
 }
 
 
@@ -474,4 +470,28 @@ class HealthPotion {
     draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); fill(0, 85, 90); noStroke(); rect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight, 3); rect(-this.neckWidth / 2, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth, this.neckHeight); ellipse(0, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth * 1.2, this.neckWidth * 0.4); fill(0, 0, 100); rectMode(CENTER); rect(0, 0, this.bodyWidth * 0.5, this.bodyWidth * 0.15); rect(0, 0, this.bodyWidth * 0.15, this.bodyWidth * 0.5); rectMode(CORNER); pop(); }
     hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); return d < this.size / 2 + ship.size * 0.5; }
     isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); }
+}
+
+// ==================
+// Boss Class
+// ==================
+class Boss {
+    constructor(level) { this.size = 60 + level * 5; this.pos = createVector(width / 2, -this.size); this.vel = createVector(0, 1); this.maxHealth = 100 + (level - 1) * 50; this.health = this.maxHealth; this.targetY = height * 0.15; this.moveSpeed = 1.5 + level * 0.1; this.moveDir = 1; this.entered = false; this.shootCooldown = 0; this.shootDelay = max(30, 90 - level * 5); this.bulletSpeed = 3 + level * 0.2; }
+    update() { if (!this.entered) { if (this.pos.y < this.targetY) { this.pos.add(this.vel); } else { this.pos.y = this.targetY; this.entered = true; this.vel.set(this.moveSpeed * this.moveDir, 0); } } else { this.pos.add(this.vel); let margin = this.size / 2; if (this.pos.x > width - margin || this.pos.x < margin) { this.moveDir *= -1; this.vel.set(this.moveSpeed * this.moveDir, 0); this.pos.x = constrain(this.pos.x, margin, width - margin); } } if (this.entered) { this.shootCooldown--; if (this.shootCooldown <= 0) { this.shoot(); this.shootCooldown = this.shootDelay; } } }
+    shoot() { let bulletX = this.pos.x; let bulletY = this.pos.y + this.size * 0.5; enemyBullets.push(new EnemyBullet(bulletX, bulletY, this.bulletSpeed)); }
+    takeHit() { this.health -= 10; this.health = max(0, this.health); return this.health <= 0; }
+    hits(playerBullet) { let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y); return d < this.size / 2 + playerBullet.size / 2; }
+    hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); return d < this.size / 2 + playerShip.size * 0.5; }
+    draw() { push(); translate(this.pos.x, this.pos.y); fill(0, 0, 15); stroke(0, 0, 50); strokeWeight(2); beginShape(); vertex(0, -this.size * 0.6); vertex(this.size * 0.5, this.size * 0.4); vertex(0, this.size * 0.1); vertex(-this.size * 0.5, this.size * 0.4); endShape(CLOSE); fill(0, 90, 80); noStroke(); ellipse(0, -this.size * 0.1, this.size * 0.3, this.size * 0.2); pop(); }
+}
+
+// ==================
+// EnemyBullet Class
+// ==================
+class EnemyBullet {
+    constructor(x, y, speed) { this.pos = createVector(x, y); this.vel = createVector(0, speed); this.size = 8; this.color = color(0, 80, 90); }
+    update() { this.pos.add(this.vel); }
+    draw() { fill(this.color); noStroke(); ellipse(this.pos.x, this.pos.y, this.size, this.size * 1.5); }
+    hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5; return d < this.size / 2 + targetRadius; }
+    isOffscreen() { return (this.pos.y > height + this.size); }
 }
