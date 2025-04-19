@@ -1,11 +1,11 @@
 // --- Features ---
-// - Start Screen (Enter/Tap to Start) - Title changed to "Space-Chase" // MODIFIED
+// - Start Screen (Enter/Tap to Start) - Title "Space-Chase" + Dynamic // MODIFIED
 // - Level System based on Points
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Automatic Cheapest, includes Auto-Fire) - Uses Money
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
 // - Redesigned Spaceship Look (Score-based color/shape, added details, thinner) - Uses Points
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // MODIFIED
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole)
 // - Enhanced Engine Thrust Effect (More reactive)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
@@ -13,7 +13,7 @@
 // - Score-based Difficulty Increase - Uses Levels + Time
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // --- Modifications ---
-// - Removed background freighter.
+// - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
 // - Upgrade costs reduced.
 // - Asteroids only spawn from Top, Left, and Right edges.
@@ -29,7 +29,7 @@
 // - Asteroids visuals enhanced (shading, craters, rotation).
 // - Added occasional background planet.
 // - Added subtle background galaxy effect.
-// - Added distant black hole effect. // NEW
+// - Added distant black hole effect.
 // --------------------------
 
 // --- Game Objects & State ---
@@ -154,8 +154,6 @@ function draw() {
           lastPlanetAppearanceTime = currentTime;
       }
       if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } }
-
-      // REMOVED: Freighter appearance and update logic
   }
 
   drawBackgroundAndStars(); // Draw background, galaxy, planet, stars
@@ -172,11 +170,38 @@ function draw() {
   if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { infoMessageTimeout--; } }
 }
 
-// --- Function for Start Screen ---
+// --- MODIFIED: Function for Start Screen ---
 function displayStartScreen() {
-    // MODIFIED: Changed title
-    textSize(48); fill(50, 90, 100); textAlign(CENTER, CENTER); text("Space-Chase", width/2, height/3);
-    textSize(22); fill(0, 0, 100); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 50);
+    // --- Dynamic Title ---
+    let titleText = "Space-Chase";
+    let titleSize = 48;
+    textSize(titleSize);
+    textAlign(CENTER, CENTER); // Base alignment for position calculation
+    let totalWidth = textWidth(titleText);
+    let startX = width / 2 - totalWidth / 2;
+    let currentX = startX;
+    let titleY = height / 3;
+
+    for (let i = 0; i < titleText.length; i++) {
+        let char = titleText[i];
+        let charWidth = textWidth(char);
+        // Alternating color (slightly off-black/white)
+        let charBrightness = (i % 2 === 0) ? 10 : 95;
+        fill(0, 0, charBrightness); // Black/White (Saturation 0)
+        // Wobble effect
+        let yOffset = sin(frameCount * 0.08 + i * 0.6) * 6; // Adjust frequency, phase shift, amplitude
+        // Draw character (use CENTER alignment for individual chars based on calculated pos)
+        text(char, currentX + charWidth / 2, titleY + yOffset);
+        currentX += charWidth; // Move to next character position
+    }
+    // --- End Dynamic Title ---
+
+    // Draw instructions
+    textSize(22);
+    fill(0, 0, 100); // White
+    textAlign(CENTER, CENTER); // Reset alignment if changed
+    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
+    text(startInstruction, width / 2, height / 2 + 50);
 }
 
 
@@ -238,63 +263,38 @@ function handlePotions() {
 
 // ==================
 // Background Drawing Function
-// MODIFIED: Calls drawBlackHole, drawGalaxy, drawPlanet, drawFreighter(removed)
 // ==================
 function drawBackgroundAndStars() {
-    // Draw Gradient
     for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke();
-
-    // Draw Black Hole (distant)
-    drawBlackHole(); // NEW CALL
-
-    // Draw Galaxy (Subtle)
-    drawGalaxy();
-
-    // Draw Planet (if visible)
-    if (planetVisible) { drawPlanet(); }
-
-    // REMOVED: Draw Freighter call
-
-    // Draw Stars (on top)
-    for (let star of stars) { star.update(); star.draw(); }
+    drawBlackHole(); // Draw black hole first
+    drawGalaxy();    // Then galaxy
+    if (planetVisible) { drawPlanet(); } // Then planet
+    // REMOVED Freighter
+    for (let star of stars) { star.update(); star.draw(); } // Stars on top
 }
 
-// --- NEW: Function to draw distant black hole ---
+// --- Function to draw distant black hole ---
 function drawBlackHole() {
     push();
-    let bhX = width * 0.8; // Position example (top right quadrant)
-    let bhY = height * 0.2;
-    let bhSize = width * 0.05; // Size relative to width
-
-    // Central Blackness
-    fill(0); // Pure black
-    noStroke();
-    ellipse(bhX, bhY, bhSize, bhSize);
-
-    // Accretion Disk / Lensing Effect (simple rings)
-    let ringCount = 5;
-    let maxRingSize = bhSize * 3;
-    let minRingSize = bhSize * 1.1;
+    let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05;
+    fill(0); noStroke(); ellipse(bhX, bhY, bhSize, bhSize); // Central hole
+    let ringCount = 5; let maxRingSize = bhSize * 3; let minRingSize = bhSize * 1.1;
     noFill();
     for (let i = 0; i < ringCount; i++) {
         let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1));
-        let hue = random(0, 60); // Yellows/Oranges/Reds
-        let alpha = map(i, 0, ringCount - 1, 40, 5); // Fade out
-        let sw = map(i, 0, ringCount - 1, 1, 4); // Stroke weight
-        strokeWeight(sw);
-        stroke(hue, 90, 90, alpha);
-        ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05)); // Slightly irregular rings
+        let hue = random(0, 60); let alpha = map(i, 0, ringCount - 1, 40, 5); let sw = map(i, 0, ringCount - 1, 1, 4);
+        strokeWeight(sw); stroke(hue, 90, 90, alpha);
+        ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05));
     }
     pop();
 }
-
 
 // --- Function to draw subtle galaxy ---
 function drawGalaxy() {
     push();
     let centerX = width / 2; let centerY = height / 2;
-    let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2; // Reduced alpha further
-    let angle = frameCount * 0.0003; // Slower rotation
+    let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2;
+    let angle = frameCount * 0.0003;
     translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY);
     noStroke();
     fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.2, height * 0.3);
@@ -302,8 +302,6 @@ function drawGalaxy() {
     fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.8); ellipse(centerX, centerY, width * 0.9, height * 0.5);
     pop();
 }
-
-// REMOVED: drawFreighter() function
 
 function drawPlanet() {
     push(); translate(planetPos.x, planetPos.y); noStroke();
@@ -353,7 +351,7 @@ function resetGame() {
     points = 0; money = 0; lives = 3;
     currentLevel = 1;
     setDifficultyForLevel(currentLevel);
-    isGameOver = false;
+    isGameOver = false; // Not really used now state handles it
     // scoreSubmitted = false; // Removed
     spawnInitialAsteroids();
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
