@@ -1,9 +1,7 @@
 // --- New Features Added ---
-// - Keyboard Controls (Arrow Keys for Movement, Spacebar for Shooting)
-// - Evolving Ship Appearance based on Total Upgrade Level
-// --- Previous Additions Kept ---
 // - Rainbow Bullets (Hue Cycling)
 // - Ship Upgrade System (Fire Rate, Spread Shot) via Keyboard ('1', '2')
+// --- Previous Additions Kept ---
 // - Redesigned Spaceship Look
 // - Dynamic Parallax Star Background
 // - Enhanced Engine Thrust Effect
@@ -26,32 +24,61 @@ let lives = 3;
 let initialAsteroids = 5;
 let minAsteroidSize = 15;
 
-let upgradeMessage = "";
-let upgradeMessageTimeout = 0;
-
-// --- NEW: Keyboard state tracking ---
-let moveSpeed = 7; // How fast the ship moves with keys
+// --- NEW: Upgrade System Variables ---
+let upgradeMessage = ""; // To display feedback
+let upgradeMessageTimeout = 0; // How long message shows
 
 // ==================
 // p5.js Setup Function
 // ==================
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  ship = new Ship();
+  ship = new Ship(); // Ship now initializes its own upgrades
   spawnInitialAsteroids();
   createStarfield(200);
   textAlign(CENTER, CENTER);
   textSize(20);
-  noCursor(); // Keep cursor hidden initially
+  noCursor();
   colorMode(HSB, 360, 100, 100, 100);
 }
 
 // ==================
-// Helper Functions (Mostly unchanged)
+// Helper Functions
 // ==================
-function spawnInitialAsteroids() { /* ... same as before ... */ }
-function createParticles(x, y, count, particleColor) { /* ... same as before ... */ }
-function createStarfield(numStars) { /* ... same as before ... */ }
+
+function spawnInitialAsteroids() {
+    asteroids = [];
+    for (let i = 0; i < initialAsteroids; i++) {
+        let startPos;
+        do {
+            // Use default values if ship isn't created yet during initial setup
+            let shipX = ship ? ship.x : width / 2;
+            let shipY = ship ? ship.y : height - 50;
+            startPos = createVector(random(width), random(height * 0.6));
+        } while (dist(startPos.x, startPos.y, ship.x, ship.y) < 150);
+        asteroids.push(new Asteroid(startPos.x, startPos.y));
+    }
+}
+
+function createParticles(x, y, count, particleColor) {
+    let baseHue = hue(particleColor);
+    for (let i = 0; i < count; i++) {
+        let pColor = color(
+            baseHue + random(-15, 15),
+            random(60, 100),
+            random(90, 100),
+            100
+        );
+        particles.push(new Particle(x, y, pColor));
+    }
+}
+
+function createStarfield(numStars) {
+    stars = [];
+    for (let i = 0; i < numStars; i++) {
+        stars.push(new Star());
+    }
+}
 
 // ==================
 // p5.js Draw Loop
@@ -61,289 +88,381 @@ function draw() {
 
   if (isGameOver) {
     displayGameOver();
-    // Show cursor again on game over screen, regardless of input method
-    cursor(ARROW);
     return;
-  } else {
-      noCursor(); // Keep cursor hidden during gameplay
   }
 
-  // --- Handle Keyboard Input for Movement --- // <-- NEW -->
-  handleKeyboardMovement();
-
-  // --- Update & Draw Everything Else ---
-  ship.update(); // Mouse movement is now handled inside update
+  // --- Update & Draw Ship, Bullets, Particles, Asteroids ---
+  ship.update();
   ship.draw();
-  for (let i = bullets.length - 1; i >= 0; i--) { /* ... bullet logic ... */ }
-  for (let i = particles.length - 1; i >= 0; i--) { /* ... particle logic ... */ }
-  handleAsteroidsAndCollisions(); // Includes asteroid update/draw
+
+  // Bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    bullets[i].update();
+    bullets[i].draw();
+    if (bullets[i].isOffscreen()) {
+      bullets.splice(i, 1);
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    particles[i].draw();
+    if (particles[i].isDead()) {
+      particles.splice(i, 1);
+    }
+  }
+
+  // Asteroids & Collisions
+  handleAsteroidsAndCollisions();
 
   // --- Spawn New Asteroids ---
   currentAsteroidSpawnRate = baseAsteroidSpawnRate + (score * 0.0001);
-  if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) { /* ... spawn logic ... */ }
+  if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) {
+    asteroids.push(new Asteroid());
+  }
 
-  // --- Display HUD & Messages ---
-  displayHUD();
-  if (upgradeMessageTimeout > 0) { /* ... upgrade message logic ... */ }
+  // --- Display HUD ---
+  displayHUD(); // <-- NEW: Combined display function
+
+  // --- Display Upgrade Message --- // <-- NEW -->
+  if (upgradeMessageTimeout > 0) {
+      displayUpgradeMessage();
+      upgradeMessageTimeout--;
+  }
 }
 
 // ==================
-// Keyboard Movement Handling (NEW FUNCTION)
+// Collision Handling (Moved to separate function for clarity)
 // ==================
-function handleKeyboardMovement() {
-    if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { // Left Arrow or 'A'
-        ship.move(-moveSpeed);
+function handleAsteroidsAndCollisions() {
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+        if (!asteroids[i]) continue;
+        asteroids[i].update();
+        asteroids[i].draw();
+
+        // Bullet vs Asteroid
+        let asteroidHit = false;
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
+                score++; // Score only for hitting asteroids
+                let currentAsteroid = asteroids[i];
+                let asteroidPos = currentAsteroid.pos.copy();
+                let asteroidSize = currentAsteroid.size;
+                let asteroidColor = currentAsteroid.color;
+
+                asteroids.splice(i, 1);
+                bullets.splice(j, 1);
+                asteroidHit = true;
+
+                createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSize / 3), asteroidColor);
+
+                if (asteroidSize > minAsteroidSize * 2) {
+                   let newSize = asteroidSize * 0.6;
+                   let vel1 = p5.Vector.random2D().mult(random(1, 3));
+                   let vel2 = p5.Vector.random2D().mult(random(1, 3));
+                   asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
+                   asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
+                } else {
+                    // Optional: Small chance to drop a 'score bonus' particle? Future idea.
+                }
+                break;
+            }
+        }
+
+        if (asteroidHit) continue;
+
+        // Ship vs Asteroid
+        if (asteroids[i] && asteroids[i].hitsShip(ship)) {
+            lives--;
+            createParticles(ship.x, ship.y, 30, color(0, 80, 100)); // Red/Orange ship explosion
+            // --- NEW: Reset upgrades on death? Or keep them? Let's keep them for now. ---
+            // ship.resetUpgrades(); // Optional call here if needed
+
+            if (lives <= 0) {
+                isGameOver = true;
+            } else {
+                ship.resetPosition();
+                createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
+                asteroids.splice(i, 1);
+                // Brief invulnerability after respawn would be good here
+            }
+        }
     }
-    if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { // Right Arrow or 'D'
-        ship.move(moveSpeed);
-    }
-    // Note: We are NOT handling Up/Down movement currently
-    // if (keyIsDown(UP_ARROW) || keyIsDown(87)) { // Up Arrow or 'W' }
-    // if (keyIsDown(DOWN_ARROW) || keyIsDown(83)) { // Down Arrow or 'S' }
 }
 
-// ==================
-// Collision Handling (Unchanged)
-// ==================
-function handleAsteroidsAndCollisions() { /* ... same as before ... */ }
 
 // ==================
-// Background Function (Unchanged)
+// Background Function
 // ==================
-function drawBackgroundAndStars() { /* ... same as before ... */ }
+function drawBackgroundAndStars() {
+    let topColor = color(260, 80, 10);
+    let bottomColor = color(240, 70, 25);
+    for(let y=0; y < height; y++){
+        let inter = map(y, 0, height, 0, 1);
+        let c = lerpColor(topColor, bottomColor, inter);
+        stroke(c);
+        line(0, y, width, y);
+    }
+    noStroke();
+
+    for (let star of stars) {
+        star.update();
+        star.draw();
+    }
+}
+
 
 // ==================
-// Display Functions (Minor tweak for clarity)
+// Display Functions
 // ==================
+// <-- NEW: Combined HUD function -->
 function displayHUD() {
-  fill(0, 0, 100, 80); noStroke(); textSize(18); textAlign(LEFT, TOP);
+  fill(0, 0, 100, 80); // White text with some transparency
+  noStroke();
+  textSize(18); // Adjusted size
+  textAlign(LEFT, TOP);
   text("Score: " + score, 15, 15);
   text("Lives: " + lives, 15, 40);
 
+  // --- NEW: Display Upgrade Info ---
   textAlign(RIGHT, TOP);
   let fireRateCost = ship.getUpgradeCost('fireRate');
   let spreadShotCost = ship.getUpgradeCost('spreadShot');
 
-  fill(ship.fireRateLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50));
-  text(`[1] Rate (${ship.fireRateLevel}/${ship.maxLevel}): ${fireRateCost}`, width - 15, 15);
+  fill(ship.fireRateLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50)); // Green if available, grey if maxed
+  text(`[1] Rate (${ship.fireRateLevel}/${ship.maxLevel}): ${fireRateCost} pts`, width - 15, 15);
 
-  fill(ship.spreadShotLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50));
-  text(`[2] Spread (${ship.spreadShotLevel}/${ship.maxLevel}): ${spreadShotCost}`, width - 15, 40);
-
-  // Optional: Add hint for spacebar shooting
-  textAlign(CENTER, TOP);
-  fill(0,0,100, 50); // Faint white
-  text("Arrows/AD=Move | Space=Shoot | 1,2=Upgrade", width/2, 10);
+  fill(ship.spreadShotLevel < ship.maxLevel ? color(120, 70, 90) : color(0, 0, 50)); // Green if available, grey if maxed
+  text(`[2] Spread (${ship.spreadShotLevel}/${ship.maxLevel}): ${spreadShotCost} pts`, width - 15, 40);
 
 }
-function displayUpgradeMessage() { /* ... same as before ... */ }
-function displayGameOver() { /* ... same as before ... */ }
+
+// <-- NEW: Function to show upgrade messages -->
+function displayUpgradeMessage() {
+    fill(0, 0, 100); // White
+    textSize(16);
+    textAlign(CENTER, BOTTOM);
+    text(upgradeMessage, width / 2, height - 20); // Display at bottom center
+}
+
+
+function displayGameOver() {
+    drawBackgroundAndStars();
+    fill(0, 0, 0, 50);
+    rect(0, 0, width, height);
+    fill(0, 90, 100);
+    textSize(60);
+    textAlign(CENTER, CENTER);
+    text("GAME OVER", width / 2, height / 2 - 50);
+    fill(0, 0, 100);
+    textSize(30);
+    text("Final Score: " + score, width / 2, height / 2 + 10);
+    textSize(22);
+    let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100);
+    fill(0, 0, pulse);
+    text("Click to Restart", width / 2, height / 2 + 60);
+    cursor(ARROW);
+}
+
+function resetGame() {
+    ship = new Ship(); // Creates a new ship with base upgrades
+    bullets = [];
+    particles = [];
+    asteroids = []; // Clear asteroids before spawning new ones
+    score = 0;
+    lives = 3;
+    currentAsteroidSpawnRate = baseAsteroidSpawnRate;
+    isGameOver = false;
+    spawnInitialAsteroids();
+    createStarfield(200);
+    noCursor();
+}
+
 
 // ==================
-// Reset Function (Unchanged)
-// ==================
-function resetGame() { /* ... same as before ... */ }
-
-// ==================
-// Input Handling (MODIFIED)
+// Input Handling
 // ==================
 function mousePressed() {
   if (isGameOver) {
      resetGame();
   } else {
-    ship.shoot(); // Click still shoots
+    ship.shoot();
   }
 }
 
+// --- NEW: Keyboard Input for Upgrades ---
 function keyPressed() {
-    if (isGameOver) return;
-
-    if (keyCode === 32) { // Spacebar
-        ship.shoot();
-        return; // Prevent default browser spacebar action (scrolling)
-    }
+    if (isGameOver) return; // Don't allow upgrades when game over
 
     if (key === '1') {
         ship.attemptUpgrade('fireRate');
     } else if (key === '2') {
         ship.attemptUpgrade('spreadShot');
     }
+    // Add more keys for other upgrades here (e.g., '3' for bullet speed)
 }
 
-function windowResized() { /* ... same as before ... */ }
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  createStarfield(200);
+  if (ship) {
+      ship.baseY = height - 50; // Recalculate base Y on resize
+      ship.resetPosition();
+  }
+}
+
 
 // ==================
-// Ship Class (MODIFIED for Keyboard Movement & Evolving Look)
+// Ship Class (UPGRADE LOGIC ADDED)
 // ==================
 class Ship {
   constructor() {
-    // ... (initial properties mostly same as before) ...
     this.baseY = height - 50;
     this.x = width / 2;
     this.y = this.baseY;
     this.size = 30;
-    this.baseColor = color(200, 80, 95); // Store base color
+    this.color = color(200, 80, 95);
     this.cockpitColor = color(180, 100, 100);
     this.engineColor1 = color(30, 100, 100);
     this.engineColor2 = color(0, 100, 100);
     this.hoverOffset = 0;
     this.shootCooldown = 0;
-    this.maxLevel = 5;
-    this.fireRateLevel = 0;
-    this.spreadShotLevel = 0;
-    this.baseShootDelay = 15;
-    this.shootDelayPerLevel = 2;
+
+    // --- NEW: Upgrade Properties ---
+    this.maxLevel = 5; // Max level for upgrades
+    this.fireRateLevel = 0; // Starts at level 0
+    this.spreadShotLevel = 0; // Starts at level 0
+
+    this.baseShootDelay = 15; // Initial delay (higher is slower)
+    this.shootDelayPerLevel = 2; // How much delay decreases per level
+
+    // Costs scale up
     this.baseUpgradeCost = 50;
     this.costMultiplier = 2.5;
-
-    // --- NEW: Appearance Level ---
-    this.appearanceLevel = 0; // Will be updated based on upgrades
   }
 
-  get currentShootDelay() { /* ... same as before ... */ }
-  getUpgradeCost(upgradeType) { /* ... same as before ... */ }
+  // --- NEW: Calculate current shoot delay ---
+  get currentShootDelay() {
+      return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); // Ensure minimum delay
+  }
 
-  // --- NEW: Update appearance level ---
-  updateAppearanceLevel() {
-      let totalLevel = this.fireRateLevel + this.spreadShotLevel;
-      if (totalLevel <= 2) {
-          this.appearanceLevel = 0;
-      } else if (totalLevel <= 6) {
-          this.appearanceLevel = 1;
+  // --- NEW: Calculate upgrade cost ---
+  getUpgradeCost(upgradeType) {
+      let level;
+      if (upgradeType === 'fireRate') {
+          level = this.fireRateLevel;
+      } else if (upgradeType === 'spreadShot') {
+          level = this.spreadShotLevel;
       } else {
-          this.appearanceLevel = 2;
+          return Infinity; // Unknown type
       }
+      if (level >= this.maxLevel) return "MAX";
+      // Cost = base * multiplier ^ level
+      return floor(this.baseUpgradeCost * pow(this.costMultiplier, level));
   }
 
-
+  // --- NEW: Attempt to buy an upgrade ---
   attemptUpgrade(upgradeType) {
-      // ... (upgrade logic same as before) ...
       let cost = this.getUpgradeCost(upgradeType);
       let currentLevel;
       let canUpgrade = false;
 
       if (upgradeType === 'fireRate') currentLevel = this.fireRateLevel;
       else if (upgradeType === 'spreadShot') currentLevel = this.spreadShotLevel;
-      else return;
+      else return; // Exit if unknown type
 
       if (currentLevel < this.maxLevel && score >= cost) {
-          score -= cost;
+          score -= cost; // Deduct score
           if (upgradeType === 'fireRate') this.fireRateLevel++;
           else if (upgradeType === 'spreadShot') this.spreadShotLevel++;
-          upgradeMessage = `${upgradeType.replace(/([A-Z])/g, ' $1').toUpperCase()} UPGRADED!`;
+          upgradeMessage = `${upgradeType.replace(/([A-Z])/g, ' $1').toUpperCase()} UPGRADED!`; // Format name
           canUpgrade = true;
-          this.updateAppearanceLevel(); // <-- Update look after successful upgrade
       } else if (currentLevel >= this.maxLevel) {
           upgradeMessage = `${upgradeType.replace(/([A-Z])/g, ' $1').toUpperCase()} MAX LEVEL!`;
       } else {
           upgradeMessage = `NEED ${cost} PTS FOR ${upgradeType.replace(/([A-Z])/g, ' $1').toUpperCase()}!`;
       }
-      upgradeMessageTimeout = 120;
+      upgradeMessageTimeout = 120; // Show message for 2 seconds
   }
 
-  resetUpgrades() { /* ... same as before ... */ }
-  resetPosition() { /* ... same as before ... */ }
-
-  // --- NEW: Keyboard move method ---
-  move(amount) {
-      this.x += amount;
-      // Apply constraints immediately
-      this.x = constrain(this.x, this.size * 0.7, width - this.size * 0.7);
+  // --- NEW: Reset Upgrades (Optional - call if needed e.g. on game over) ---
+  resetUpgrades() {
+      this.fireRateLevel = 0;
+      this.spreadShotLevel = 0;
   }
 
+
+  resetPosition() {
+      this.x = width / 2;
+      this.y = this.baseY;
+  }
 
   update() {
-    // --- MOUSE OVERRIDE ---
-    // If mouse moves significantly, assume mouse control is intended
-    // This prevents jitter if mouse is bumped while using keys
-    // Disabled for now, but could be added back if needed:
-    // if (abs(mouseX - this.x) > 10) {
-    //     this.x = mouseX;
-    // }
-
-    // --- CONSTRAIN POSITION (redundant if move() constrains, but safe) ---
+    this.x = mouseX;
     this.x = constrain(this.x, this.size * 0.7, width - this.size * 0.7);
-
-    // --- HOVER ---
     this.hoverOffset = sin(frameCount * 0.08) * 3;
     this.y = this.baseY + this.hoverOffset;
-
-    // --- COOLDOWN ---
     if (this.shootCooldown > 0) {
         this.shootCooldown--;
     }
   }
 
-  shoot() { /* ... same as before ... */ }
+  shoot() {
+      if (this.shootCooldown <= 0) {
+          let bulletX = this.x;
+          let bulletY = this.y - this.size * 0.6;
+
+          // --- Apply Spread Shot ---
+          let numShots = this.spreadShotLevel > 0 ? 3 : 1; // 1 or 3 shots
+          let spreadAngle = PI / 18; // Angle between spread shots (adjust as needed)
+
+          for (let i = 0; i < numShots; i++) {
+              let angle = 0;
+              if (numShots > 1) {
+                  // Calculate angle for shots: middle, left, right
+                  angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle);
+              }
+              bullets.push(new Bullet(bulletX, bulletY, angle)); // Pass angle to bullet
+          }
+
+          this.shootCooldown = this.currentShootDelay; // Use calculated delay
+      }
+  }
 
 
-  // --- DRAW (MODIFIED for Evolving Look) ---
   draw() {
     push();
     translate(this.x, this.y);
 
-    // --- Draw Engine Glow (Slightly adjusted based on level) ---
+    // Engine Glow
     let enginePulse = map(sin(frameCount * 0.2 + this.hoverOffset * 0.5), -1, 1, 0.8, 1.2);
-    let baseEngineSize = this.size * 0.5 * enginePulse;
-    // Make engine bigger/brighter at higher levels
-    let engineSizeMultiplier = 1 + this.appearanceLevel * 0.2;
-    let engineSize = baseEngineSize * engineSizeMultiplier;
+    let engineSize = this.size * 0.5 * enginePulse;
     let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100);
     noStroke();
-    // Outer Glow
     for (let i = engineSize * 1.5; i > 0; i -= 3) {
-        let alpha = map(i, 0, engineSize * 1.5, 0, 30 + this.appearanceLevel * 10); // More alpha glow
+        let alpha = map(i, 0, engineSize * 1.5, 0, 30);
         fill(hue(this.engineColor2), 100, engineBrightness, alpha);
         ellipse(0, this.size * 0.5, i, i* 1.5);
     }
-    // Inner Core
      fill(hue(this.engineColor1), 100, 100);
      ellipse(0, this.size * 0.5, engineSize * 0.6, engineSize * 1.2);
 
+    // Ship Body
+    stroke(0, 0, 80);
+    strokeWeight(1.5);
+    fill(this.color);
+    beginShape();
+    vertex(0, -this.size * 0.7);
+    bezierVertex(this.size * 0.5, -this.size * 0.4, this.size * 0.6, this.size * 0.1, this.size * 0.7, this.size * 0.4);
+    bezierVertex(this.size * 0.4, this.size * 0.5, -this.size * 0.4, this.size * 0.5, -this.size * 0.7, this.size * 0.4);
+    bezierVertex(-this.size * 0.6, this.size * 0.1, -this.size * 0.5, -this.size * 0.4, 0, -this.size * 0.7);
+    endShape(CLOSE);
 
-    // --- Draw Ship Body based on Appearance Level ---
-    stroke(0, 0, 80); strokeWeight(1.5);
-
-    if (this.appearanceLevel === 0) { // Base Level Look
-        fill(this.baseColor);
-        beginShape(); // Original curved shape
-        vertex(0, -this.size * 0.7);
-        bezierVertex(this.size * 0.5, -this.size * 0.4, this.size * 0.6, this.size * 0.1, this.size * 0.7, this.size * 0.4);
-        bezierVertex(this.size * 0.4, this.size * 0.5, -this.size * 0.4, this.size * 0.5, -this.size * 0.7, this.size * 0.4);
-        bezierVertex(-this.size * 0.6, this.size * 0.1, -this.size * 0.5, -this.size * 0.4, 0, -this.size * 0.7);
-        endShape(CLOSE);
-    } else if (this.appearanceLevel === 1) { // Mid Level Look
-        // Change color slightly, add small winglets
-        fill(hue(this.baseColor) + 20, saturation(this.baseColor), brightness(this.baseColor)); // Shift hue slightly
-        beginShape(); // Original curved shape
-        vertex(0, -this.size * 0.7);
-        bezierVertex(this.size * 0.5, -this.size * 0.4, this.size * 0.6, this.size * 0.1, this.size * 0.7, this.size * 0.4);
-        bezierVertex(this.size * 0.4, this.size * 0.5, -this.size * 0.4, this.size * 0.5, -this.size * 0.7, this.size * 0.4);
-        bezierVertex(-this.size * 0.6, this.size * 0.1, -this.size * 0.5, -this.size * 0.4, 0, -this.size * 0.7);
-        endShape(CLOSE);
-        // Add winglets
-        fill(hue(this.baseColor) - 30, 80, 70); // Contrasting color
-        triangle(this.size * 0.6, this.size * 0.3, this.size * 0.8, this.size * 0.5, this.size * 0.5, this.size * 0.5); // Right winglet
-        triangle(-this.size * 0.6, this.size * 0.3, -this.size * 0.8, this.size * 0.5, -this.size * 0.5, this.size * 0.5); // Left winglet
-    } else { // Max Level Look
-        // More angular, aggressive look, different color
-        fill(hue(this.baseColor) + 150, 90, 90); // Purple/Pinkish color
-        beginShape(); // More angular shape
-        vertex(0, -this.size * 0.8); // Sharper nose
-        vertex(this.size * 0.9, this.size * 0.5); // Wider, sharper wing tip R
-        vertex(this.size * 0.3, this.size * 0.4); // Indent near body R
-        vertex(0, this.size * 0.6); // Tail center
-        vertex(-this.size * 0.3, this.size * 0.4); // Indent near body L
-        vertex(-this.size * 0.9, this.size * 0.5); // Wider, sharper wing tip L
-        endShape(CLOSE);
-         // Add fins
-        fill(hue(this.baseColor) + 180, 80, 70); // Contrasting teal color
-        triangle(this.size * 0.7, this.size * 0.4, this.size * 1.1, this.size * 0.6, this.size * 0.6, this.size * 0.6); // Right fin
-        triangle(-this.size * 0.7, this.size * 0.4, -this.size * 1.1, this.size * 0.6, -this.size * 0.6, this.size * 0.6); // Left fin
-    }
-
-    // --- Draw Cockpit (Same for all levels for now) ---
-    fill(this.cockpitColor); noStroke();
+    // Cockpit
+    fill(this.cockpitColor);
+    noStroke();
     ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5);
     fill(0, 0, 100, 50);
     ellipse(0, -this.size * 0.2, this.size * 0.2, this.size * 0.25);
@@ -352,23 +471,151 @@ class Ship {
   }
 }
 
+// ==================
+// Bullet Class (COLOR CYCLE & ANGLE ADDED)
+// ==================
+class Bullet {
+  constructor(x, y, angle = 0) { // <-- Added angle parameter (defaults to 0)
+    this.pos = createVector(x, y); // Use vectors for easier angle math
+    this.speed = 16; // Even faster bullets
+    this.size = 5;
+    this.startHue = frameCount % 360; // Start hue based on when it was fired
+    this.hue = this.startHue;
+
+    // Calculate initial velocity based on angle (up is -PI/2)
+    let baseAngle = -PI / 2; // Straight up
+    this.vel = p5.Vector.fromAngle(baseAngle + angle); // Apply spread angle
+    this.vel.mult(this.speed);
+  }
+
+  update() {
+    this.pos.add(this.vel); // Move based on velocity vector
+    this.hue = (this.hue + 4) % 360; // Cycle hue fairly quickly
+  }
+
+  draw() {
+    fill(this.hue, 90, 100); // Use cycling hue, bright saturation/brightness
+    stroke(0, 0, 100); // White outline
+    strokeWeight(1);
+    // Draw elongated shape aligned with velocity (optional complexity)
+    // For simplicity, keep drawing vertical ellipse for now
+    ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); // Even more elongated
+  }
+
+  isOffscreen() {
+    // Check bounds based on position vector
+    return (this.pos.y < -this.size * 2 ||
+            this.pos.y > height + this.size * 2 ||
+            this.pos.x < -this.size * 2 ||
+            this.pos.x > width + this.size * 2);
+  }
+}
 
 // ==================
-// Bullet Class (Unchanged)
+// Asteroid Class (No major changes)
 // ==================
-class Bullet { /* ... same as before ... */ }
+class Asteroid {
+  constructor(x, y, size, vel) {
+    this.size = size || random(30, 80);
+    this.pos = createVector();
+
+    if (x !== undefined && y !== undefined) {
+        this.pos.x = x; this.pos.y = y;
+    } else {
+        let edge = floor(random(4));
+        if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; }
+        else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height); }
+        else if (edge === 2) { this.pos.x = random(width); this.pos.y = -this.size / 2; }
+        else { this.pos.x = -this.size / 2; this.pos.y = random(height); }
+    }
+
+    if (vel) {
+        this.vel = vel;
+    } else {
+        let angle;
+        if (this.pos.y < 0) angle = random(PI * 0.2, PI * 0.8);
+        else if (this.pos.x > width) angle = random(PI * 0.7, PI * 1.3);
+        else if (this.pos.x < 0) angle = random(-PI * 0.3, PI * 0.3);
+        else angle = random(TWO_PI);
+        if (x !== undefined && y !== undefined) angle = random(TWO_PI);
+        this.speed = random(1, 3) * (this.size > 50 ? 1 : 1.3);
+        this.vel = p5.Vector.fromAngle(angle);
+        this.vel.mult(this.speed);
+    }
+
+    this.color = color(random(20, 50), random(30, 70), random(30, 60));
+    this.rotation = random(TWO_PI);
+    this.rotationSpeed = random(-0.025, 0.025);
+
+    this.vertices = [];
+    let numVertices = floor(random(7, 15));
+    for (let i = 0; i < numVertices; i++) {
+      let angleOffset = map(i, 0, numVertices, 0, TWO_PI);
+      let r = this.size / 2 + random(-this.size * 0.3, this.size * 0.2);
+      let v = p5.Vector.fromAngle(angleOffset + this.rotation); v.mult(r);
+      this.vertices.push(v);
+    }
+  }
+  update() {
+    this.pos.add(this.vel); this.rotation += this.rotationSpeed;
+    let buffer = this.size / 2;
+    if (this.pos.x < -buffer) this.pos.x = width + buffer;
+    if (this.pos.x > width + buffer) this.pos.x = -buffer;
+    if (this.pos.y < -buffer) this.pos.y = height + buffer;
+    if (this.pos.y > height + buffer) this.pos.y = -buffer;
+  }
+  draw() {
+    push(); translate(this.pos.x, this.pos.y); rotate(this.rotation);
+    fill(this.color);
+    stroke(hue(this.color), saturation(this.color)*0.5, brightness(this.color) * 1.5);
+    strokeWeight(2); beginShape();
+    for (let v of this.vertices) { vertex(v.x, v.y); }
+    endShape(CLOSE); pop();
+  }
+  hits(bullet) {
+    let d = dist(this.pos.x, this.pos.y, bullet.pos.x, bullet.pos.y); // Use bullet.pos
+    return d < this.size / 2 + bullet.size;
+  }
+  hitsShip(ship) {
+    let d = dist(this.pos.x, this.pos.y, ship.x, ship.y);
+    return d < this.size / 2 + ship.size * 0.5;
+  }
+}
 
 // ==================
-// Asteroid Class (Unchanged)
+// Particle Class (No changes)
 // ==================
-class Asteroid { /* ... same as before ... */ }
+class Particle {
+  constructor(x, y, particleColor) {
+    this.pos = createVector(x, y); this.vel = p5.Vector.random2D();
+    this.vel.mult(random(1.5, 5)); this.lifespan = 100;
+    this.baseHue = hue(particleColor); this.baseSat = saturation(particleColor);
+    this.baseBri = brightness(particleColor); this.size = random(2, 6);
+  }
+  update() {
+    this.pos.add(this.vel); this.lifespan -= 3; this.vel.mult(0.97);
+  }
+  draw() {
+    noStroke(); fill(this.baseHue, this.baseSat, this.baseBri, this.lifespan);
+    ellipse(this.pos.x, this.pos.y, this.size);
+  }
+  isDead() { return this.lifespan <= 0; }
+}
 
 // ==================
-// Particle Class (Unchanged)
+// Star Class (No changes)
 // ==================
-class Particle { /* ... same as before ... */ }
-
-// ==================
-// Star Class (Unchanged)
-// ==================
-class Star { /* ... same as before ... */ }
+class Star {
+    constructor() {
+        this.x = random(width); this.y = random(height);
+        this.layer = floor(random(3)); this.size = map(this.layer, 0, 2, 0.5, 2.5);
+        this.speed = map(this.layer, 0, 2, 0.1, 0.5); this.brightness = random(60, 100);
+    }
+    update() {
+        this.y += this.speed;
+        if (this.y > height + this.size) { this.y = -this.size; this.x = random(width); }
+    }
+    draw() {
+        fill(0, 0, this.brightness); noStroke(); ellipse(this.x, this.y, this.size);
+    }
+}
