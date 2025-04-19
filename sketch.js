@@ -15,6 +15,8 @@
 // - Asteroid speed reduced.
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - Added Spacebar as an alternative shooting key.
+// - Score per asteroid hit increased to 2 points.
+// - Background gradient color changes every 10 seconds.
 // --------------------------
 
 let ship;
@@ -35,19 +37,28 @@ const SHIELD_SCORE_THRESHOLD = 25; // How many points needed to gain one shield 
 let upgradeMessage = ""; // Message displayed after upgrade attempt
 let upgradeMessageTimeout = 0; // Countdown timer for how long the message shows
 
+// --- NEW: Background Color Variables ---
+let currentTopColor;
+let currentBottomColor;
+const BACKGROUND_CHANGE_INTERVAL = 600; // Change background every 600 frames (10 seconds at 60fps)
+
+
 // ==================
 // p5.js Setup Function
 // Runs once at the beginning
 // ==================
 function setup() {
   createCanvas(windowWidth, windowHeight); // Create canvas filling the window
+  colorMode(HSB, 360, 100, 100, 100); // Use HSB color mode
   ship = new Ship(); // Create the player's ship object
   spawnInitialAsteroids(); // Create the first wave of asteroids
   createStarfield(200); // Create the background starfield
   textAlign(CENTER, CENTER); // Set default text alignment
   textSize(20); // Set default text size
-  // noCursor(); // Keep cursor visible as it's not used for movement now
-  colorMode(HSB, 360, 100, 100, 100); // Use HSB color mode for easier hue manipulation
+
+  // --- NEW: Initialize background colors ---
+  currentTopColor = color(260, 80, 10); // Initial dark blue/purple top
+  currentBottomColor = color(240, 70, 25); // Initial slightly lighter blue bottom
 }
 
 // ==================
@@ -102,7 +113,18 @@ function createStarfield(numStars) {
 // Runs continuously (typically 60 times per second)
 // ==================
 function draw() {
-  drawBackgroundAndStars(); // Draw the gradient and stars first
+  // --- NEW: Check for background color change ---
+  // Check frameCount, ensuring it's not the very first frame (frameCount=0)
+  if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) {
+      // Generate new random HSB colors within space-like ranges
+      let topH = random(180, 300); // Blues, purples, magentas for top
+      let bottomH = (topH + random(20, 60)) % 360; // Related but different hue for bottom
+      currentTopColor = color(topH, random(70, 90), random(10, 20)); // Darker top
+      currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); // Slightly lighter bottom
+  }
+
+  // Draw the background using current colors
+  drawBackgroundAndStars();
 
   // If game is over, display game over screen and stop main game loop
   if (isGameOver) {
@@ -177,7 +199,7 @@ function handleAsteroidsAndCollisions() {
             if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
                 // --- Score and Shield Gain Logic ---
                 let oldScore = score;
-                score++; // Increment score for hitting asteroid
+                score += 2; // MODIFIED: Increment score by 2
                 // Check if score crossed a shield threshold
                 let shieldsToAdd = floor(score / SHIELD_SCORE_THRESHOLD) - floor(oldScore / SHIELD_SCORE_THRESHOLD);
                 if (shieldsToAdd > 0) {
@@ -258,16 +280,15 @@ function handleAsteroidsAndCollisions() {
 
 // ==================
 // Background Drawing Function
-// Draws the gradient background and stars
+// Draws the gradient background and stars using current colors
 // ==================
 function drawBackgroundAndStars() {
-    // Define gradient colors (dark blue/purple top to lighter blue bottom)
-    let topColor = color(260, 80, 10);
-    let bottomColor = color(240, 70, 25);
-    // Draw gradient line by line (efficient for simple vertical gradient)
+    // --- MODIFIED: Use global color variables ---
+    // Draw gradient line by line using currentTopColor and currentBottomColor
     for(let y=0; y < height; y++){
-        let inter = map(y, 0, height, 0, 1); // Interpolation factor (0 at top, 1 at bottom)
-        let c = lerpColor(topColor, bottomColor, inter); // Calculate color at this y-position
+        let inter = map(y, 0, height, 0, 1); // Interpolation factor
+        // Lerp between the current global colors
+        let c = lerpColor(currentTopColor, currentBottomColor, inter);
         stroke(c); // Set line color
         line(0, y, width, y); // Draw horizontal line
     }
@@ -319,7 +340,8 @@ function displayUpgradeMessage() {
 
 // Displays the Game Over screen
 function displayGameOver() {
-    drawBackgroundAndStars(); // Keep drawing the background
+    // Keep drawing the background using the *last active* colors
+    drawBackgroundAndStars();
 
     // Draw a semi-transparent overlay to dim the background
     fill(0, 0, 0, 50); // Black with 50% alpha
@@ -357,6 +379,10 @@ function resetGame() {
     isGameOver = false; // Set game state back to active
     spawnInitialAsteroids(); // Spawn the starting asteroids
     createStarfield(200); // Re-create the starfield
+    // Reset background colors to initial state
+    currentTopColor = color(260, 80, 10);
+    currentBottomColor = color(240, 70, 25);
+    frameCount = 0; // Reset frameCount to restart background timer accurately
     // cursor(ARROW); // Ensure cursor is visible if needed, or use noCursor() if preferred
 }
 
@@ -601,7 +627,9 @@ class Ship {
 
     // --- Draw Engine Glow ---
     // Engine visual effect remains relative to the ship's orientation (points "down")
-    let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2); // Removed hoverOffset dependency
+    // Determine pulse based on vertical velocity or general activity? Let's keep it simple for now.
+    let enginePulseFactor = 1.0 + abs(this.vel.y) * 0.1; // Pulse slightly based on vertical speed
+    let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2) * enginePulseFactor;
     let engineSize = this.size * 0.5 * enginePulse;
     let engineBrightness = map(sin(frameCount * 0.3), -1, 1, 80, 100);
     noStroke();
