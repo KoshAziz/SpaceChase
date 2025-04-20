@@ -12,6 +12,7 @@
 // - Simple Explosion Particles (Asteroid destruction + Bullet impact) // MODIFIED (Variation)
 // - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED (Spawn Rate & Max Count)
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
+// - ADDED: Simple Enemy Ships that shoot at the player.
 // --- Modifications ---
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
@@ -44,8 +45,9 @@ let asteroids = [];
 let particles = [];
 let stars = [];
 let potions = [];
+let enemyShips = []; // <-- ADDED
+let enemyBullets = []; // <-- ADDED
 // REMOVED: let boss = null;
-// REMOVED: let enemyBullets = [];
 
 // Game State Management - REMOVED BOSS_FIGHT state
 const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2 };
@@ -57,12 +59,13 @@ let money = 0;
 let lives = 3;
 const MAX_LIVES = 3;
 let currentLevel = 1;
-// Adjusted thresholds for potentially smoother progression without bosses as gatekeepers
 const LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 7500, 10500]; // Example adjustment
 
 // Game Settings & Thresholds
 let baseAsteroidSpawnRate;
 let currentAsteroidSpawnRate;
+let baseEnemySpawnRate; // <-- ADDED
+let currentEnemySpawnRate; // <-- ADDED
 let potionSpawnRate = 0.001;
 let initialAsteroids = 5; // Starting asteroids at game start
 let minAsteroidSize = 15;
@@ -70,6 +73,7 @@ const SHIELD_POINTS_THRESHOLD = 50;
 const MAX_SHIELD_CHARGES = 1;
 const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0;
+const MAX_ENEMY_SPEED = 3.0; // <-- ADDED
 
 // --- UI & Messages ---
 let infoMessage = "";
@@ -93,30 +97,19 @@ const PLANET_MAX_INTERVAL = 60000; // milliseconds
 let screenShakeIntensity = 0;
 let screenShakeDuration = 0;
 
-// REMOVED: Freighter variables
-
-
 // ==================
 // p5.js Setup Function
 // ==================
 function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
-
-  // Mobile Detection
   let ua = navigator.userAgent;
   if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
-
-  // Initialize background elements
   createStarfield(200);
   textAlign(CENTER, CENTER);
   textSize(20);
-  currentTopColor = color(260, 80, 10); // Initial dark blue top
-  currentBottomColor = color(240, 70, 25); // Initial darker blue bottom
-
-  // REMOVED: Name Input & Submit Button creation
-
-  // Wait in START_SCREEN state
+  currentTopColor = color(260, 80, 10);
+  currentBottomColor = color(240, 70, 25);
 }
 
 // ==================
@@ -128,45 +121,27 @@ function spawnInitialAsteroids() {
         let startPos;
         let shipX = ship ? ship.pos.x : width / 2;
         let shipY = ship ? ship.pos.y : height - 50;
-        // Ensure asteroids don't spawn too close to the ship's starting area
-        do {
-            startPos = createVector(random(width), random(height * 0.7)); // Spawn in upper 70%
-        } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150);
+        do { startPos = createVector(random(width), random(height * 0.7)); } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150);
         asteroids.push(new Asteroid(startPos.x, startPos.y));
     }
 }
 
 function createParticles(x, y, count, particleColor, particleSize = null, particleSpeedMult = 1) {
-    let baseHue = hue(particleColor);
-    let baseSat = saturation(particleColor);
-    let baseBri = brightness(particleColor);
-    for (let i = 0; i < count; i++) {
-        // Slightly vary particle color
-        let pColor = color(
-           baseHue + random(-10, 10),
-           baseSat * random(0.8, 1.0),
-           baseBri * random(0.9, 1.0),
-           100 // Alpha
-        );
-        particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult));
-    }
+    let baseHue = hue(particleColor); let baseSat = saturation(particleColor); let baseBri = brightness(particleColor);
+    for (let i = 0; i < count; i++) { let pColor = color( baseHue + random(-10, 10), baseSat * random(0.8, 1.0), baseBri * random(0.9, 1.0), 100 ); particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult)); }
 }
 
-function createStarfield(numStars) {
-    stars = [];
-    for (let i = 0; i < numStars; i++) {
-        stars.push(new Star());
-    }
-}
-// REMOVED: Leaderboard functions
-// REMOVED: submitScore function
+function createStarfield(numStars) { stars = []; for (let i = 0; i < numStars; i++) { stars.push(new Star()); } }
 
-// --- Function to set difficulty based on level (MODIFIED Spawn Rate Scaling) ---
+// --- Function to set difficulty based on level (ADDED Enemy Spawn Rate) ---
 function setDifficultyForLevel(level) {
-    let mobileFactor = isMobile ? 0.7 : 1.0; // Spawn less frequently on mobile
-    // --- MODIFIED: Increased the per-level increment from 0.001 to 0.0015 ---
+    let mobileFactor = isMobile ? 0.7 : 1.0;
+    // Asteroid Spawn Rate
     baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.0015) * mobileFactor;
     currentAsteroidSpawnRate = baseAsteroidSpawnRate;
+    // Enemy Spawn Rate (Starts lower, increases slower) <-- ADDED
+    baseEnemySpawnRate = (0.002 + (level - 1) * 0.0005) * mobileFactor;
+    currentEnemySpawnRate = baseEnemySpawnRate;
 }
 
 
@@ -175,473 +150,208 @@ function setDifficultyForLevel(level) {
 // ==================
 function draw() {
   // Background color change logic
-  if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) {
-      let topH = random(180, 300); // Hue range from cyan to magenta/purple
-      let bottomH = (topH + random(20, 60)) % 360; // Slightly different hue for bottom
-      currentTopColor = color(topH, random(70, 90), random(10, 20)); // Dark, saturated top
-      currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); // Slightly lighter, saturated bottom
-  }
-
-  // --- Background Scenery Update Logic ---
-  if (gameState !== GAME_STATE.START_SCREEN) {
-      let currentTime = millis();
-      // Planet Logic
-      if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) {
-          planetVisible = true;
-          planetSize = random(width * 0.2, width * 0.5);
-          let edge = floor(random(4));
-          if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); // Top edge
-          else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); // Right edge
-          else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); // Bottom edge
-          else planetPos = createVector(-planetSize / 2, random(height)); // Left edge
-          let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8));
-          planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3));
-          let baseH = random(360);
-          planetBaseColor = color(baseH, random(40, 70), random(50, 80));
-          planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90));
-          planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70));
-          lastPlanetAppearanceTime = currentTime;
-      }
-      if (planetVisible) {
-          planetPos.add(planetVel);
-          let buffer = planetSize * 0.6;
-          if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) {
-              planetVisible = false;
-          }
-      }
-  }
+  if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
+  // Background Scenery Update Logic
+  if (gameState !== GAME_STATE.START_SCREEN) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } }
 
   // Draw background elements first (these won't shake)
   drawBackgroundAndStars();
 
   // --- Apply Screen Shake ---
   push(); // Start transformation block for shaking elements
-  if (screenShakeDuration > 0) {
-      translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity));
-      screenShakeDuration--;
-      if (screenShakeDuration <= 0) {
-          screenShakeIntensity = 0; // Reset intensity when duration ends
-      }
-  }
+  if (screenShakeDuration > 0) { translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity)); screenShakeDuration--; if (screenShakeDuration <= 0) { screenShakeIntensity = 0; } }
 
   // --- Game State Machine ---
-  // All game elements drawn within the push/pop will shake
   switch (gameState) {
     case GAME_STATE.START_SCREEN: displayStartScreen(); break;
     case GAME_STATE.PLAYING: runGameLogic(); break;
-    // REMOVED: case GAME_STATE.BOSS_FIGHT: runBossFightLogic(); break;
-    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break; // Renumbered GAME_OVER
+    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
   }
 
   // Display Info Messages (will also shake)
-  if (infoMessageTimeout > 0) {
-      displayInfoMessage();
-      if (gameState === GAME_STATE.PLAYING) {
-          infoMessageTimeout--;
-      }
-  }
+  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING) { infoMessageTimeout--; } }
 
   pop(); // End transformation block for shaking elements
 }
 
 // --- Function for Start Screen (MODIFIED Title Color W/Darker R) ---
 function displayStartScreen() {
-    // --- Dynamic Title ---
-    let titleText = "Space-Chase";
-    let titleSize = 48;
-    textSize(titleSize);
-    textAlign(CENTER, CENTER);
-    let totalWidth = textWidth(titleText);
-    let startX = width / 2 - totalWidth / 2;
-    let currentX = startX;
-    let titleY = height / 3;
-
-    for (let i = 0; i < titleText.length; i++) {
-        let char = titleText[i];
-        let charWidth = textWidth(char);
-
-        // --- MODIFIED: Alternating White and Darker Red color ---
-        if (i % 2 === 0) {
-            fill(0, 0, 100); // White (H=any, S=0, B=100)
-        } else {
-            // --- MODIFIED: Reduced Brightness for darker red ---
-            fill(0, 100, 75); // Darker Red (H=0, S=100, B=75)
-        }
-
-        // Wobble effect
-        let yOffset = sin(frameCount * 0.08 + i * 0.6) * 6;
-
-        // Draw character
-        text(char, currentX + charWidth / 2, titleY + yOffset);
-        currentX += charWidth;
-    }
-    // --- End Dynamic Title ---
-
-    // Draw instructions
-    textSize(22);
-    fill(0, 0, 100); // White
-    textAlign(CENTER, CENTER);
-    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
-    text(startInstruction, width / 2, height / 2 + 50);
+    let titleText = "Space-Chase"; let titleSize = 48; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3;
+    for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); if (i % 2 === 0) { fill(0, 0, 100); } else { fill(0, 100, 75); } let yOffset = sin(frameCount * 0.08 + i * 0.6) * 6; text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; }
+    textSize(22); fill(0, 0, 100); textAlign(CENTER, CENTER); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 50);
 }
 
 
-// --- Function for Main Game Logic (Asteroids - MODIFIED Max Asteroid Limit) ---
+// --- Function for Main Game Logic (ADDED Enemy Spawning) ---
 function runGameLogic() {
-  if (!ship) return; // Exit if ship doesn't exist
+  if (!ship) return;
 
-  // Update & Draw game objects
-  ship.update();
-  ship.draw();
+  // Update & Draw player ship, bullets, particles
+  ship.update(); ship.draw();
+  for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
+  for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
 
-  for (let i = bullets.length - 1; i >= 0; i--) {
-      bullets[i].update();
-      bullets[i].draw();
-      if (bullets[i].isOffscreen()) {
-          bullets.splice(i, 1);
-      }
-  }
+  // Update & Draw Enemies and Enemy Bullets <-- ADDED
+  for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
+  for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
 
-  for (let i = particles.length - 1; i >= 0; i--) {
-      particles[i].update();
-      particles[i].draw();
-      if (particles[i].isDead()) {
-          particles.splice(i, 1);
-      }
-  }
-
-  handleAsteroidsAndCollisions();
+  handleCollisions(); // Renamed function handles all collisions
   handlePotions();
 
-  // Spawn new asteroids and potions during PLAYING state
+  // Spawn new entities during PLAYING state
   if (gameState === GAME_STATE.PLAYING) {
-      // Slightly increase spawn rate over time (independent of level-based rate)
-      let timeFactor = floor(frameCount / 1800) * 0.0005; // Increase every 30 seconds
+      // Time-based difficulty increase (affects spawn rates)
+      let timeFactor = floor(frameCount / 1800) * 0.0005;
       currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
+      currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; // Enemies increase rate slower
 
-      // Dynamic max asteroid limit based on level
-      let maxAsteroidsAllowed = min(40, 20 + currentLevel * 2); // Base 20 + 2 per level, capped at 40
+      // Dynamic max limits based on level
+      let maxAsteroidsAllowed = min(40, 20 + currentLevel * 2);
+      let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); // Slower increase, capped lower <-- ADDED
 
-      // Spawn Asteroid if below the dynamic limit
-      if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) {
-          asteroids.push(new Asteroid());
-      }
+      // Spawn Asteroid
+      if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
+      // Spawn Enemy Ship <-- ADDED
+      if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); }
       // Spawn Potion
-      if (random(1) < potionSpawnRate && potions.length < 2) { // Limit max potions
-          potions.push(new HealthPotion());
-      }
+      if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); }
   }
 
   // Display HUD only when playing
-  if (gameState === GAME_STATE.PLAYING) {
-      displayHUD();
-  }
+  if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
 }
 
-// --- REMOVED: Function for Boss Fight Logic ---
-// function runBossFightLogic() { ... }
-
 
 // ==================
-// Collision Handling Functions
+// Collision Handling Function (Renamed & Updated for Enemies)
 // ==================
-function handleAsteroidsAndCollisions() {
+function handleCollisions() {
     if (gameState !== GAME_STATE.PLAYING) return;
 
+    // 1. Player Bullets vs Asteroids
     for (let i = asteroids.length - 1; i >= 0; i--) {
-        if (!asteroids[i]) continue;
+        if (!asteroids[i]) continue; // Skip if already removed
+        asteroids[i].update(); // Update asteroid position/rotation here
+        asteroids[i].draw();   // Draw asteroid here
 
-        asteroids[i].update();
-        asteroids[i].draw();
-
-        let asteroidHitByBullet = false;
-
-        // Check collision with Bullets
         for (let j = bullets.length - 1; j >= 0; j--) {
             if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) {
-                // Effects for bullet hit - MODIFIED Particle Count
-                let impactParticleCount = floor(random(2, 5)); // Randomize particle count slightly
+                let impactParticleCount = floor(random(2, 5));
                 createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 60, 100), 2, 0.5);
+                let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2;
+                let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
+                let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
 
-                // Score and Resources
-                let oldPoints = points;
-                let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50;
-                points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15));
-                money += 2;
-
-                // Shield gain check
-                let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD);
-                if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
-                    let actualAdded = ship.gainShields(shieldsToAdd);
-                    if (actualAdded > 0) {
-                        infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`;
-                        infoMessageTimeout = 90;
-                    }
+                // Level Up Logic (remains the same)
+                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyShips = []; enemyBullets = []; points += 200 * currentLevel; money += 40 * currentLevel; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); } let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } return; }
+                else { // Check for auto-upgrades if not leveling up
+                    let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; }
                 }
 
-                // Ship shape evolution check
-                let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD);
-                let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
-                if (newShapeLevel > oldShapeLevel) {
-                    ship.changeShape(newShapeLevel);
-                    infoMessage = "SHIP SHAPE EVOLVED!";
-                    infoMessageTimeout = 120;
-                }
-
-                // Level Up Logic
-                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) {
-                    asteroids = []; potions = []; bullets = [];
-                    points += 200 * currentLevel; money += 40 * currentLevel;
-                    currentLevel++;
-                    setDifficultyForLevel(currentLevel);
-                    infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180;
-                    if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); }
-                    // Attempt auto-buy upgrade
-                    let upgradedInLoop = true;
-                    while (upgradedInLoop) {
-                        upgradedInLoop = false;
-                        let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire');
-                        let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity;
-                        let cheapestCost = Math.min(numCost1, numCost2, numCost3);
-                        if (cheapestCost === Infinity || money < cheapestCost) break;
-                        if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; }
-                        else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; }
-                        else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; }
-                        if (!upgradedInLoop) break;
-                    } return; // Exit collision checks for this frame
-                } else { // Check for auto-upgrades if not leveling up
-                    let upgradedInLoop = true;
-                    while (upgradedInLoop) {
-                        upgradedInLoop = false;
-                        let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire');
-                        let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity;
-                        let cheapestCost = Math.min(numCost1, numCost2, numCost3);
-                        if (cheapestCost === Infinity || money < cheapestCost) break;
-                        if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; }
-                        else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; }
-                        else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; }
-                        if (!upgradedInLoop) break;
-                    }
-                }
-
-                // Asteroid destruction/splitting
-                let currentAsteroid = asteroids[i];
-                let asteroidPos = currentAsteroid.pos.copy();
-                let asteroidColor = currentAsteroid.color;
-                asteroids.splice(i, 1);
-                bullets.splice(j, 1);
-                asteroidHitByBullet = true;
-                createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
-                if (asteroidSizeValue > minAsteroidSize * 2) {
-                    let newSize = asteroidSizeValue * 0.6;
-                    let splitSpeedMultiplier = random(0.8, 2.0);
-                    let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier);
-                    let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier);
-                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
-                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
-                } break; // Exit bullet loop
+                let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
+                // Important: break inner loop, but continue outer loop checking remaining asteroids
+                break;
             }
         } // End bullet loop
+    } // End asteroid loop
 
-        if (asteroidHitByBullet) continue;
-
-        // Check collision with ship
-        if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
-            if (ship.shieldCharges > 0) {
-                ship.loseShield();
-                createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100));
-                createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
-                asteroids.splice(i, 1);
-            } else { // Lose a life
-                lives--;
-                createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); // Ship hit particles
-                // --- ADDED: Trigger screen shake ---
-                screenShakeIntensity = 5; // Adjust intensity (pixels)
-                screenShakeDuration = 15; // Adjust duration (frames)
-                // --- End Screen Shake Trigger ---
-                if (lives <= 0) {
-                    gameState = GAME_STATE.GAME_OVER;
-                    infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-                } else {
-                    ship.setInvulnerable();
-                    createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
-                    asteroids.splice(i, 1);
-                }
+    // 2. Player Bullets vs Enemy Ships <-- NEW SECTION
+    for (let i = enemyShips.length - 1; i >= 0; i--) {
+        if (!enemyShips[i]) continue; // Skip if already removed
+        for (let j = bullets.length - 1; j >= 0; j--) {
+            if (enemyShips[i] && bullets[j] && enemyShips[i].hits(bullets[j])) {
+                // Enemy destroyed
+                points += 20; // Award points for enemy
+                money += 5;   // Award money for enemy
+                createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, enemyShips[i].color, 3, 1.2); // Enemy explosion
+                enemyShips.splice(i, 1); // Remove enemy
+                bullets.splice(j, 1);    // Remove player bullet
+                break; // Exit inner loop (bullet loop)
             }
         }
-    } // End asteroid loop
-}
+    } // End player bullet vs enemy ship loop
+
+    // 3. Player Ship vs Asteroids & Enemy Ships (and Enemy Bullets)
+    if (ship.invulnerableTimer <= 0) { // Only check collisions if not invulnerable
+        // 3a. Player vs Asteroids
+        for (let i = asteroids.length - 1; i >= 0; i--) {
+            if (asteroids[i] && asteroids[i].hitsShip(ship)) {
+                if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); }
+                else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } }
+                break; // Ship hit, exit asteroid check loop for this frame maybe? Let's allow multiple hits if overlapping... no, break is safer.
+            }
+        }
+        // 3b. Player vs Enemy Ships <-- NEW SECTION
+        for (let i = enemyShips.length - 1; i >= 0; i--) {
+             if (enemyShips[i] && enemyShips[i].hitsShip(ship)) {
+                 // Treat collision same as asteroid collision
+                 if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, enemyShips[i].color, 3, 1.2); enemyShips.splice(i, 1); } // Shield hit, destroy enemy
+                 else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, enemyShips[i].color, 3, 1.2); enemyShips.splice(i, 1); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); } } // Life lost, destroy enemy
+                 break; // Ship hit, break enemy check loop
+             }
+        }
+        // 3c. Player vs Enemy Bullets <-- NEW SECTION
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) {
+                 // Treat collision same as asteroid collision
+                if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 15, color(180, 80, 100)); enemyBullets.splice(i, 1); } // Shield hit, destroy bullet
+                else { lives--; createParticles(ship.pos.x, ship.pos.y, 20, color(0, 80, 100)); screenShakeIntensity = 4; screenShakeDuration = 10; enemyBullets.splice(i, 1); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); } } // Life lost, destroy bullet
+                break; // Ship hit, break enemy bullet check loop
+            }
+        }
+    } // End invulnerable check
+} // End handleCollisions
 
 
 function handlePotions() {
     if (gameState !== GAME_STATE.PLAYING) return;
-    for (let i = potions.length - 1; i >= 0; i--) {
-        potions[i].update();
-        potions[i].draw();
-        if (potions[i].hitsShip(ship)) {
-            if (lives < MAX_LIVES) {
-                lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90;
-            } else {
-                points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90;
-            }
-            potions.splice(i, 1);
-        } else if (potions[i].isOffscreen()) {
-            potions.splice(i, 1);
-        }
-    }
+    for (let i = potions.length - 1; i >= 0; i--) { potions[i].update(); potions[i].draw(); if (potions[i].hitsShip(ship)) { if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); } else if (potions[i].isOffscreen()) { potions.splice(i, 1); } }
 }
 
 // ==================
 // Background Drawing Function
 // ==================
-function drawBackgroundAndStars() {
-    // Draw Gradient Background
-    for(let y=0; y < height; y++){
-        let inter = map(y, 0, height, 0, 1);
-        let c = lerpColor(currentTopColor, currentBottomColor, inter);
-        stroke(c); line(0, y, width, y);
-    } noStroke();
-
-    // Draw background elements
-    drawBlackHole(); drawGalaxy();
-    if (planetVisible) { drawPlanet(); }
-
-    // Draw Stars
-    for (let star of stars) {
-        star.update(); star.draw();
-    }
-}
-
-// --- Function to draw distant black hole ---
-function drawBlackHole() {
-    push();
-    let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05;
-    fill(0); noStroke(); ellipse(bhX, bhY, bhSize, bhSize);
-    let ringCount = 5; let maxRingSize = bhSize * 3; let minRingSize = bhSize * 1.1;
-    noFill();
-    for (let i = 0; i < ringCount; i++) {
-        let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1));
-        let hue = random(0, 60); let alpha = map(i, 0, ringCount - 1, 40, 5); let sw = map(i, 0, ringCount - 1, 1, 4);
-        strokeWeight(sw); stroke(hue, 90, 90, alpha);
-        ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05));
-    } pop();
-}
-
-// --- Function to draw subtle galaxy ---
-function drawGalaxy() {
-    push();
-    let centerX = width / 2; let centerY = height / 2;
-    let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2;
-    let angle = frameCount * 0.0003;
-    translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY);
-    noStroke();
-    fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.2, height * 0.3);
-    fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.1, height * 0.4);
-    fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.8); ellipse(centerX, centerY, width * 0.9, height * 0.5);
-    pop();
-}
-
-function drawPlanet() {
-    push();
-    translate(planetPos.x, planetPos.y); noStroke();
-    fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize);
-    fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN);
-    fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN);
-    noFill(); strokeWeight(planetSize * 0.05); stroke(hue(planetBaseColor), 20, 100, 15); ellipse(0, 0, planetSize * 1.05, planetSize * 1.05);
-    pop();
-}
+function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let star of stars) { star.update(); star.draw(); } }
+function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize, bhSize); let ringCount = 5; let maxRingSize = bhSize * 3; let minRingSize = bhSize * 1.1; noFill(); for (let i = 0; i < ringCount; i++) { let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)); let hue = random(0, 60); let alpha = map(i, 0, ringCount - 1, 40, 5); let sw = map(i, 0, ringCount - 1, 1, 4); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05)); } pop(); }
+function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.2, height * 0.3); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.1, height * 0.4); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.8); ellipse(centerX, centerY, width * 0.9, height * 0.5); pop(); }
+function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.05); stroke(hue(planetBaseColor), 20, 100, 15); ellipse(0, 0, planetSize * 1.05, planetSize * 1.05); pop(); }
 
 // ==================
 // Display Functions
 // ==================
-function displayHUD() {
-  let hudTextSize = 18;
-  textSize(hudTextSize);
-  fill(0, 0, 100, 80); noStroke(); textAlign(LEFT, TOP);
-  text("Points: " + points, 15, 15);
-  text(`Money: $${money}`, 15, 40);
-  text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65);
-  text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90);
-  text(`Level: ${currentLevel}`, 15, 115);
-  textAlign(RIGHT, TOP); fill(0, 0, 100, 80);
-  text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15);
-  text(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, width - 15, 40);
-  text(`Auto-Fire: ${ship.autoFireLevel > 0 ? 'ON' : 'OFF'}`, width - 15, 65);
-}
-
-function displayInfoMessage() {
-    fill(0, 0, 100); textSize(16); textAlign(CENTER, BOTTOM);
-    text(infoMessage, width / 2, height - 20);
-}
-
-function displayGameOver() {
-    fill(0, 0, 0, 50); rect(0, 0, width, height);
-    fill(0, 90, 100); textSize(60); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
-    fill(0, 0, 100); textSize(30); text("Final Points: " + points, width / 2, height / 3 + 60);
-    textAlign(CENTER, CENTER); textSize(22); let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100); fill(0, 0, pulse); text("Click or Tap to Restart", width / 2, height * 0.7);
-    cursor(ARROW);
-}
+function displayHUD() { let hudTextSize = 18; textSize(hudTextSize); fill(0, 0, 100, 80); noStroke(); textAlign(LEFT, TOP); text("Points: " + points, 15, 15); text(`Money: $${money}`, 15, 40); text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65); text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90); text(`Level: ${currentLevel}`, 15, 115); textAlign(RIGHT, TOP); fill(0, 0, 100, 80); text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15); text(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, width - 15, 40); text(`Auto-Fire: ${ship.autoFireLevel > 0 ? 'ON' : 'OFF'}`, width - 15, 65); }
+function displayInfoMessage() { fill(0, 0, 100); textSize(16); textAlign(CENTER, BOTTOM); text(infoMessage, width / 2, height - 20); }
+function displayGameOver() { fill(0, 0, 0, 50); rect(0, 0, width, height); fill(0, 90, 100); textSize(60); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(0, 0, 100); textSize(30); text("Final Points: " + points, width / 2, height / 3 + 60); textAlign(CENTER, CENTER); textSize(22); let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100); fill(0, 0, pulse); text("Click or Tap to Restart", width / 2, height * 0.7); cursor(ARROW); }
 
 // ==================
 // Game Reset / Start Functions
 // ==================
 function resetGame() {
     ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = [];
+    enemyShips = []; enemyBullets = []; // <-- ADDED Reset
     points = 0; money = 0; lives = 3; currentLevel = 1;
     setDifficultyForLevel(currentLevel);
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
     lastPlanetAppearanceTime = -Infinity; planetVisible = false;
     frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
-    screenShakeDuration = 0; screenShakeIntensity = 0; // Reset screen shake
+    screenShakeDuration = 0; screenShakeIntensity = 0;
     cursor(); spawnInitialAsteroids();
 }
-
-function startGame() {
-    resetGame(); gameState = GAME_STATE.PLAYING;
-}
-
+function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 
 // ==================
 // Input Handling Functions
 // ==================
-function mousePressed() {
-  if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
-  else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); }
-  else if (gameState === GAME_STATE.START_SCREEN) { startGame(); }
-}
-
-function keyPressed() {
-    if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
-    else if (gameState === GAME_STATE.PLAYING) { if (keyCode === 32) { ship.shoot(); return false; } }
-    else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
-}
-
-function touchStarted() {
-    if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; }
-    else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; }
-    else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); return false; }
-}
-
-
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight); createStarfield(200);
-}
-
+function mousePressed() { if (gameState === GAME_STATE.GAME_OVER) { startGame(); } else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); } else if (gameState === GAME_STATE.START_SCREEN) { startGame(); } }
+function keyPressed() { if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } else if (gameState === GAME_STATE.PLAYING) { if (keyCode === 32) { ship.shoot(); return false; } } else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } }
+function touchStarted() { if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; } else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; } else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); return false; } }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); }
 
 // ==================
-// Ship Class (MODIFIED for speed)
+// Ship Class
 // ==================
 class Ship {
-  constructor() {
-    this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
-    this.thrust = 0.38; this.touchThrustMultiplier = 1.1; this.friction = 0.98; this.maxSpeed = 9;
-    this.size = 30; this.cockpitColor = color(180, 100, 100); this.engineColor1 = color(30, 100, 100);
-    this.engineColor2 = color(0, 100, 100); this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60);
-    this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2;
-    this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.1; this.invulnerableTimer = 0;
-    this.invulnerabilityDuration = 120; this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0;
-    this.autoFireLevel = 0; this.maxAutoFireLevel = 1; this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.autoFireCost = 50;
-  }
+  constructor() { this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0); this.thrust = 0.38; this.touchThrustMultiplier = 1.1; this.friction = 0.98; this.maxSpeed = 9; this.size = 30; this.cockpitColor = color(180, 100, 100); this.engineColor1 = color(30, 100, 100); this.engineColor2 = color(0, 100, 100); this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60); this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.1; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0; this.autoFireLevel = 0; this.maxAutoFireLevel = 1; this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.autoFireCost = 50; }
   gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
   loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
   setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
@@ -659,109 +369,151 @@ class Ship {
 // ==================
 // Bullet Class
 // ==================
-class Bullet {
-  constructor(x, y, angle = 0) {
-    this.pos = createVector(x, y); this.speed = 16; this.size = 5; this.startHue = frameCount % 360; this.hue = this.startHue;
-    let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed);
-  }
-  update() { this.pos.add(this.vel); this.hue = (this.hue + 4) % 360; }
-  draw() { fill(this.hue, 90, 100); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
-  isOffscreen() { let margin = this.size * 3; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); }
-}
+class Bullet { constructor(x, y, angle = 0) { this.pos = createVector(x, y); this.speed = 16; this.size = 5; this.startHue = frameCount % 360; this.hue = this.startHue; let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); } update() { this.pos.add(this.vel); this.hue = (this.hue + 4) % 360; } draw() { fill(this.hue, 90, 100); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); } isOffscreen() { let margin = this.size * 3; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 
 // ==================
-// Asteroid Class (MODIFIED Speed/Rotation Variation)
+// Asteroid Class
 // ==================
-class Asteroid {
-  constructor(x, y, size, vel) {
-    this.size = size || random(30, 80); this.pos = createVector(); let isInitialPlacement = (x !== undefined && y !== undefined);
-    if (isInitialPlacement) { this.pos.x = x; this.pos.y = y; }
-    else { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.7); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.7); } }
-    if (vel) { this.vel = vel; }
-    else {
-        let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1; let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2;
-        this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax));
-        this.speed *= (this.size > 50 ? 0.9 : 1.1);
-        // --- ADDED: More initial speed variation ---
-        this.speed *= random(0.9, 1.1);
-        // --- End Speed Variation ---
-        if (isInitialPlacement) { this.vel = p5.Vector.random2D(); }
-        else { let targetX = width / 2 + random(-width * 0.25, width * 0.25); let targetY = height / 2 + random(-height * 0.25, height * 0.25); let direction = createVector(targetX - this.pos.x, targetY - this.pos.y); direction.normalize(); direction.rotate(random(-PI / 12, PI / 12)); this.vel = direction; }
-        this.vel.mult(this.speed);
-    }
-    this.color = color(random(20, 50), random(30, 70), random(30, 60)); this.rotation = random(TWO_PI);
-    // --- MODIFIED: Increased range of initial rotation speed ---
-    this.rotationSpeed = random(-0.04, 0.04); // Was -0.025, 0.025
-    // --- End Rotation Variation ---
-    this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(8, 16));
-    for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.4, this.size * 0.3); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); }
-    this.craters = []; let numCraters = floor(random(2, 6));
-    for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.35); let craterSize = random(this.size * 0.1, this.size * 0.25); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); }
-  }
-  update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.05, 0.05); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; }
-  draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); let highlightColor = color(mainHue, mainSat * 0.8, mainBri * 1.2); fill(highlightColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x - 1, v.y - 1); } endShape(CLOSE); let shadowColor = color(mainHue, mainSat * 1.1, mainBri * 0.7); fill(shadowColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x + 1, v.y + 1); } endShape(CLOSE); fill(this.color); stroke(mainHue, mainSat * 0.5, mainBri * random(1.3, 1.7)); strokeWeight(1.5); beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE); noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color) * 0.5, 80); for (let crater of this.craters) { ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.8, 1.2)); } pop(); }
-  hits(bullet) { let d = dist(this.pos.x, this.pos.y, bullet.pos.x, bullet.pos.y); return d < this.size / 2 + bullet.size / 2; }
-  hitsShip(ship) { let targetX = ship.pos.x; let targetY = ship.pos.y; let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5; let d = dist(this.pos.x, this.pos.y, targetX, targetY); return d < this.size / 2 + targetRadius; }
-}
+class Asteroid { constructor(x, y, size, vel) { this.size = size || random(30, 80); this.pos = createVector(); let isInitialPlacement = (x !== undefined && y !== undefined); if (isInitialPlacement) { this.pos.x = x; this.pos.y = y; } else { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.7); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.7); } } if (vel) { this.vel = vel; } else { let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1; let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2; this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax)); this.speed *= (this.size > 50 ? 0.9 : 1.1); this.speed *= random(0.9, 1.1); if (isInitialPlacement) { this.vel = p5.Vector.random2D(); } else { let targetX = width / 2 + random(-width * 0.25, width * 0.25); let targetY = height / 2 + random(-height * 0.25, height * 0.25); let direction = createVector(targetX - this.pos.x, targetY - this.pos.y); direction.normalize(); direction.rotate(random(-PI / 12, PI / 12)); this.vel = direction; } this.vel.mult(this.speed); } this.color = color(random(20, 50), random(30, 70), random(30, 60)); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.04, 0.04); this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(8, 16)); for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.4, this.size * 0.3); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); } this.craters = []; let numCraters = floor(random(2, 6)); for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.35); let craterSize = random(this.size * 0.1, this.size * 0.25); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); } } update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.05, 0.05); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); let highlightColor = color(mainHue, mainSat * 0.8, mainBri * 1.2); fill(highlightColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x - 1, v.y - 1); } endShape(CLOSE); let shadowColor = color(mainHue, mainSat * 1.1, mainBri * 0.7); fill(shadowColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x + 1, v.y + 1); } endShape(CLOSE); fill(this.color); stroke(mainHue, mainSat * 0.5, mainBri * random(1.3, 1.7)); strokeWeight(1.5); beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE); noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color) * 0.5, 80); for (let crater of this.craters) { ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.8, 1.2)); } pop(); } hits(bullet) { let d = dist(this.pos.x, this.pos.y, bullet.pos.x, bullet.pos.y); return d < this.size / 2 + bullet.size / 2; } hitsShip(ship) { let targetX = ship.pos.x; let targetY = ship.pos.y; let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5; let d = dist(this.pos.x, this.pos.y, targetX, targetY); return d < this.size / 2 + targetRadius; } }
 
 // ==================
 // Particle Class
 // ==================
-class Particle {
-  constructor(x, y, particleColor, size = null, speedMult = 1) {
-    this.pos = createVector(x, y); this.vel = p5.Vector.random2D(); this.vel.mult(random(1.5, 5) * speedMult); this.lifespan = 100;
-    this.baseHue = hue(particleColor); this.baseSat = saturation(particleColor); this.baseBri = brightness(particleColor); this.size = size !== null ? size : random(2, 6);
-  }
-  update() { this.pos.add(this.vel); this.lifespan -= 3; this.vel.mult(0.97); }
-  draw() { noStroke(); fill(this.baseHue, this.baseSat, this.baseBri, this.lifespan); ellipse(this.pos.x, this.pos.y, this.size); }
-  isDead() { return this.lifespan <= 0; }
-}
+class Particle { constructor(x, y, particleColor, size = null, speedMult = 1) { this.pos = createVector(x, y); this.vel = p5.Vector.random2D(); this.vel.mult(random(1.5, 5) * speedMult); this.lifespan = 100; this.baseHue = hue(particleColor); this.baseSat = saturation(particleColor); this.baseBri = brightness(particleColor); this.size = size !== null ? size : random(2, 6); } update() { this.pos.add(this.vel); this.lifespan -= 3; this.vel.mult(0.97); } draw() { noStroke(); fill(this.baseHue, this.baseSat, this.baseBri, this.lifespan); ellipse(this.pos.x, this.pos.y, this.size); } isDead() { return this.lifespan <= 0; } }
 
 // ==================
-// Star Class (MODIFIED Twinkle)
+// Star Class
 // ==================
-class Star {
-    constructor() {
-        this.x = random(width); this.y = random(height); this.layer = floor(random(3));
-        this.size = map(this.layer, 0, 2, 0.5, 2.5); this.speed = map(this.layer, 0, 2, 0.1, 0.5);
-        this.baseBrightness = random(60, 90); // Base brightness
-        this.twinkleOffset = random(TWO_PI); // Phase offset for twinkle
-    }
-    update() {
-        this.y += this.speed;
-        if (this.y > height + this.size) { this.y = -this.size; this.x = random(width); }
-    }
-    draw() {
-        // --- ADDED: Twinkle effect ---
-        let twinkleFactor = map(sin(frameCount * 0.05 + this.twinkleOffset), -1, 1, 0.8, 1.2); // Vary brightness by +/- 20%
-        let currentBrightness = constrain(this.baseBrightness * twinkleFactor, 40, 100); // Apply twinkle, constrain bounds
-        // --- End Twinkle ---
-        fill(0, 0, currentBrightness); // Use current brightness
-        noStroke(); ellipse(this.x, this.y, this.size);
-    }
-}
+class Star { constructor() { this.x = random(width); this.y = random(height); this.layer = floor(random(3)); this.size = map(this.layer, 0, 2, 0.5, 2.5); this.speed = map(this.layer, 0, 2, 0.1, 0.5); this.baseBrightness = random(60, 90); this.twinkleOffset = random(TWO_PI); } update() { this.y += this.speed; if (this.y > height + this.size) { this.y = -this.size; this.x = random(width); } } draw() { let twinkleFactor = map(sin(frameCount * 0.05 + this.twinkleOffset), -1, 1, 0.8, 1.2); let currentBrightness = constrain(this.baseBrightness * twinkleFactor, 40, 100); fill(0, 0, currentBrightness); noStroke(); ellipse(this.x, this.y, this.size); } }
 
 // ==================
 // HealthPotion Class
 // ==================
-class HealthPotion {
-    constructor(x, y) {
-        this.pos = createVector(x || random(width * 0.1, width * 0.9), y || -30); this.vel = createVector(0, random(0.5, 1.5));
-        this.size = 20; this.bodyWidth = this.size * 0.6; this.bodyHeight = this.size * 0.8; this.neckWidth = this.size * 0.3;
-        this.neckHeight = this.size * 0.4; this.rotation = 0; this.rotationSpeed = random(-0.01, 0.01);
+class HealthPotion { constructor(x, y) { this.pos = createVector(x || random(width * 0.1, width * 0.9), y || -30); this.vel = createVector(0, random(0.5, 1.5)); this.size = 20; this.bodyWidth = this.size * 0.6; this.bodyHeight = this.size * 0.8; this.neckWidth = this.size * 0.3; this.neckHeight = this.size * 0.4; this.rotation = 0; this.rotationSpeed = random(-0.01, 0.01); } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); fill(0, 85, 90); noStroke(); rect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight, 3); rect(-this.neckWidth / 2, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth, this.neckHeight); ellipse(0, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth * 1.2, this.neckWidth * 0.4); fill(0, 0, 100); rectMode(CENTER); rect(0, 0, this.bodyWidth * 0.5, this.bodyWidth * 0.15); rect(0, 0, this.bodyWidth * 0.15, this.bodyWidth * 0.5); rectMode(CORNER); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); return d < this.size / 2 + ship.size * 0.5; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
+
+// ==================
+// EnemyShip Class <-- NEW
+// ==================
+class EnemyShip {
+    constructor() {
+        this.size = 25;
+        this.pos = createVector();
+        this.vel = createVector();
+        this.color = color(300, 70, 80); // Purple color
+        this.shootCooldown = random(120, 240); // Time between shots (2-4 seconds at 60fps)
+        this.shootTimer = this.shootCooldown;
+        this.bulletSpeed = 3.5 + currentLevel * 0.1;
+
+        // Spawn from Top, Left, or Right edge
+        let edge = floor(random(3));
+        if (edge === 0) { // Top edge
+            this.pos.x = random(width);
+            this.pos.y = -this.size / 2;
+            this.vel.set(random(-0.5, 0.5), random(0.8, 1.5)); // Move mostly down
+        } else if (edge === 1) { // Right edge
+            this.pos.x = width + this.size / 2;
+            this.pos.y = random(height * 0.5); // Spawn in upper half
+            this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5)); // Move mostly left
+        } else { // Left edge
+            this.pos.x = -this.size / 2;
+            this.pos.y = random(height * 0.5); // Spawn in upper half
+            this.vel.set(random(0.8, 1.5), random(-0.5, 0.5)); // Move mostly right
+        }
+        // Scale speed based on level, but cap it
+        let speedScale = min(MAX_ENEMY_SPEED, 1.0 + (currentLevel - 1) * 0.1);
+        this.vel.mult(speedScale);
     }
-    update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; }
-    draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); fill(0, 85, 90); noStroke(); rect(-this.bodyWidth / 2, -this.bodyHeight / 2, this.bodyWidth, this.bodyHeight, 3); rect(-this.neckWidth / 2, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth, this.neckHeight); ellipse(0, -this.bodyHeight / 2 - this.neckHeight, this.neckWidth * 1.2, this.neckWidth * 0.4); fill(0, 0, 100); rectMode(CENTER); rect(0, 0, this.bodyWidth * 0.5, this.bodyWidth * 0.15); rect(0, 0, this.bodyWidth * 0.15, this.bodyWidth * 0.5); rectMode(CORNER); pop(); }
-    hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); return d < this.size / 2 + ship.size * 0.5; }
-    isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); }
+
+    update() {
+        this.pos.add(this.vel);
+
+        // Shooting logic
+        this.shootTimer--;
+        if (this.shootTimer <= 0 && ship) { // Check if player ship exists
+            this.shoot();
+            // Reset timer with some randomness based on level
+            this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10));
+            this.shootTimer = this.shootCooldown;
+        }
+    }
+
+    shoot() {
+        // Aim generally towards the player's current X position
+        let aimAngle = atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x);
+        // Add some inaccuracy
+        aimAngle += random(-PI / 16, PI / 16);
+        enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, aimAngle, this.bulletSpeed));
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        fill(this.color);
+        stroke(0, 0, 100); // White outline
+        strokeWeight(1);
+        // Simple triangle shape pointing down
+        beginShape();
+        vertex(0, -this.size * 0.6);
+        vertex(-this.size * 0.4, this.size * 0.4);
+        vertex(this.size * 0.4, this.size * 0.4);
+        endShape(CLOSE);
+        pop();
+    }
+
+    isOffscreen() {
+        let margin = this.size * 2;
+        return (this.pos.y > height + margin || this.pos.y < -margin ||
+                this.pos.x < -margin || this.pos.x > width + margin);
+    }
+
+    hits(playerBullet) {
+        let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y);
+        return d < this.size / 2 + playerBullet.size / 2;
+    }
+
+    hitsShip(playerShip) {
+        let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y);
+        // Collision radius slightly smaller than visual size
+        return d < this.size * 0.4 + playerShip.size * 0.5;
+    }
+}
+
+// ==================
+// EnemyBullet Class <-- NEW
+// ==================
+class EnemyBullet {
+    constructor(x, y, angle, speed) {
+        this.pos = createVector(x, y);
+        this.vel = p5.Vector.fromAngle(angle);
+        this.vel.mult(speed);
+        this.size = 6;
+        this.color = color(300, 80, 90); // Bright purple/pink
+    }
+
+    update() {
+        this.pos.add(this.vel);
+    }
+
+    draw() {
+        fill(this.color);
+        noStroke();
+        ellipse(this.pos.x, this.pos.y, this.size, this.size); // Simple circle
+    }
+
+    hitsShip(ship) {
+        let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y);
+        let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5;
+        return d < this.size / 2 + targetRadius;
+    }
+
+    isOffscreen() {
+        let margin = this.size * 2;
+        return (this.pos.y > height + margin || this.pos.y < -margin ||
+                this.pos.x < -margin || this.pos.x > width + margin);
+    }
 }
 
 // ==================
 // REMOVED: Boss Class
 // ==================
 // class Boss { ... }
-
-// ==================
-// REMOVED: EnemyBullet Class
-// ==================
-// class EnemyBullet { ... }
