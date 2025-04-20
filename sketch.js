@@ -13,7 +13,6 @@
 // - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED (Spawn Rate & Max Count)
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // - Simple Enemy Ships that shoot at the player. // MODIFIED (Appearance: Black Ship)
-// - ADDED: Space Mines - Stationary hazards that explode on proximity/hit.
 // --- Modifications ---
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
@@ -48,7 +47,7 @@ let stars = [];
 let potions = [];
 let enemyShips = [];
 let enemyBullets = [];
-let mines = []; // <-- ADDED
+// let mines = []; // <-- REMOVED
 
 // Game State Management - REMOVED BOSS_FIGHT state
 const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2 };
@@ -67,8 +66,8 @@ let baseAsteroidSpawnRate;
 let currentAsteroidSpawnRate;
 let baseEnemySpawnRate;
 let currentEnemySpawnRate;
-let baseMineSpawnRate; // <-- ADDED
-let currentMineSpawnRate; // <-- ADDED
+// let baseMineSpawnRate; // <-- REMOVED
+// let currentMineSpawnRate; // <-- REMOVED
 let potionSpawnRate = 0.001;
 let initialAsteroids = 5;
 let minAsteroidSize = 15;
@@ -135,15 +134,15 @@ function createParticles(x, y, count, particleColor, particleSize = null, partic
 
 function createStarfield(numStars) { stars = []; for (let i = 0; i < numStars; i++) { stars.push(new Star()); } }
 
-// --- Function to set difficulty based on level (ADDED Mine Spawn Rate) ---
+// --- Function to set difficulty based on level (REMOVED Mine Spawn Rate) ---
 function setDifficultyForLevel(level) {
     let mobileFactor = isMobile ? 0.7 : 1.0;
     baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.0015) * mobileFactor;
     currentAsteroidSpawnRate = baseAsteroidSpawnRate;
     baseEnemySpawnRate = (0.002 + (level - 1) * 0.0005) * mobileFactor;
     currentEnemySpawnRate = baseEnemySpawnRate;
-    baseMineSpawnRate = (0.001 + (level - 1) * 0.0003) * mobileFactor; // Mines spawn less often <-- ADDED
-    currentMineSpawnRate = baseMineSpawnRate;
+    // baseMineSpawnRate = (0.001 + (level - 1) * 0.0003) * mobileFactor; // Mines spawn less often <-- REMOVED
+    // currentMineSpawnRate = baseMineSpawnRate; // <-- REMOVED
 }
 
 
@@ -184,7 +183,7 @@ function displayStartScreen() {
 }
 
 
-// --- Function for Main Game Logic (ADDED Mine Spawning & Updates) ---
+// --- Function for Main Game Logic (REMOVED Mine Spawning & Updates) ---
 function runGameLogic() {
   if (!ship) return;
 
@@ -197,76 +196,77 @@ function runGameLogic() {
   for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
   for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
 
-  // Update & Draw Mines <-- ADDED
-  let triggeredMines = []; // Keep track of mines triggered this frame
-  for (let i = mines.length - 1; i >= 0; i--) {
-      mines[i].update(ship); // Pass ship for proximity check
-      mines[i].draw();
-      if (mines[i].isTriggered) {
-          triggeredMines.push({ index: i, pos: mines[i].pos.copy(), radius: mines[i].explosionRadius });
-      }
-  }
+  // Update & Draw Mines <-- REMOVED Section
+  // let triggeredMines = []; // Keep track of mines triggered this frame
+  // for (let i = mines.length - 1; i >= 0; i--) {
+  //     mines[i].update(ship); // Pass ship for proximity check
+  //     mines[i].draw();
+  //     if (mines[i].isTriggered) {
+  //         triggeredMines.push({ index: i, pos: mines[i].pos.copy(), radius: mines[i].explosionRadius });
+  //     }
+  // }
 
-  // Handle triggered mine explosions AFTER updating all mines <-- ADDED
-  if (triggeredMines.length > 0) {
-      for (let triggered of triggeredMines) {
-          handleMineExplosion(triggered.pos, triggered.radius);
-          // Create explosion particles
-          createParticles(triggered.pos.x, triggered.pos.y, 40, color(15, 100, 100), 5, 2.5); // Orange/Red explosion
-          mines.splice(triggered.index, 1); // Remove the exploded mine
-      }
-  }
+  // Handle triggered mine explosions AFTER updating all mines <-- REMOVED Section
+  // if (triggeredMines.length > 0) {
+  //     for (let triggered of triggeredMines) {
+  //         handleMineExplosion(triggered.pos, triggered.radius);
+  //         // Create explosion particles
+  //         createParticles(triggered.pos.x, triggered.pos.y, 40, color(15, 100, 100), 5, 2.5); // Orange/Red explosion
+  //         mines.splice(triggered.index, 1); // Remove the exploded mine
+  //     }
+  // }
 
-  handleCollisions(); // Handles bullet collisions (including bullets hitting mines)
+  handleCollisions(); // Handles bullet collisions (now only includes asteroids and enemies)
   handlePotions();
 
-  // Spawn new entities during PLAYING state
+  // Spawn new entities during PLAYING state (REMOVED Mine Spawning)
   if (gameState === GAME_STATE.PLAYING) {
       let timeFactor = floor(frameCount / 1800) * 0.0005;
       currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
       currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5;
-      currentMineSpawnRate = baseMineSpawnRate + timeFactor * 0.2; // Mines also increase slowly over time <-- ADDED
+      // currentMineSpawnRate = baseMineSpawnRate + timeFactor * 0.2; // Mines also increase slowly over time <-- REMOVED
 
       let maxAsteroidsAllowed = min(40, 20 + currentLevel * 2);
       let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2));
-      let maxMinesAllowed = min(5, 1 + floor(currentLevel / 3)); // Mines are fewer <-- ADDED
+      // let maxMinesAllowed = min(5, 1 + floor(currentLevel / 3)); // Mines are fewer <-- REMOVED
 
       if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
       if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); }
-      if (random(1) < currentMineSpawnRate && mines.length < maxMinesAllowed) { mines.push(new SpaceMine()); } // <-- ADDED Mine Spawning
+      // if (random(1) < currentMineSpawnRate && mines.length < maxMinesAllowed) { mines.push(new SpaceMine()); } // <-- REMOVED Mine Spawning
       if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); }
   }
 
   if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
 }
 
-// --- Mine Explosion Handler --- <-- NEW
-function handleMineExplosion(pos, radius) {
-    if (!ship || ship.invulnerableTimer > 0) return; // Don't damage if no ship or invulnerable
+// --- Mine Explosion Handler --- <-- REMOVED Function
+// function handleMineExplosion(pos, radius) {
+//     if (!ship || ship.invulnerableTimer > 0) return; // Don't damage if no ship or invulnerable
+//
+//     let d = dist(ship.pos.x, ship.pos.y, pos.x, pos.y);
+//     if (d < radius + ship.size * 0.5) { // Check if ship is within explosion radius
+//         if (ship.shieldCharges > 0) {
+//             ship.loseShield();
+//             createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); // Shield hit effect
+//             // No life loss if shield takes it
+//         } else {
+//             lives--;
+//             createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); // Ship hit effect
+//             screenShakeIntensity = 8; // Bigger shake for explosion
+//             screenShakeDuration = 20;
+//             if (lives <= 0) {
+//                 gameState = GAME_STATE.GAME_OVER;
+//                 infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
+//             } else {
+//                 ship.setInvulnerable(); // Grant invulnerability after hit
+//             }
+//         }
+//     }
+// }
 
-    let d = dist(ship.pos.x, ship.pos.y, pos.x, pos.y);
-    if (d < radius + ship.size * 0.5) { // Check if ship is within explosion radius
-        if (ship.shieldCharges > 0) {
-            ship.loseShield();
-            createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); // Shield hit effect
-            // No life loss if shield takes it
-        } else {
-            lives--;
-            createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); // Ship hit effect
-            screenShakeIntensity = 8; // Bigger shake for explosion
-            screenShakeDuration = 20;
-            if (lives <= 0) {
-                gameState = GAME_STATE.GAME_OVER;
-                infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-            } else {
-                ship.setInvulnerable(); // Grant invulnerability after hit
-            }
-        }
-    }
-}
 
 // ==================
-// Collision Handling Function (Updated for Mines)
+// Collision Handling Function (Updated - Mines Removed)
 // ==================
 function handleCollisions() {
     if (gameState !== GAME_STATE.PLAYING) return;
@@ -280,14 +280,27 @@ function handleCollisions() {
         asteroids[i].draw();
         for (let j = bullets.length - 1; j >= 0; j--) {
             if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { /* ... asteroid hit logic ... */
-                 let impactParticleCount = floor(random(2, 5)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 60, 100), 2, 0.5);
+                let impactParticleCount = floor(random(2, 5)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 60, 100), 2, 0.5);
                 let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2;
                 let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
                 let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
-                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyShips = []; enemyBullets = []; mines = []; points += 200 * currentLevel; money += 40 * currentLevel; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); } let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } return; }
-                else { let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } }
+                // Level Up Check
+                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) {
+                    asteroids = []; potions = []; bullets = []; enemyShips = []; enemyBullets = []; // mines = []; <-- REMOVED
+                    points += 200 * currentLevel; money += 40 * currentLevel; currentLevel++; setDifficultyForLevel(currentLevel);
+                    infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180;
+                    if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); }
+                    // Auto-upgrade on level up
+                    let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; }
+                    return; // Exit collision handling to avoid issues with modified arrays
+                }
+                // Auto-upgrade check (even if not leveling up)
+                else {
+                     let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; }
+                }
+                // Asteroid destruction and splitting
                 let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
-                break;
+                break; // Exit inner loop since bullet is gone
             }
         }
     }
@@ -300,49 +313,49 @@ function handleCollisions() {
                 points += 20; money += 5;
                 createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, color(300, 80, 90), 3, 1.2);
                 enemyShips.splice(i, 1); bullets.splice(j, 1);
-                break;
+                break; // Exit inner loop since bullet is gone
             }
         }
     }
 
-    // 1c. Player Bullets vs Mines <-- NEW
-    for (let i = mines.length - 1; i >= 0; i--) {
-        if (!mines[i]) continue;
-        for (let j = bullets.length - 1; j >= 0; j--) {
-             // Check collision and trigger mine if hit
-            if (mines[i] && bullets[j] && mines[i].hits(bullets[j])) {
-                // The hits() method in the mine will set isTriggered if armed
-                bullets.splice(j, 1); // Remove bullet
-                // The explosion itself is handled in the main runGameLogic loop based on isTriggered
-                break; // Bullet is gone, exit inner loop
-            }
-        }
-    }
+    // 1c. Player Bullets vs Mines <-- REMOVED Section
+    // for (let i = mines.length - 1; i >= 0; i--) {
+    //     if (!mines[i]) continue;
+    //     for (let j = bullets.length - 1; j >= 0; j--) {
+    //          // Check collision and trigger mine if hit
+    //         if (mines[i] && bullets[j] && mines[i].hits(bullets[j])) {
+    //             // The hits() method in the mine will set isTriggered if armed
+    //             bullets.splice(j, 1); // Remove bullet
+    //             // The explosion itself is handled in the main runGameLogic loop based on isTriggered
+    //             break; // Bullet is gone, exit inner loop
+    //         }
+    //     }
+    // }
 
     // --- 2. Player Ship vs... (Only if not invulnerable) ---
     if (ship.invulnerableTimer <= 0) {
         // 2a. Player vs Asteroids
         for (let i = asteroids.length - 1; i >= 0; i--) {
             if (asteroids[i] && asteroids[i].hitsShip(ship)) { /* ... player vs asteroid collision ... */
-                 if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); return; } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } }
-                 break;
-             }
+                if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); return; } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } }
+                break; // Only handle one collision per frame
+            }
         }
         // 2b. Player vs Enemy Ships
         for (let i = enemyShips.length - 1; i >= 0; i--) {
              if (enemyShips[i] && enemyShips[i].hitsShip(ship)) { /* ... player vs enemy collision ... */
                  if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, color(300, 80, 90), 3, 1.2); enemyShips.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, color(300, 80, 90), 3, 1.2); enemyShips.splice(i, 1); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); return; } else { ship.setInvulnerable(); } }
-                 break;
+                 break; // Only handle one collision per frame
              }
         }
         // 2c. Player vs Enemy Bullets
         for (let i = enemyBullets.length - 1; i >= 0; i--) {
             if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { /* ... player vs enemy bullet collision ... */
                 if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 15, color(180, 80, 100)); enemyBullets.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 20, color(0, 80, 100)); screenShakeIntensity = 4; screenShakeDuration = 10; enemyBullets.splice(i, 1); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); return; } else { ship.setInvulnerable(); } }
-                break;
+                break; // Only handle one collision per frame
             }
         }
-        // Note: Player vs Mine proximity is handled in mine.update()
+        // Note: Player vs Mine proximity was handled in mine.update() - REMOVED
     } // End invulnerable check
 } // End handleCollisions
 
@@ -355,7 +368,8 @@ function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke();
 function displayHUD() { let hudTextSize = 18; textSize(hudTextSize); fill(0, 0, 100, 80); noStroke(); textAlign(LEFT, TOP); text("Points: " + points, 15, 15); text(`Money: $${money}`, 15, 40); text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65); text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90); text(`Level: ${currentLevel}`, 15, 115); textAlign(RIGHT, TOP); fill(0, 0, 100, 80); text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15); text(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, width - 15, 40); text(`Auto-Fire: ${ship.autoFireLevel > 0 ? 'ON' : 'OFF'}`, width - 15, 65); }
 function displayInfoMessage() { fill(0, 0, 100); textSize(16); textAlign(CENTER, BOTTOM); text(infoMessage, width / 2, height - 20); }
 function displayGameOver() { fill(0, 0, 0, 50); rect(0, 0, width, height); fill(0, 90, 100); textSize(60); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(0, 0, 100); textSize(30); text("Final Points: " + points, width / 2, height / 3 + 60); textAlign(CENTER, CENTER); textSize(22); let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100); fill(0, 0, pulse); text("Click or Tap to Restart", width / 2, height * 0.7); cursor(ARROW); }
-function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; mines = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; cursor(); spawnInitialAsteroids(); }
+function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; // mines = []; <-- REMOVED
+    points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; cursor(); spawnInitialAsteroids(); }
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function mousePressed() { if (gameState === GAME_STATE.GAME_OVER) { startGame(); } else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); } else if (gameState === GAME_STATE.START_SCREEN) { startGame(); } }
 function keyPressed() { if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } else if (gameState === GAME_STATE.PLAYING) { if (keyCode === 32) { ship.shoot(); return false; } } else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } }
@@ -415,84 +429,84 @@ class EnemyShip {
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 6; this.color = color(300, 80, 90); } update() { this.pos.add(this.vel); } draw() { fill(this.color); noStroke(); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5; return d < this.size / 2 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 
 // ==================
-// SpaceMine Class <-- NEW
+// SpaceMine Class <-- REMOVED Class
 // ==================
-class SpaceMine {
-    constructor() {
-        this.size = 18;
-        // Spawn randomly, but not too close to edges initially
-        this.pos = createVector(random(this.size * 2, width - this.size * 2), random(this.size * 2, height * 0.8));
-        this.armingTime = 60; // Frames before it becomes active (1 second)
-        this.armed = false;
-        this.proximityRadius = this.size * 3; // How close player needs to be
-        this.explosionRadius = this.size * 5; // Damage radius
-        this.isTriggered = false; // Flag to signal explosion in main loop
-        this.pulseOffset = random(TWO_PI); // For animation timing
-    }
-
-    update(playerShip) {
-        if (!this.armed) {
-            this.armingTime--;
-            if (this.armingTime <= 0) {
-                this.armed = true;
-            }
-        } else if (playerShip && !this.isTriggered) { // Only check proximity if armed and not already triggered
-            // Check proximity to player
-            let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y);
-            if (d < this.proximityRadius) {
-                this.isTriggered = true; // Trigger explosion
-            }
-        }
-    }
-
-    // Method called by collision check if hit by a player bullet
-    hitByBullet() {
-        if (this.armed) {
-            this.isTriggered = true;
-            return true; // Indicate it was triggered
-        }
-        return false; // Not armed, bullet has no effect
-    }
-
-    draw() {
-        push();
-        translate(this.pos.x, this.pos.y);
-
-        // Body
-        fill(0, 0, 20); // Dark grey body
-        stroke(0, 0, 50); // Slightly lighter grey outline
-        strokeWeight(1);
-        ellipse(0, 0, this.size, this.size);
-
-        // Spikes (optional visual flair)
-        for (let a = 0; a < TWO_PI; a += PI / 4) {
-            let len = this.size * 0.7;
-            line(0, 0, cos(a) * len, sin(a) * len);
-        }
-
-        // Core light (pulses when armed)
-        if (this.armed) {
-            let pulse = map(sin(frameCount * 0.1 + this.pulseOffset), -1, 1, 0.5, 1.0);
-            let coreSize = this.size * 0.4 * pulse;
-            let coreBrightness = map(pulse, 0.5, 1.0, 80, 100);
-            let coreAlpha = map(pulse, 0.5, 1.0, 70, 100);
-            fill(0, 100, coreBrightness, coreAlpha); // Pulsing Red
-            noStroke();
-            ellipse(0, 0, coreSize, coreSize);
-        } else {
-             // Dim yellow light while arming
-            fill(60, 80, 50, 50); // Dim Yellow
-            noStroke();
-            ellipse(0, 0, this.size * 0.3, this.size * 0.3);
-        }
-
-        pop();
-    }
-
-     // Check collision with player bullet (simple circle)
-     hits(playerBullet) {
-        let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y);
-        // Use slightly smaller radius than visual size for hit detection
-        return d < this.size * 0.4 + playerBullet.size / 2;
-    }
-}
+// class SpaceMine {
+//     constructor() {
+//         this.size = 18;
+//         // Spawn randomly, but not too close to edges initially
+//         this.pos = createVector(random(this.size * 2, width - this.size * 2), random(this.size * 2, height * 0.8));
+//         this.armingTime = 60; // Frames before it becomes active (1 second)
+//         this.armed = false;
+//         this.proximityRadius = this.size * 3; // How close player needs to be
+//         this.explosionRadius = this.size * 5; // Damage radius
+//         this.isTriggered = false; // Flag to signal explosion in main loop
+//         this.pulseOffset = random(TWO_PI); // For animation timing
+//     }
+//
+//     update(playerShip) {
+//         if (!this.armed) {
+//             this.armingTime--;
+//             if (this.armingTime <= 0) {
+//                 this.armed = true;
+//             }
+//         } else if (playerShip && !this.isTriggered) { // Only check proximity if armed and not already triggered
+//             // Check proximity to player
+//             let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y);
+//             if (d < this.proximityRadius) {
+//                 this.isTriggered = true; // Trigger explosion
+//             }
+//         }
+//     }
+//
+//     // Method called by collision check if hit by a player bullet
+//     hitByBullet() {
+//         if (this.armed) {
+//             this.isTriggered = true;
+//             return true; // Indicate it was triggered
+//         }
+//         return false; // Not armed, bullet has no effect
+//     }
+//
+//     draw() {
+//         push();
+//         translate(this.pos.x, this.pos.y);
+//
+//         // Body
+//         fill(0, 0, 20); // Dark grey body
+//         stroke(0, 0, 50); // Slightly lighter grey outline
+//         strokeWeight(1);
+//         ellipse(0, 0, this.size, this.size);
+//
+//         // Spikes (optional visual flair)
+//         for (let a = 0; a < TWO_PI; a += PI / 4) {
+//             let len = this.size * 0.7;
+//             line(0, 0, cos(a) * len, sin(a) * len);
+//         }
+//
+//         // Core light (pulses when armed)
+//         if (this.armed) {
+//             let pulse = map(sin(frameCount * 0.1 + this.pulseOffset), -1, 1, 0.5, 1.0);
+//             let coreSize = this.size * 0.4 * pulse;
+//             let coreBrightness = map(pulse, 0.5, 1.0, 80, 100);
+//             let coreAlpha = map(pulse, 0.5, 1.0, 70, 100);
+//             fill(0, 100, coreBrightness, coreAlpha); // Pulsing Red
+//             noStroke();
+//             ellipse(0, 0, coreSize, coreSize);
+//         } else {
+//              // Dim yellow light while arming
+//             fill(60, 80, 50, 50); // Dim Yellow
+//             noStroke();
+//             ellipse(0, 0, this.size * 0.3, this.size * 0.3);
+//         }
+//
+//         pop();
+//     }
+//
+//      // Check collision with player bullet (simple circle)
+//      hits(playerBullet) {
+//         let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y);
+//         // Use slightly smaller radius than visual size for hit detection
+//         return d < this.size * 0.4 + playerBullet.size / 2;
+//     }
+// }
