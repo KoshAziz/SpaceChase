@@ -13,7 +13,9 @@
 // - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED (Spawn Rate & Max Count)
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max).
 // - Simple Enemy Ships that shoot at the player (No Auto-Aim). // MODIFIED (Appearance: Black Ship)
-// - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst) // ADDED
+// - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst)
+// - Visual Nebula Clouds in background
+// - ADDED: Pause Functionality (Press ESC during gameplay)
 // --- Modifications ---
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
@@ -42,24 +44,22 @@
 // --- Game Objects & State ---
 let ship;
 let bullets = [];
-let asteroids = []; // Asteroids are here
+let asteroids = [];
 let particles = [];
 let stars = [];
 let potions = [];
 let enemyShips = [];
 let enemyBullets = [];
 let powerUps = [];
+let nebulas = [];
 
 // Game State Management
 const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2 };
 let gameState = GAME_STATE.START_SCREEN;
+let isPaused = false; // <-- ADDED Pause State Flag
 
 // Power-Up Types
-const POWERUP_TYPES = {
-    TEMP_SHIELD: 0,
-    RAPID_FIRE: 1,
-    EMP_BURST: 2
-};
+const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, EMP_BURST: 2 };
 const NUM_POWERUP_TYPES = 3;
 
 // Score, Level & Resources
@@ -77,6 +77,7 @@ let baseEnemySpawnRate;
 let currentEnemySpawnRate;
 let powerUpSpawnRate = 0.0015;
 let potionSpawnRate = 0.001;
+let nebulaSpawnRate = 0.0005;
 let initialAsteroids = 5;
 let minAsteroidSize = 15;
 const SHIELD_POINTS_THRESHOLD = 50;
@@ -124,82 +125,99 @@ function setup() {
 // ==================
 // Helper Functions
 // ==================
-function spawnInitialAsteroids() {
-    asteroids = []; // Clear existing asteroids first
-    for (let i = 0; i < initialAsteroids; i++) {
-        let startPos;
-        let shipX = ship ? ship.pos.x : width / 2;
-        let shipY = ship ? ship.pos.y : height - 50;
-        do { startPos = createVector(random(width), random(height * 0.7)); } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150);
-        asteroids.push(new Asteroid(startPos.x, startPos.y)); // Add new asteroid
-    }
-}
-
-function createParticles(x, y, count, particleColor, particleSize = null, particleSpeedMult = 1) {
-    let baseHue = hue(particleColor); let baseSat = saturation(particleColor); let baseBri = brightness(particleColor);
-    for (let i = 0; i < count; i++) { let pColor = color( baseHue + random(-10, 10), baseSat * random(0.8, 1.0), baseBri * random(0.9, 1.0), 100 ); particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult)); }
-}
-
+function spawnInitialAsteroids() { asteroids = []; for (let i = 0; i < initialAsteroids; i++) { let startPos; let shipX = ship ? ship.pos.x : width / 2; let shipY = ship ? ship.pos.y : height - 50; do { startPos = createVector(random(width), random(height * 0.7)); } while (ship && dist(startPos.x, startPos.y, shipX, shipY) < 150); asteroids.push(new Asteroid(startPos.x, startPos.y)); } }
+function createParticles(x, y, count, particleColor, particleSize = null, particleSpeedMult = 1) { let baseHue = hue(particleColor); let baseSat = saturation(particleColor); let baseBri = brightness(particleColor); for (let i = 0; i < count; i++) { let pColor = color( baseHue + random(-10, 10), baseSat * random(0.8, 1.0), baseBri * random(0.9, 1.0), 100 ); particles.push(new Particle(x, y, pColor, particleSize, particleSpeedMult)); } }
 function createStarfield(numStars) { stars = []; for (let i = 0; i < numStars; i++) { stars.push(new Star()); } }
-
-// --- Function to set difficulty based on level ---
-function setDifficultyForLevel(level) {
-    let mobileFactor = isMobile ? 0.7 : 1.0;
-    baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.0015) * mobileFactor;
-    currentAsteroidSpawnRate = baseAsteroidSpawnRate;
-    baseEnemySpawnRate = (0.002 + (level - 1) * 0.0005) * mobileFactor;
-    currentEnemySpawnRate = baseEnemySpawnRate;
-    // Keep powerup spawn rate fixed for now
-}
-
+function setDifficultyForLevel(level) { let mobileFactor = isMobile ? 0.7 : 1.0; baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.0015) * mobileFactor; currentAsteroidSpawnRate = baseAsteroidSpawnRate; baseEnemySpawnRate = (0.002 + (level - 1) * 0.0005) * mobileFactor; currentEnemySpawnRate = baseEnemySpawnRate; }
 
 // ==================
 // p5.js Draw Loop
 // ==================
 function draw() {
-  // Background color change logic
+  // Background color change logic (runs even when paused)
   if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
-  // Background Scenery Update Logic
+  // Background Scenery Update Logic (runs even when paused)
   if (gameState !== GAME_STATE.START_SCREEN) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } }
 
   // Draw background elements first
-  drawBackgroundAndStars();
+  drawBackgroundAndStars(); // Includes Nebulas
 
-  // Apply Screen Shake
+  // Apply Screen Shake (Should probably not apply when paused? Or maybe?)
+  // Let's keep it simple: the shake timer only decreases if not paused (handled in runGameLogic check)
+  // but the translation still applies if a shake is active when pausing.
   push();
-  if (screenShakeDuration > 0) { translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity)); screenShakeDuration--; if (screenShakeDuration <= 0) { screenShakeIntensity = 0; } }
+  if (screenShakeDuration > 0) {
+      translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity));
+      // Decrement moved into runGameLogic check
+  }
 
   // Game State Machine
   switch (gameState) {
-    case GAME_STATE.START_SCREEN: displayStartScreen(); break;
-    case GAME_STATE.PLAYING: runGameLogic(); break;
-    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
+    case GAME_STATE.START_SCREEN:
+        displayStartScreen();
+        break;
+    case GAME_STATE.PLAYING:
+        runGameLogic(); // This now checks internally if paused
+        // Draw Pause Overlay if paused <-- ADDED
+        if (isPaused) {
+            fill(0, 0, 0, 50); // Black with 50% alpha overlay
+            rect(0, 0, width, height);
+            // Draw "PAUSED" text
+            fill(0, 0, 100); // White
+            textSize(64); // Larger Pause Text
+            textAlign(CENTER, CENTER);
+            text("PAUSED", width / 2, height / 2 - 20);
+            textSize(22); // Reset size
+            text("Press ESC to Resume", width / 2, height / 2 + 40);
+        }
+        break;
+    case GAME_STATE.GAME_OVER:
+        runGameLogic(); // Still run logic to show final state? Or just draw? Let's keep it for now.
+        displayGameOver();
+        break;
   }
 
-  // Info Messages
-  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING) { infoMessageTimeout--; } }
+  // Info Messages (Draws on top, even when paused if timeout active)
+  if (infoMessageTimeout > 0) {
+      displayInfoMessage();
+      if (gameState === GAME_STATE.PLAYING && !isPaused) { // Only decrement timer if playing and not paused
+           infoMessageTimeout--;
+      }
+   }
 
   pop(); // End screen shake transformation
 }
 
 // --- Function for Start Screen ---
-function displayStartScreen() {
-    let titleText = "Space-Chase"; let titleSize = 64; // Increased Size
-    textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3;
-    for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.08 + i * 0.6) * 6;
-        fill(0, 0, 0, 40); text(char, currentX + charWidth / 2 + 3, titleY + yOffset + 3); // Shadow
-        if (i % 2 === 0) { fill(0, 0, 100); } else { fill(0, 100, 75); } // Main Color (W/Dark R)
-        text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; }
-    textSize(22); fill(0, 0, 100); textAlign(CENTER, CENTER); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 50);
-}
+function displayStartScreen() { let titleText = "Space-Chase"; let titleSize = 64; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.08 + i * 0.6) * 6; fill(0, 0, 0, 40); text(char, currentX + charWidth / 2 + 3, titleY + yOffset + 3); if (i % 2 === 0) { fill(0, 0, 100); } else { fill(0, 100, 75); } text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; } textSize(22); fill(0, 0, 100); textAlign(CENTER, CENTER); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 50); }
 
-
-// --- Function for Main Game Logic ---
+// --- Function for Main Game Logic (ADDED Pause Check) ---
 function runGameLogic() {
+  // --- ADDED: Exit if paused ---
+  if (isPaused) {
+      // Still draw existing things if needed, but don't update logic
+      // Draw existing objects without updating positions/states
+      if (ship) ship.draw(); // Draw ship in paused state
+      for (let b of bullets) b.draw();
+      for (let p of particles) p.draw(); // Particles will freeze
+      for (let a of asteroids) a.draw();
+      for (let e of enemyShips) e.draw();
+      for (let eb of enemyBullets) eb.draw();
+      for (let pt of potions) pt.draw();
+      for (let pu of powerUps) pu.draw();
+      displayHUD(); // Show HUD even when paused
+      return; // Stop further execution of game logic
+  }
+  // --- End Pause Check ---
+
   if (!ship) return;
 
+  // Update game state timers (moved here so they pause)
+  if (screenShakeDuration > 0) screenShakeDuration--;
+  if (screenShakeDuration <= 0) screenShakeIntensity = 0;
+
   // Update & Draw player ship, bullets, particles
-  ship.update(); ship.draw();
+  ship.update(); ship.draw(); // Ship update includes powerup timer decrements
   for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
   for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
 
@@ -207,118 +225,39 @@ function runGameLogic() {
   for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
   for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
 
-  // Update & Draw Asteroids (Moved update/draw back here for clarity)
-  for (let i = asteroids.length - 1; i >= 0; i--) {
-        if (!asteroids[i]) continue;
-        asteroids[i].update();
-        asteroids[i].draw();
-   }
+  // Update & Draw Asteroids
+  for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
 
   // Update & Draw PowerUps
-  for (let i = powerUps.length - 1; i >= 0; i--) {
-      powerUps[i].update();
-      powerUps[i].draw();
-      if (powerUps[i].isOffscreen()) {
-          powerUps.splice(i, 1);
-      }
-  }
+  for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); powerUps[i].draw(); if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); } }
 
-  handleCollisions(); // Handles bullet collisions & ship collisions
-  handlePotions();
-  handlePowerUps(); // Handles powerup collection
+  handleCollisions(); handlePotions(); handlePowerUps();
 
   // Spawning
-  if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 20 + currentLevel * 2); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } }
+  if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 20 + currentLevel * 2); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 2; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } if (random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); } }
   if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
 }
 
 // ==================
 // Collision / Pickup Handling Functions
 // ==================
-
-// --- PowerUp Pickup Handler ---
-function handlePowerUps() {
-    if (gameState !== GAME_STATE.PLAYING || !ship) return;
-    for (let i = powerUps.length - 1; i >= 0; i--) {
-        if (powerUps[i].hitsShip(ship)) {
-            let powerUpType = powerUps[i].type;
-            switch (powerUpType) {
-                case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break; // Yellow burst
-                case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break; // Green burst
-                case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 50, color(210, 100, 100), 10, 3); // Blue burst
-                    for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 10, asteroids[k].color); } asteroids = [];
-                    for (let k = enemyShips.length - 1; k >= 0; k--) { createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 15, color(300, 80, 90)); } enemyShips = []; break;
-            }
-            infoMessageTimeout = 120; powerUps.splice(i, 1);
-        }
-    }
-}
-
-// --- Main Collision Handler ---
-function handleCollisions() {
-    if (gameState !== GAME_STATE.PLAYING || !ship) return;
-
-    // --- 1. Player Bullets vs... ---
-    // 1a. Asteroids
-    for (let i = asteroids.length - 1; i >= 0; i--) {
-        if (!asteroids[i]) continue;
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { /* ... asteroid hit logic ... */
-                 let impactParticleCount = floor(random(2, 5)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 60, 100), 2, 0.5);
-                let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2;
-                let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
-                let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
-                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyShips = []; enemyBullets = []; powerUps = []; points += 200 * currentLevel; money += 40 * currentLevel; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); } let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } return; }
-                else { let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } }
-                let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
-                break;
-            }
-        }
-    }
-
-    // 1b. Player Bullets vs Enemy Ships
-    for (let i = enemyShips.length - 1; i >= 0; i--) {
-        if (!enemyShips[i]) continue;
-        for (let j = bullets.length - 1; j >= 0; j--) {
-            if (enemyShips[i] && bullets[j] && enemyShips[i].hits(bullets[j])) { /* ... enemy hit logic ... */
-                points += 20; money += 5; createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, color(300, 80, 90), 3, 1.2);
-                enemyShips.splice(i, 1); bullets.splice(j, 1); break;
-             }
-        }
-    }
-
-    // --- 2. Player Ship vs... (Check Temp Shield First) ---
-    if (ship.invulnerableTimer <= 0) {
-        const takeDamage = (sourceObject, sourceArray, index) => {
-            let damageAbsorbed = false;
-            let gameOver = false;
-            if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 30, color(45, 100, 100)); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; damageAbsorbed = true; }
-            else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); damageAbsorbed = true; }
-            else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } }
-            if (sourceObject && sourceArray && index !== undefined) { let explosionColor = sourceObject.color || color(0,0,50); let particleCount = sourceObject.size ? floor(sourceObject.size / 3) : 15; if (sourceObject instanceof EnemyShip) { explosionColor = color(300, 80, 90); particleCount = 15; } else if (sourceObject instanceof EnemyBullet) { explosionColor = color(300, 80, 90); particleCount = 5; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor); sourceArray.splice(index, 1); }
-            return gameOver;
-        };
-
-        for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } }
-        for (let i = enemyShips.length - 1; i >= 0; i--) { if (enemyShips[i] && enemyShips[i].hitsShip(ship)) { if (takeDamage(enemyShips[i], enemyShips, i)) return; break; } }
-        for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } }
-    }
-}
-
-// --- Other handlers & Draw functions (mostly unchanged) ---
-function handlePotions() { if (gameState !== GAME_STATE.PLAYING) return; for (let i = potions.length - 1; i >= 0; i--) { potions[i].update(); potions[i].draw(); if (potions[i].hitsShip(ship)) { if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); } else if (potions[i].isOffscreen()) { potions.splice(i, 1); } } }
-function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let star of stars) { star.update(); star.draw(); } }
+function handlePowerUps() { if (gameState !== GAME_STATE.PLAYING || !ship || isPaused) return; for (let i = powerUps.length - 1; i >= 0; i--) { if (powerUps[i].hitsShip(ship)) { let powerUpType = powerUps[i].type; switch (powerUpType) { case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break; case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break; case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 50, color(210, 100, 100), 10, 3); for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 10, asteroids[k].color); } asteroids = []; for (let k = enemyShips.length - 1; k >= 0; k--) { createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 15, color(300, 80, 90)); } enemyShips = []; break; } infoMessageTimeout = 120; powerUps.splice(i, 1); } } }
+function handleCollisions() { if (gameState !== GAME_STATE.PLAYING || !ship || isPaused) return; for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { let impactParticleCount = floor(random(2, 5)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 60, 100), 2, 0.5); let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2; let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } } let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; } if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyShips = []; enemyBullets = []; powerUps = []; points += 200 * currentLevel; money += 40 * currentLevel; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; if (lives < MAX_LIVES) { potions.push(new HealthPotion(width / 2, height / 2)); } let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } return; } else { let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } } let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } break; } } }
+    for (let i = enemyShips.length - 1; i >= 0; i--) { if (!enemyShips[i]) continue; for (let j = bullets.length - 1; j >= 0; j--) { if (enemyShips[i] && bullets[j] && enemyShips[i].hits(bullets[j])) { points += 20; money += 5; createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 15, color(300, 80, 90), 3, 1.2); enemyShips.splice(i, 1); bullets.splice(j, 1); break; } } }
+    if (ship.invulnerableTimer <= 0) { const takeDamage = (sourceObject, sourceArray, index) => { let gameOver = false; if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 30, color(45, 100, 100)); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); screenShakeIntensity = 5; screenShakeDuration = 15; if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } } if (sourceObject && sourceArray && index !== undefined) { let explosionColor = sourceObject.color || color(0,0,50); let particleCount = sourceObject.size ? floor(sourceObject.size / 3) : 15; if (sourceObject instanceof EnemyShip) { explosionColor = color(300, 80, 90); particleCount = 15; } else if (sourceObject instanceof EnemyBullet) { explosionColor = color(300, 80, 90); particleCount = 5; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor); sourceArray.splice(index, 1); } return gameOver; }; for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } } for (let i = enemyShips.length - 1; i >= 0; i--) { if (enemyShips[i] && enemyShips[i].hitsShip(ship)) { if (takeDamage(enemyShips[i], enemyShips, i)) return; break; } } for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } } }
+function handlePotions() { if (gameState !== GAME_STATE.PLAYING || isPaused) return; for (let i = potions.length - 1; i >= 0; i--) { potions[i].update(); potions[i].draw(); if (potions[i].hitsShip(ship)) { if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); } else if (potions[i].isOffscreen()) { potions.splice(i, 1); } } }
+function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); for (let i = nebulas.length - 1; i >= 0; i--) { if (!isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let star of stars) { if (!isPaused) star.update(); star.draw(); } } // Nebula/Star update paused
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize, bhSize); let ringCount = 5; let maxRingSize = bhSize * 3; let minRingSize = bhSize * 1.1; noFill(); for (let i = 0; i < ringCount; i++) { let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)); let hue = random(0, 60); let alpha = map(i, 0, ringCount - 1, 40, 5); let sw = map(i, 0, ringCount - 1, 1, 4); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size * random(0.95, 1.05), size * random(0.95, 1.05)); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.2, height * 0.3); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.1, height * 0.4); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.8); ellipse(centerX, centerY, width * 0.9, height * 0.5); pop(); }
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.05); stroke(hue(planetBaseColor), 20, 100, 15); ellipse(0, 0, planetSize * 1.05, planetSize * 1.05); pop(); }
 function displayHUD() { let hudTextSize = 18; textSize(hudTextSize); fill(0, 0, 100, 80); noStroke(); textAlign(LEFT, TOP); text("Points: " + points, 15, 15); text(`Money: $${money}`, 15, 40); text(`Lives: ${lives} / ${MAX_LIVES}`, 15, 65); text(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, 15, 90); text(`Level: ${currentLevel}`, 15, 115); textAlign(RIGHT, TOP); fill(0, 0, 100, 80); text(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, width - 15, 15); text(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, width - 15, 40); text(`Auto-Fire: ${ship.autoFireLevel > 0 ? 'ON' : 'OFF'}`, width - 15, 65); }
 function displayInfoMessage() { fill(0, 0, 100); textSize(16); textAlign(CENTER, BOTTOM); text(infoMessage, width / 2, height - 20); }
 function displayGameOver() { fill(0, 0, 0, 50); rect(0, 0, width, height); fill(0, 90, 100); textSize(60); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(0, 0, 100); textSize(30); text("Final Points: " + points, width / 2, height / 3 + 60); textAlign(CENTER, CENTER); textSize(22); let pulse = map(sin(frameCount * 0.1), -1, 1, 60, 100); fill(0, 0, pulse); text("Click or Tap to Restart", width / 2, height * 0.7); cursor(ARROW); }
-function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; cursor(); spawnInitialAsteroids(); }
+function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; cursor(); spawnInitialAsteroids(); } // Added isPaused=false
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
-function mousePressed() { if (gameState === GAME_STATE.GAME_OVER) { startGame(); } else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); } else if (gameState === GAME_STATE.START_SCREEN) { startGame(); } }
-function keyPressed() { if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } else if (gameState === GAME_STATE.PLAYING) { if (keyCode === 32) { ship.shoot(); return false; } } else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } }
-function touchStarted() { if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; } else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; } else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); return false; } }
+function mousePressed() { if (gameState === GAME_STATE.GAME_OVER) { startGame(); } else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); } else if (gameState === GAME_STATE.START_SCREEN) { startGame(); } } // Added !isPaused check
+function keyPressed() { if (keyCode === ESCAPE && gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; } else if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } else if (gameState === GAME_STATE.PLAYING && !isPaused) { if (keyCode === 32) { ship.shoot(); return false; } } else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } } // Added ESCAPE check
+function touchStarted() { if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; } else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; } else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); return false; } } // Added !isPaused check
 function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); }
 
 // ==================
@@ -365,3 +304,63 @@ class EnemyShip { constructor() { this.size = 28; this.pos = createVector(); thi
 // EnemyBullet Class
 // ==================
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 6; this.color = color(300, 80, 90); } update() { this.pos.add(this.vel); } draw() { fill(this.color); noStroke(); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5); return d < this.size / 2 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
+
+// ==================
+// Nebula Class <-- NEW
+// ==================
+class Nebula {
+    constructor() {
+        this.numEllipses = floor(random(8, 15));
+        this.ellipses = [];
+        this.rotation = random(TWO_PI);
+        this.rotationSpeed = random(-0.0005, 0.0005); // Even slower rotation
+        this.baseAlpha = random(4, 10); // Lower alpha for more subtlety
+
+        let overallWidth = random(width * 0.5, width * 1.2); // Can be larger
+        let overallHeight = random(height * 0.3, height * 0.6);
+
+        if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.05, 0.15), random(-0.02, 0.02)); }
+        else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.15, -0.05), random(-0.02, 0.02)); }
+
+        let h1 = random(240, 330); let h2 = (h1 + random(-40, 40)) % 360;
+        this.color1 = color(h1, random(40, 70), random(20, 50));
+        this.color2 = color(h2, random(40, 70), random(20, 50));
+
+        for (let i = 0; i < this.numEllipses; i++) {
+            this.ellipses.push({
+                pos: createVector(random(-overallWidth * 0.4, overallWidth * 0.4), random(-overallHeight * 0.4, overallHeight * 0.4)),
+                w: random(overallWidth * 0.2, overallWidth * 0.6),
+                h: random(overallHeight * 0.2, overallHeight * 0.6),
+                alpha: this.baseAlpha * random(0.7, 1.3)
+            });
+        }
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        this.rotation += this.rotationSpeed;
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.rotation);
+        noStroke();
+        for (let el of this.ellipses) {
+            let inter = map(el.pos.x, -width * 0.4, width * 0.4, 0, 1);
+            let c = lerpColor(this.color1, this.color2, inter);
+            fill(hue(c), saturation(c), brightness(c), el.alpha);
+            ellipse(el.pos.x, el.pos.y, el.w, el.h);
+        }
+        pop();
+    }
+
+    isOffscreen() {
+        // Check if the bounding box is off screen
+        // Note: This doesn't account for rotation precisely, but is good enough
+        let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.6); // Estimate bounding radius
+        let margin = maxDimension;
+        return (this.pos.x < -margin || this.pos.x > width + margin ||
+                this.pos.y < -margin || this.pos.y > height + margin);
+    }
+}
