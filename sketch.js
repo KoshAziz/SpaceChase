@@ -30,6 +30,7 @@
 // - Added occasional background planet.
 // - Added subtle background galaxy effect.
 // - Added distant black hole effect.
+// - REMOVED BOSS FIGHT MECHANICS
 // --------------------------
 
 // --- Game Objects & State ---
@@ -39,11 +40,11 @@ let asteroids = [];
 let particles = [];
 let stars = [];
 let potions = [];
-let boss = null;
-let enemyBullets = [];
+// REMOVED: let boss = null;
+// REMOVED: let enemyBullets = [];
 
-// Game State Management
-const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, BOSS_FIGHT: 2, GAME_OVER: 3 };
+// Game State Management - REMOVED BOSS_FIGHT state
+const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2 };
 let gameState = GAME_STATE.START_SCREEN;
 
 // Score, Level & Resources
@@ -52,7 +53,8 @@ let money = 0;
 let lives = 3;
 const MAX_LIVES = 3;
 let currentLevel = 1;
-const LEVEL_THRESHOLDS = [0, 400, 1200, 2500, 4500, 7000, 10000];
+// Adjusted thresholds for potentially smoother progression without bosses as gatekeepers
+const LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 7500, 10500]; // Example adjustment
 
 // Game Settings & Thresholds
 let baseAsteroidSpawnRate;
@@ -162,12 +164,12 @@ function draw() {
   switch (gameState) {
     case GAME_STATE.START_SCREEN: displayStartScreen(); break;
     case GAME_STATE.PLAYING: runGameLogic(); break;
-    case GAME_STATE.BOSS_FIGHT: runBossFightLogic(); break;
-    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
+    // REMOVED: case GAME_STATE.BOSS_FIGHT: runBossFightLogic(); break;
+    case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break; // Renumbered GAME_OVER
   }
 
   // Display Info Messages
-  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { infoMessageTimeout--; } }
+  if (infoMessageTimeout > 0) { displayInfoMessage(); if (gameState === GAME_STATE.PLAYING) { infoMessageTimeout--; } }
 }
 
 // --- MODIFIED: Function for Start Screen ---
@@ -214,21 +216,12 @@ function runGameLogic() {
   handleAsteroidsAndCollisions();
   handlePotions();
   if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; if (random(1) < currentAsteroidSpawnRate && asteroids.length < 25) { asteroids.push(new Asteroid()); } if (random(1) < potionSpawnRate && potions.length < 2) { potions.push(new HealthPotion()); } }
-  if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { displayHUD(); }
+  if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
 }
 
-// --- Function for Boss Fight Logic ---
-function runBossFightLogic() {
-    if (!ship) return;
-    ship.update(); ship.draw();
-    for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
-    for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
-    if (boss) { boss.update(); boss.draw(); displayBossHealth(); } else { console.warn("In BOSS_FIGHT state but boss is null!"); gameState = GAME_STATE.PLAYING; return; }
-    for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
-    for (let i = bullets.length - 1; i >= 0; i--) { if (boss && boss.hits(bullets[i])) { createParticles(bullets[i].pos.x, bullets[i].pos.y, 4, color(90, 50, 100), 3, 0.8); let defeated = boss.takeHit(); bullets.splice(i, 1); if (defeated) { points += 250 * currentLevel; money += 50 * currentLevel; createParticles(boss.pos.x, boss.pos.y, 150, color(0, 80, 100), null, 2.0); boss = null; enemyBullets = []; currentLevel++; setDifficultyForLevel(currentLevel); infoMessage = `LEVEL ${currentLevel}!`; infoMessageTimeout = 180; gameState = GAME_STATE.PLAYING; if (lives < MAX_LIVES) potions.push(new HealthPotion(width/2, height/2)); break; } } }
-    if (ship.invulnerableTimer <= 0) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i].hitsShip(ship)) { enemyBullets.splice(i, 1); if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; /*scoreSubmitted = false;*/ infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); } } break; } } }
-     displayHUD();
-}
+// --- REMOVED: Function for Boss Fight Logic ---
+// function runBossFightLogic() { ... }
+
 
 // ==================
 // Collision Handling Functions
@@ -246,15 +239,108 @@ function handleAsteroidsAndCollisions() {
                 points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2;
                 let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
                 let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
-                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { asteroids = []; potions = []; bullets = []; enemyBullets = []; boss = new Boss(currentLevel); gameState = GAME_STATE.BOSS_FIGHT; infoMessage = `WARNING: Level ${currentLevel} Boss Approaching!`; infoMessageTimeout = 180; return; }
-                else { let upgradedInLoop = true; while (upgradedInLoop) { upgradedInLoop = false; let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break; } }
-                let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); asteroidHitByBullet = true; createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } break;
+
+                // --- MODIFIED: Level Up Logic (Replaces Boss Trigger) ---
+                if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) {
+                    asteroids = []; // Clear existing asteroids
+                    potions = [];   // Clear existing potions
+                    bullets = [];   // Clear player bullets
+
+                    // Award points/money for leveling up (like defeating a boss)
+                    points += 200 * currentLevel;
+                    money += 40 * currentLevel;
+
+                    currentLevel++; // Advance level
+                    setDifficultyForLevel(currentLevel); // Increase difficulty
+                    infoMessage = `LEVEL ${currentLevel}!`; // Display level up message
+                    infoMessageTimeout = 180;
+
+                    // Spawn a health potion centrally if needed
+                    if (lives < MAX_LIVES) {
+                        potions.push(new HealthPotion(width / 2, height / 2));
+                    }
+
+                    // Auto-buy cheapest upgrade after leveling up
+                    let upgradedInLoop = true;
+                    while (upgradedInLoop) {
+                        upgradedInLoop = false;
+                        let cost1 = ship.getUpgradeCost('fireRate');
+                        let cost2 = ship.getUpgradeCost('spreadShot');
+                        let cost3 = ship.getUpgradeCost('autoFire');
+                        let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity;
+                        let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity;
+                        let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity;
+                        let cheapestCost = Math.min(numCost1, numCost2, numCost3);
+                        if (cheapestCost === Infinity || money < cheapestCost) break;
+
+                        if (numCost1 <= numCost2 && numCost1 <= numCost3) {
+                            if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true;
+                        } else if (numCost2 <= numCost1 && numCost2 <= numCost3) {
+                            if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true;
+                        } else {
+                            if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true;
+                        }
+                         if (!upgradedInLoop) break; // Exit if no upgrade bought in this iteration
+                    }
+
+                    return; // Exit collision checks for this frame after level up
+                }
+                // --- End Modified Level Up Logic ---
+                else {
+                    // Check for upgrades only if NOT leveling up this frame
+                    let upgradedInLoop = true;
+                    while (upgradedInLoop) {
+                        upgradedInLoop = false;
+                        let cost1 = ship.getUpgradeCost('fireRate'); let cost2 = ship.getUpgradeCost('spreadShot'); let cost3 = ship.getUpgradeCost('autoFire'); let numCost1 = (typeof cost1 === 'number') ? cost1 : Infinity; let numCost2 = (typeof cost2 === 'number') ? cost2 : Infinity; let numCost3 = (typeof cost3 === 'number') ? cost3 : Infinity; let cheapestCost = Math.min(numCost1, numCost2, numCost3); if (cheapestCost === Infinity || money < cheapestCost) break; if (numCost1 <= numCost2 && numCost1 <= numCost3) { if (money >= numCost1 && ship.attemptUpgrade('fireRate')) upgradedInLoop = true; } else if (numCost2 <= numCost1 && numCost2 <= numCost3) { if (money >= numCost2 && ship.attemptUpgrade('spreadShot')) upgradedInLoop = true; } else { if (money >= numCost3 && ship.attemptUpgrade('autoFire')) upgradedInLoop = true; } if (!upgradedInLoop) break;
+                    }
+                }
+
+                // Handle asteroid splitting / destruction
+                let currentAsteroid = asteroids[i];
+                let asteroidPos = currentAsteroid.pos.copy();
+                let asteroidColor = currentAsteroid.color;
+                asteroids.splice(i, 1);
+                bullets.splice(j, 1);
+                asteroidHitByBullet = true;
+                createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 3), asteroidColor);
+                if (asteroidSizeValue > minAsteroidSize * 2) {
+                    let newSize = asteroidSizeValue * 0.6;
+                    let splitSpeedMultiplier = random(0.8, 2.0);
+                    let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier);
+                    let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier);
+                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1));
+                    asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2));
+                }
+                break; // Exit inner loop once a bullet hits this asteroid
+            }
+        } // End bullet loop
+
+        if (asteroidHitByBullet) continue; // Skip ship collision check if destroyed by bullet
+
+        // Check for collision with ship
+        if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) {
+            if (ship.shieldCharges > 0) {
+                ship.loseShield();
+                createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100));
+                createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
+                asteroids.splice(i, 1);
+            } else {
+                lives--;
+                createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100));
+                if (lives <= 0) {
+                    gameState = GAME_STATE.GAME_OVER;
+                    infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
+                } else {
+                    ship.setInvulnerable();
+                    // Destroy asteroid on non-fatal hit too
+                    createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color);
+                    asteroids.splice(i, 1);
+                }
             }
         }
-        if (asteroidHitByBullet) continue;
-        if (ship.invulnerableTimer <= 0 && asteroids[i] && asteroids[i].hitsShip(ship)) { if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 25, color(180, 80, 100)); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } else { lives--; createParticles(ship.pos.x, ship.pos.y, 30, color(0, 80, 100)); if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; /*scoreSubmitted = false;*/ infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); } else { ship.setInvulnerable(); createParticles(asteroids[i].pos.x, asteroids[i].pos.y, floor(asteroids[i].size / 3), asteroids[i].color); asteroids.splice(i, 1); } } }
-    }
+    } // End asteroid loop
 }
+
 
 function handlePotions() {
     if (gameState !== GAME_STATE.PLAYING) return;
@@ -347,21 +433,22 @@ function displayGameOver() {
 // MODIFIED: Resets game state for restarting
 function resetGame() {
     ship = new Ship();
-    bullets = []; particles = []; asteroids = []; potions = []; enemyBullets = []; boss = null;
+    bullets = []; particles = []; asteroids = []; potions = [];
+    // REMOVED: enemyBullets = []; boss = null;
     points = 0; money = 0; lives = 3;
     currentLevel = 1;
     setDifficultyForLevel(currentLevel);
-    isGameOver = false; // Not really used now state handles it
-    // scoreSubmitted = false; // Removed
+    // REMOVED: isGameOver = false;
+    // REMOVED: scoreSubmitted = false;
     spawnInitialAsteroids();
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
     frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
-    // nameInput.hide(); // Removed
-    // submitButton.hide(); // Removed
+    // REMOVED: nameInput.hide();
+    // REMOVED: submitButton.hide();
     cursor();
     lastPlanetAppearanceTime = -Infinity; planetVisible = false;
     // REMOVED: Freighter reset
-    // gameState = GAME_STATE.PLAYING; // State is set by the function calling resetGame
+    // gameState is set by the function calling resetGame
 }
 
 // --- Function to start the game ---
@@ -376,19 +463,19 @@ function startGame() {
 // ==================
 function mousePressed() {
   if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
-  else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { ship.shoot(); }
+  else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); }
 }
 
 function keyPressed() {
     if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
-    else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { if (keyCode === 32) { ship.shoot(); return false; } }
+    else if (gameState === GAME_STATE.PLAYING) { if (keyCode === 32) { ship.shoot(); return false; } }
     else if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
 }
 
 function touchStarted() {
     if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; }
     else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; }
-    else if (gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.BOSS_FIGHT) { ship.shoot(); return false; }
+    else if (gameState === GAME_STATE.PLAYING) { ship.shoot(); return false; }
 }
 
 
@@ -396,7 +483,7 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   createStarfield(200);
   // REMOVED: Positioning logic for removed input/button
-  if (ship) { /* ship.resetPosition(); */ }
+  if (ship) { /* ship.resetPosition(); */ } // Resetting position on resize might be disruptive
 }
 
 
@@ -471,25 +558,11 @@ class HealthPotion {
 }
 
 // ==================
-// Boss Class
+// REMOVED: Boss Class
 // ==================
-class Boss {
-    constructor(level) { this.size = 60 + level * 5; this.pos = createVector(width / 2, -this.size); this.vel = createVector(0, 1); this.maxHealth = 100 + (level - 1) * 50; this.health = this.maxHealth; this.targetY = height * 0.15; this.moveSpeed = 1.5 + level * 0.1; this.moveDir = 1; this.entered = false; this.shootCooldown = 0; this.shootDelay = max(30, 90 - level * 5); this.bulletSpeed = 3 + level * 0.2; }
-    update() { if (!this.entered) { if (this.pos.y < this.targetY) { this.pos.add(this.vel); } else { this.pos.y = this.targetY; this.entered = true; this.vel.set(this.moveSpeed * this.moveDir, 0); } } else { this.pos.add(this.vel); let margin = this.size / 2; if (this.pos.x > width - margin || this.pos.x < margin) { this.moveDir *= -1; this.vel.set(this.moveSpeed * this.moveDir, 0); this.pos.x = constrain(this.pos.x, margin, width - margin); } } if (this.entered) { this.shootCooldown--; if (this.shootCooldown <= 0) { this.shoot(); this.shootCooldown = this.shootDelay; } } }
-    shoot() { let bulletX = this.pos.x; let bulletY = this.pos.y + this.size * 0.5; enemyBullets.push(new EnemyBullet(bulletX, bulletY, this.bulletSpeed)); }
-    takeHit() { this.health -= 10; this.health = max(0, this.health); return this.health <= 0; }
-    hits(playerBullet) { let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y); return d < this.size / 2 + playerBullet.size / 2; }
-    hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); return d < this.size / 2 + playerShip.size * 0.5; }
-    draw() { push(); translate(this.pos.x, this.pos.y); fill(0, 0, 15); stroke(0, 0, 50); strokeWeight(2); beginShape(); vertex(0, -this.size * 0.6); vertex(this.size * 0.5, this.size * 0.4); vertex(0, this.size * 0.1); vertex(-this.size * 0.5, this.size * 0.4); endShape(CLOSE); fill(0, 90, 80); noStroke(); ellipse(0, -this.size * 0.1, this.size * 0.3, this.size * 0.2); pop(); }
-}
+// class Boss { ... }
 
 // ==================
-// EnemyBullet Class
+// REMOVED: EnemyBullet Class
 // ==================
-class EnemyBullet {
-    constructor(x, y, speed) { this.pos = createVector(x, y); this.vel = createVector(0, speed); this.size = 8; this.color = color(0, 80, 90); }
-    update() { this.pos.add(this.vel); }
-    draw() { fill(this.color); noStroke(); ellipse(this.pos.x, this.pos.y, this.size, this.size * 1.5); }
-    hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5; return d < this.size / 2 + targetRadius; }
-    isOffscreen() { return (this.pos.y > height + this.size); }
-}
+// class EnemyBullet { ... }
