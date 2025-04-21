@@ -4,7 +4,7 @@
 // - Mobile Gameplay Settings Button // MODIFIED (Positioned bottom-left)
 // - Level System based on Points (Up to Level 15)
 // - Rainbow Bullets (Hue Cycling) // ENHANCED (Trail Effect)
-// - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot) - Uses Money // ENHANCED (UI Style)
+// - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot) - Uses Money // ENHANCED (UI Style) // MODIFIED: Button text size
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
 // - Redesigned Spaceship Look (Score-based color/shape, added details) // FURTHER ENHANCED
 // - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail)
@@ -15,17 +15,17 @@
 // - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED (Scales to Lvl 15)
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max). // ENHANCED (Visual Pulse)
 // - ADDED: Multiple Enemy Types:
-//   - Basic Enemy: Shoots straight.
-//   - Kamikaze Enemy: Homes in on player, explodes on impact.
-//   - Turret Enemy: Slow/Stationary, fires patterns (bursts/spirals).
-//   - Swarmer Enemy: Small, appears in groups, simple movement.
+//   - Basic Enemy: Shoots straight. // MODIFIED: Appearance more 'evil'
+//   - Kamikaze Enemy: Homes in on player, explodes on impact. // MODIFIED: Appearance more 'evil'
+//   - Turret Enemy: Slow/Stationary, fires patterns (bursts/spirals). // MODIFIED: Appearance more 'evil'
+//   - Swarmer Enemy: Small, appears in groups, simple movement. // MODIFIED: Appearance more 'evil'
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst) // ENHANCED (Visual Pulse)
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
 // - ADDED: Pause Functionality (Press ESC during gameplay) // ENHANCED (UI Style)
 // - ADDED: Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - ADDED: Win Screen after completing Level 15 // ENHANCED (UI Style)
 // - ADDED: Monospace Font & UI Color Palette // NEW UI FEATURE
-// - ADDED: Styled HUD with Icons & Panel // MODIFIED (Moved Upgrade Levels)
+// - ADDED: Styled HUD with Icons & Panel // MODIFIED (Moved Upgrade Levels & Shield Position)
 // - ADDED: Styled Buttons & Menu Panels // NEW UI FEATURE
 // - ADDED: Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE
 // --- Modifications ---
@@ -280,11 +280,98 @@ function draw() {
 function displayStartMenu() { let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3.5; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; } let menuTextSize = isMobile ? 24 : 30; textSize(menuTextSize); textAlign(CENTER, CENTER); for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; let label = button.id; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedMenuItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(label, button.x + button.w / 2, button.y + button.h / 2); } cursor(ARROW); }
 function displaySettingsMenu() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Settings", width / 2, height * 0.2); let menuTextSize = isMobile ? 18 : 22; textSize(menuTextSize); textAlign(CENTER, CENTER); for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; let setting = settingsItems[i]; let label = setting.label; let currentValue = ''; if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; } else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; } let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedSettingsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(fullLabel, button.x + button.w / 2, button.y + button.h / 2); } cursor(ARROW); }
 function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap Settings Button (⚙️) to Resume/Adjust" : "Press ESC to Resume", width / 2, height / 2 + 40); }
-function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115)); textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
+function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115));
+    // Reset text size before drawing buttons (will be potentially overridden in drawStyledButton)
+    textSize(isMobile ? 15 : 17);
+    textAlign(CENTER, CENTER);
+    for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
 function displayWinScreen() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6); let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; } fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
 function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2); rect(panelX, panelY, panelWidth, panelHeight, 10); }
-function drawStyledButton(button) { let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; if (button.id === 'fireRate') { cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxLevel}`; label = `Fire Rate ${currentLevelText}`; } else if (button.id === 'spreadShot') { cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxLevel}`; label = `Spread Shot ${currentLevelText}`; } else if (button.id === 'nextLevel') { label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; } let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); if (button.id !== 'nextLevel') { if (isMaxed) { buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); label += " (MAX)"; borderCol = color(0, 0, 40); } else if (!canAfford) { buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); label += ` ($${cost})`; borderCol = color(0, 80, 70); } else { buttonCol = hover ? uiButtonHoverColor : uiButtonColor; label += ` ($${cost})`; borderCol = uiButtonBorderColor; } } else { buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60); borderCol = color(90, 80, 85); } fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(label, button.x + button.w / 2, button.y + button.h / 2); }
+function drawStyledButton(button) {
+    let cost = "?";
+    let label = "";
+    let isMaxed = false;
+    let canAfford = false;
+    let currentLevelText = "";
+    let isUpgradeButton = false; // Flag for upgrade buttons
+
+    if (button.id === 'fireRate') {
+        cost = ship.getUpgradeCost('fireRate');
+        isMaxed = (cost === "MAX");
+        if (!isMaxed) canAfford = (money >= cost);
+        currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxLevel}`;
+        label = `Fire Rate ${currentLevelText}`;
+        isUpgradeButton = true;
+    } else if (button.id === 'spreadShot') {
+        cost = ship.getUpgradeCost('spreadShot');
+        isMaxed = (cost === "MAX");
+        if (!isMaxed) canAfford = (money >= cost);
+        currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxLevel}`;
+        label = `Spread Shot ${currentLevelText}`;
+        isUpgradeButton = true;
+    } else if (button.id === 'nextLevel') {
+        label = `Start Level ${currentLevel + 1}`;
+        isMaxed = false;
+        canAfford = true;
+    }
+
+    let buttonCol;
+    let textCol = uiTextColor;
+    let borderCol = uiButtonBorderColor;
+    let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+
+    if (button.id !== 'nextLevel') {
+        if (isMaxed) {
+            buttonCol = uiButtonDisabledColor;
+            textCol = color(0, 0, 60);
+            label += " (MAX)";
+            borderCol = color(0, 0, 40);
+        } else if (!canAfford) {
+            buttonCol = color(0, 75, 50, 80);
+            textCol = color(0, 0, 85);
+            label += ` ($${cost})`;
+            borderCol = color(0, 80, 70);
+        } else {
+            buttonCol = hover ? uiButtonHoverColor : uiButtonColor;
+            label += ` ($${cost})`;
+            borderCol = uiButtonBorderColor;
+        }
+    } else { // Next Level button styling
+        buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60);
+        borderCol = color(90, 80, 85);
+    }
+
+    // Draw button background and border
+    fill(buttonCol);
+    stroke(borderCol);
+    strokeWeight(hover ? 2.5 : 1.5);
+    rect(button.x, button.y, button.w, button.h, 6);
+
+    // Inner bevel effect
+    noFill();
+    strokeWeight(1);
+    stroke(0, 0, 100, 20); // Top/Left highlight
+    line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2);
+    line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2);
+    stroke(0, 0, 0, 30); // Bottom/Right shadow
+    line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2);
+    line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+
+    // --- MODIFICATION: Set smaller text size for upgrade buttons ---
+    if (isUpgradeButton) {
+        textSize(isMobile ? 13 : 15); // Smaller size for Fire Rate/Spread Shot
+    } else {
+        textSize(isMobile ? 15 : 17); // Original size for Next Level
+    }
+    // -------------------------------------------------------------
+
+    // Draw button text
+    fill(textCol);
+    noStroke();
+    textAlign(CENTER, CENTER); // Ensure alignment is correct
+    text(label, button.x + button.w / 2, button.y + button.h / 2);
+}
 
 
 // --- Main Game Logic ---
@@ -360,8 +447,60 @@ function drawPlanet() {
 }
 
 // --- HUD & Info Messages ---
-function displayHUD() { let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 18 : 22; let spacing = isMobile ? 8 : 12; let bottomMargin = 10; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); textSize(textSizeVal); fill(uiTextColor); textAlign(LEFT, CENTER); let currentX = sideMargin; text(`LEVEL: ${currentLevel}`, currentX, hudH / 2); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2; text(`PTS: ${points}`, currentX, hudH / 2); currentX += textWidth(`PTS: ${points}`) + spacing * 2; fill(uiHighlightColor); text(`$: ${money}`, currentX, hudH / 2); currentX += textWidth(`$: ${money}`) + spacing * 2; fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, hudH / 2); currentX += textWidth(`♥: ${lives}`) + spacing * 2; fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.8); text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin);
-    // --- MODIFICATION: Draw mobile settings button (now in bottom-left) ---
+function displayHUD() {
+    let hudH = isMobile ? 45 : 60;
+    let topMargin = 5;
+    let sideMargin = 10;
+    let iconSize = isMobile ? 16 : 20;
+    let textSizeVal = isMobile ? 18 : 22;
+    let spacing = isMobile ? 8 : 12; // Base spacing between elements
+    let bottomMargin = 10;
+
+    // Draw HUD background panel
+    fill(uiPanelColor);
+    stroke(uiBorderColor);
+    strokeWeight(1.5);
+    rect(0, 0, width, hudH);
+
+    // Set text properties
+    textSize(textSizeVal);
+    textAlign(LEFT, CENTER);
+    let currentX = sideMargin; // Start position for text
+
+    // Level
+    fill(uiTextColor);
+    text(`LEVEL: ${currentLevel}`, currentX, hudH / 2);
+    currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
+
+    // Points
+    text(`PTS: ${points}`, currentX, hudH / 2);
+    currentX += textWidth(`PTS: ${points}`) + spacing * 2;
+
+    // Money
+    fill(uiHighlightColor);
+    text(`$: ${money}`, currentX, hudH / 2);
+    currentX += textWidth(`$: ${money}`) + spacing * 2;
+
+    // Lives
+    fill(color(0, 80, 100)); // Red for lives
+    text(`♥: ${lives}`, currentX, hudH / 2);
+    currentX += textWidth(`♥: ${lives}`) + spacing * 2;
+
+    // --- MODIFICATION: Adjust shield position ---
+    currentX -= spacing * 0.5; // Move slightly left before drawing shield
+    // -------------------------------------------
+
+    // Shield
+    fill(color(180, 70, 100)); // Cyan for shield
+    text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2);
+
+    // Bottom Right Text (Upgrade Levels)
+    textAlign(RIGHT, BOTTOM);
+    fill(uiTextColor);
+    textSize(textSizeVal * 0.8); // Slightly smaller text for levels
+    text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin);
+
+    // Draw mobile settings button (bottom-left)
     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused) {
         let btn = mobileSettingsButton;
         fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(btn.x, btn.y, btn.size, btn.size, 5);
@@ -656,13 +795,395 @@ class PowerUp { constructor(type) { this.type = type; this.pos = createVector(ra
 // ==========================
 // ===== ENEMY CLASSES ======
 // ==========================
-class BaseEnemy { constructor(x, y, size, health, pointsValue, moneyValue) { this.pos = createVector(x, y); this.vel = createVector(); this.size = size; this.health = health; this.maxHealth = health; this.pointsValue = pointsValue; this.moneyValue = moneyValue; this.hitColor = color(0, 0, 80); this.explosionColor = color(30, 80, 90); } update() { this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); fill(0, 100, 100); rectMode(CENTER); rect(0, 0, this.size, this.size); pop(); } hits(playerBullet) { let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y); return d < this.size / 2 + playerBullet.size / 2; } hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); let targetRadius; if (playerShip.tempShieldActive) targetRadius = playerShip.shieldVisualRadius * 1.1; else if (playerShip.shieldCharges > 0) targetRadius = playerShip.shieldVisualRadius; else targetRadius = playerShip.size * 0.5; return d < this.size * 0.45 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } takeDamage(amount) { this.health -= amount; return this.health <= 0; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } _setDefaultSpawnPosition() { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.6); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.6); } } }
-class BasicEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 28, 1, 20, 5); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.shootCooldown = random(120, 240); this.shootTimer = this.shootCooldown; this.bulletSpeed = 3.5 + currentLevel * 0.1; if (this.pos.y < 0) { this.vel.set(random(-0.5, 0.5), random(0.8, 1.5)); } else if (this.pos.x > width) { this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5)); } else { this.vel.set(random(0.8, 1.5), random(-0.5, 0.5)); } let speedScale = min(MAX_ENEMY_SPEED_BASIC, 1.0 + (currentLevel - 1) * 0.1); this.vel.mult(speedScale); this.vel.x += random(-0.25, 0.25) * speedScale; this.bodyColor = color(0, 0, 20); this.outlineColor = color(0, 90, 60); this.cockpitColor = color(0, 100, 100); this.explosionColor = color(300, 80, 90); this.hitColor = this.outlineColor; } update() { super.update(); this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.shoot(); this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } } shoot() { let aimAngle = PI / 2; enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y + this.size * 0.3, aimAngle, this.bulletSpeed)); } draw() { push(); translate(this.pos.x, this.pos.y); fill(this.bodyColor); stroke(this.outlineColor); strokeWeight(1.8); beginShape(); vertex(0, -this.size * 0.65); vertex(this.size * 0.55, this.size * 0.45); vertex(this.size * 0.3, this.size * 0.35); vertex(-this.size * 0.3, this.size * 0.35); vertex(-this.size * 0.55, this.size * 0.45); endShape(CLOSE); fill(this.cockpitColor); noStroke(); ellipse(0, -this.size * 0.1, 4, 6); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class KamikazeEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 22, 1, 15, 3); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); this.pos.y = constrain(this.pos.y, -this.size, height * 0.6); } this.acceleration = 0.08 + currentLevel * 0.005; this.maxSpeed = min(MAX_ENEMY_SPEED_KAMIKAZE, 3.0 + currentLevel * 0.2); this.vel = p5.Vector.random2D().mult(this.maxSpeed * 0.5); this.bodyColor = color(0, 90, 70); this.spikeColor = color(0, 100, 100); this.trailColor = color(0, 90, 80, 50); this.explosionColor = color(15, 100, 100); this.hitColor = this.spikeColor; } update() { if (ship && gameState === GAME_STATE.PLAYING && !isPaused) { let direction = p5.Vector.sub(ship.pos, this.pos); direction.normalize(); direction.mult(this.acceleration); this.vel.add(direction); this.vel.limit(this.maxSpeed); } this.pos.add(this.vel); if (frameCount % 4 === 0) { createParticles(this.pos.x, this.pos.y, 1, this.trailColor, this.size * 0.3, 0.5, 0.4); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); fill(this.bodyColor); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.5, this.size * 0.5, this.size * 0.5, this.size * 0.5); fill(this.spikeColor); triangle(-this.size * 0.5, this.size * 0.5, -this.size * 0.6, this.size * 0.7, -this.size * 0.3, this.size * 0.6); triangle(this.size * 0.5, this.size * 0.5, this.size * 0.6, this.size * 0.7, this.size * 0.3, this.size * 0.6); triangle(0, -this.size * 0.8, -this.size * 0.1, -this.size * 0.9, this.size * 0.1, -this.size * 0.9); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class TurretEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 35, 3, 50, 10); if (x === undefined || y === undefined) { let edge = random(1) < 0.5 ? -1 : 1; this.pos.x = (edge < 0) ? -this.size : width + this.size; this.pos.y = random(height * 0.1, height * 0.7); this.vel.set(edge * random(-0.4, -0.1), random(-0.1, 0.1)); } else { this.vel.set(random(-0.2, 0.2), random(-0.2, 0.2)); } this.bulletSpeed = 2.5 + currentLevel * 0.05; this.fireMode = floor(random(3)); this.shootCooldown = random(180, 300); this.shootTimer = this.shootCooldown; this.patternTimer = 0; this.patternAngle = random(TWO_PI); this.burstCount = 0; this.baseColor = color(260, 50, 60); this.barrelColor = color(260, 60, 80); this.lightColor = color(120, 80, 100); this.explosionColor = color(260, 70, 90); this.hitColor = this.barrelColor; } update() { super.update(); if (this.pos.x < this.size * 2 && this.vel.x < 0) this.vel.x *= -0.5; if (this.pos.x > width - this.size * 2 && this.vel.x > 0) this.vel.x *= -0.5; if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) { this.vel.y *= -0.5; } this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.startShootingPattern(); this.shootCooldown = random(max(120, 240 - currentLevel * 8), max(180, 360 - currentLevel * 12)); this.shootTimer = this.shootCooldown; } this.updateShootingPattern(); } startShootingPattern() { this.fireMode = floor(random(3)); this.patternTimer = 0; this.patternAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : random(TWO_PI); switch (this.fireMode) { case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 10; break; case 1: this.burstCount = 10 + currentLevel; this.patternTimer = 5; break; case 2: this.burstCount = 3 + floor(currentLevel / 3); this.patternTimer = 0; break; } } updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { switch (this.fireMode) { case 0: let angleToPlayer = atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angleToPlayer, this.bulletSpeed)); this.patternTimer = 10; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, this.patternAngle, this.bulletSpeed * 0.8)); this.patternAngle += PI / (6 + currentLevel * 0.5); this.patternTimer = 5; this.burstCount--; break; case 2: let spreadArc = PI / 4 + (currentLevel * PI / 30); for(let i = 0; i < this.burstCount; i++) { let angle = this.patternAngle + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angle, this.bulletSpeed)); } this.burstCount = 0; break; } } } } draw() { push(); translate(this.pos.x, this.pos.y); fill(this.baseColor); stroke(0, 0, 40); strokeWeight(2); beginShape(); for (let i = 0; i < 8; i++) { let angle = map(i, 0, 8, 0, TWO_PI); vertex(cos(angle) * this.size / 2, sin(angle) * this.size / 2); } endShape(CLOSE); let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : PI/2; rotate(aimAngle); fill(this.barrelColor); stroke(0, 0, 20); strokeWeight(1.5); rect(-this.size * 0.1, 0, this.size * 0.2, this.size * 0.6); let lightPulse = 1.0; if (this.shootTimer < 60 || this.burstCount > 0) { lightPulse = map(sin(frameCount * 0.3), -1, 1, 0.5, 1.5); } fill(this.lightColor); noStroke(); ellipse(0, this.size * 0.1, 6 * lightPulse, 6 * lightPulse); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.barrelColor; } }
-class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 15, 1, 5, 1); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.5 + currentLevel * 0.1); this.vel = p5.Vector.random2D().mult(this.maxSpeed); this.turnForce = 0.03 + random(0.02); this.phaseOffset = random(TWO_PI); this.bodyColor = color(90, 70, 80); this.wingColor = color(90, 50, 60, 80); this.explosionColor = color(90, 90, 90); this.hitColor = color(90, 100, 100); } update() { let targetY = height * 0.7; let targetX = width / 2; if(ship && !isPaused) { targetX = ship.pos.x + random(-width*0.2, width*0.2); targetY = ship.pos.y + random(50, 150); } let desired = createVector(targetX - this.pos.x, targetY - this.pos.y); desired.normalize(); desired.mult(this.maxSpeed); let wave = createVector(desired.y, -desired.x); wave.normalize(); wave.mult(sin(frameCount * 0.05 + this.phaseOffset) * this.maxSpeed * 0.5); desired.add(wave); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.turnForce); this.vel.add(steer); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); fill(this.bodyColor); noStroke(); ellipse(0, 0, this.size * 0.6, this.size); let wingPulse = map(sin(frameCount * 0.2 + this.phaseOffset), -1, 1, 0.8, 1.2); fill(this.wingColor); triangle(-this.size * 0.3, -this.size * 0.1, -this.size * 0.8 * wingPulse, -this.size * 0.4 * wingPulse, -this.size * 0.5 * wingPulse, this.size * 0.3 * wingPulse); triangle(this.size * 0.3, -this.size * 0.1, this.size * 0.8 * wingPulse, -this.size * 0.4 * wingPulse, this.size * 0.5 * wingPulse, this.size * 0.3 * wingPulse); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(0, 80, 100, 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5); return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
+class BaseEnemy { constructor(x, y, size, health, pointsValue, moneyValue) { this.pos = createVector(x, y); this.vel = createVector(); this.size = size; this.health = health; this.maxHealth = health; this.pointsValue = pointsValue; this.moneyValue = moneyValue; this.hitColor = color(0, 0, 80); this.explosionColor = color(30, 80, 90); } update() { this.pos.add(this.vel); } draw() { // Basic fallback draw, should be overridden
+ push(); translate(this.pos.x, this.pos.y); fill(300, 80, 50); // Default evil purple
+ rectMode(CENTER); rect(0, 0, this.size, this.size); pop(); } hits(playerBullet) { let d = dist(this.pos.x, this.pos.y, playerBullet.pos.x, playerBullet.pos.y); return d < this.size / 2 + playerBullet.size / 2; } hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); let targetRadius; if (playerShip.tempShieldActive) targetRadius = playerShip.shieldVisualRadius * 1.1; else if (playerShip.shieldCharges > 0) targetRadius = playerShip.shieldVisualRadius; else targetRadius = playerShip.size * 0.5; return d < this.size * 0.45 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } takeDamage(amount) { this.health -= amount; return this.health <= 0; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } _setDefaultSpawnPosition() { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.6); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.6); } } }
+
+// ===== MODIFIED BASIC ENEMY =====
+class BasicEnemy extends BaseEnemy {
+    constructor(x, y) {
+        super(x, y, 30, 1, 20, 5); // Slightly larger size
+        if (x === undefined || y === undefined) {
+            this._setDefaultSpawnPosition();
+        }
+        this.shootCooldown = random(120, 240);
+        this.shootTimer = this.shootCooldown;
+        this.bulletSpeed = 3.5 + currentLevel * 0.1;
+        if (this.pos.y < 0) {
+            this.vel.set(random(-0.5, 0.5), random(0.8, 1.5));
+        } else if (this.pos.x > width) {
+            this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5));
+        } else {
+            this.vel.set(random(0.8, 1.5), random(-0.5, 0.5));
+        }
+        let speedScale = min(MAX_ENEMY_SPEED_BASIC, 1.0 + (currentLevel - 1) * 0.1);
+        this.vel.mult(speedScale);
+        this.vel.x += random(-0.25, 0.25) * speedScale;
+
+        // Evil Colors
+        this.bodyColor = color(0, 0, 15);          // Dark grey/black body
+        this.accentColor = color(0, 90, 75);       // Deep red accent/outline
+        this.glowColor = color(0, 100, 100, 70);   // Red glow for cockpit/eye
+        this.explosionColor = color(340, 90, 90);  // More vibrant red/pink explosion
+        this.hitColor = this.accentColor;
+    }
+
+    update() {
+        super.update();
+        this.shootTimer--;
+        if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) {
+            this.shoot();
+            this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10));
+            this.shootTimer = this.shootCooldown;
+        }
+    }
+
+    shoot() {
+        let aimAngle = PI / 2; // Shoots straight down
+        enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y + this.size * 0.4, aimAngle, this.bulletSpeed));
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        let s = this.size;
+
+        // Evil shape - more angular
+        fill(this.bodyColor);
+        stroke(this.accentColor);
+        strokeWeight(2);
+
+        beginShape();
+        vertex(0, -s * 0.7);      // Top point
+        vertex(s * 0.6, s * 0.1); // Right wingtip
+        vertex(s * 0.3, s * 0.5); // Right engine bottom
+        vertex(-s * 0.3, s * 0.5); // Left engine bottom
+        vertex(-s * 0.6, s * 0.1); // Left wingtip
+        endShape(CLOSE);
+
+        // Draw glowing "eye" or cockpit
+        noStroke();
+        let glowPulse = map(sin(frameCount * 0.15), -1, 1, 0.8, 1.2);
+        fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), alpha(this.glowColor) * glowPulse);
+        ellipse(0, -s * 0.1, s * 0.25 * glowPulse, s * 0.35 * glowPulse); // Glowing Eye
+
+        // Add small red fins/details
+        fill(this.accentColor);
+        triangle(s * 0.3, s * 0.5, s * 0.4, s * 0.7, s * 0.2, s * 0.6);
+        triangle(-s * 0.3, s * 0.5, -s * 0.4, s * 0.7, -s * 0.2, s * 0.6);
+
+        pop();
+    }
+
+    getExplosionColor() { return this.explosionColor; }
+    getHitColor() { return this.hitColor; }
+}
+
+// ===== MODIFIED KAMIKAZE ENEMY =====
+class KamikazeEnemy extends BaseEnemy {
+    constructor(x, y) {
+        super(x, y, 24, 1, 15, 3); // Slightly larger
+        if (x === undefined || y === undefined) {
+            this._setDefaultSpawnPosition();
+            this.pos.y = constrain(this.pos.y, -this.size, height * 0.6);
+        }
+        this.acceleration = 0.09 + currentLevel * 0.006; // Slightly faster accel
+        this.maxSpeed = min(MAX_ENEMY_SPEED_KAMIKAZE, 3.5 + currentLevel * 0.22); // Slightly faster max speed
+        this.vel = p5.Vector.random2D().mult(this.maxSpeed * 0.5);
+
+        // Evil Colors
+        this.bodyColor = color(0, 100, 65);         // Dark, saturated red
+        this.spikeColor = color(25, 100, 100);     // Bright orange/yellow spikes
+        this.trailColor = color(0, 90, 80, 40);    // Fainter, redder trail
+        this.explosionColor = color(20, 100, 100); // Bright orange explosion
+        this.hitColor = this.spikeColor;
+        this.glowIntensity = 0;
+    }
+
+    update() {
+        if (ship && gameState === GAME_STATE.PLAYING && !isPaused) {
+            let direction = p5.Vector.sub(ship.pos, this.pos);
+            let distanceSq = direction.magSq();
+            direction.normalize();
+            direction.mult(this.acceleration);
+            this.vel.add(direction);
+            this.vel.limit(this.maxSpeed);
+
+            // Increase glow intensity when closer
+            this.glowIntensity = map(sqrt(distanceSq), 200, 50, 0, 1, true); // Glow brighter when closer
+        } else {
+             this.glowIntensity = 0;
+        }
+
+        this.pos.add(this.vel);
+
+        // Trail particles
+        if (frameCount % 4 === 0) {
+            createParticles(this.pos.x, this.pos.y, 1, this.trailColor, this.size * 0.25, 0.5, 0.3);
+        }
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.vel.heading() + PI / 2);
+        let s = this.size;
+
+        // Add pulsating glow
+        if (this.glowIntensity > 0) {
+            let glowPulse = map(sin(frameCount * 0.25), -1, 1, 0.7, 1.3);
+            let glowSize = s * 1.8 * glowPulse * this.glowIntensity;
+            noStroke();
+            fill(0, 100, 90, 30 * this.glowIntensity * glowPulse); // Red glow
+            ellipse(0, 0, glowSize, glowSize);
+        }
+
+        // Main body (dark red, more pointed)
+        fill(this.bodyColor);
+        stroke(0,0,10); // Dark outline
+        strokeWeight(1);
+        triangle(0, -s * 0.9, -s * 0.45, s * 0.55, s * 0.45, s * 0.55);
+
+        // Spikes (brighter, sharper)
+        fill(this.spikeColor);
+        noStroke();
+        triangle(-s * 0.45, s * 0.55, -s * 0.65, s * 0.8, -s * 0.35, s * 0.7); // Left spike
+        triangle(s * 0.45, s * 0.55, s * 0.65, s * 0.8, s * 0.35, s * 0.7); // Right spike
+        triangle(0, -s * 0.9, -s * 0.15, -s * 1.1, s * 0.15, -s * 1.1); // Top spike
+
+        pop();
+    }
+
+    getExplosionColor() { return this.explosionColor; }
+    getHitColor() { return this.hitColor; }
+}
+
+
+// ===== MODIFIED TURRET ENEMY =====
+class TurretEnemy extends BaseEnemy {
+    constructor(x, y) {
+        super(x, y, 38, 3, 50, 10); // Slightly larger
+        if (x === undefined || y === undefined) {
+            let edge = random(1) < 0.5 ? -1 : 1;
+            this.pos.x = (edge < 0) ? -this.size : width + this.size;
+            this.pos.y = random(height * 0.1, height * 0.7);
+            this.vel.set(edge * random(-0.3, -0.05), random(-0.05, 0.05)); // Slower drift
+        } else {
+            this.vel.set(random(-0.1, 0.1), random(-0.1, 0.1));
+        }
+        this.bulletSpeed = 2.5 + currentLevel * 0.05;
+        this.fireMode = floor(random(3));
+        this.shootCooldown = random(180, 300);
+        this.shootTimer = this.shootCooldown;
+        this.patternTimer = 0;
+        this.patternAngle = random(TWO_PI);
+        this.burstCount = 0;
+
+        // Evil Colors
+        this.baseColor = color(270, 60, 35);      // Dark purple base
+        this.barrelColor = color(0, 0, 25);       // Dark gunmetal barrel
+        this.lightColor = color(330, 100, 100);   // Ominous pink/magenta light
+        this.glowColor = color(270, 70, 60, 40);  // Purple glow
+        this.explosionColor = color(280, 80, 95); // Vibrant purple explosion
+        this.hitColor = color(270, 70, 70);       // Brighter purple hit color
+    }
+
+    update() {
+        super.update();
+        // Keep turret mostly within horizontal bounds
+        if (this.pos.x < this.size * 1.5 && this.vel.x < 0) this.vel.x *= -0.2;
+        if (this.pos.x > width - this.size * 1.5 && this.vel.x > 0) this.vel.x *= -0.2;
+        // Slow down vertical drift if near edges
+        if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) {
+            this.vel.y *= 0.5;
+        }
+
+        this.shootTimer--;
+        if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) {
+            this.startShootingPattern();
+            this.shootCooldown = random(max(100, 220 - currentLevel * 7), max(160, 340 - currentLevel * 10)); // Slightly faster potential firing
+            this.shootTimer = this.shootCooldown;
+        }
+        this.updateShootingPattern();
+    }
+
+    startShootingPattern() {
+        this.fireMode = floor(random(3));
+        this.patternTimer = 0;
+        this.patternAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : random(TWO_PI);
+        switch (this.fireMode) {
+            case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 8; break; // Faster burst
+            case 1: this.burstCount = 12 + currentLevel; this.patternTimer = 4; break; // Faster spiral
+            case 2: this.burstCount = 4 + floor(currentLevel / 3); this.patternTimer = 0; break; // Slightly more spread shots
+        }
+    }
+    updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { switch (this.fireMode) { case 0: let angleToPlayer = atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angleToPlayer, this.bulletSpeed * 1.1)); this.patternTimer = 8; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, this.patternAngle, this.bulletSpeed * 0.9)); this.patternAngle += PI / (5 + currentLevel * 0.4); this.patternTimer = 4; this.burstCount--; break; case 2: let spreadArc = PI / 3.5 + (currentLevel * PI / 25); for(let i = 0; i < this.burstCount; i++) { let angle = this.patternAngle + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angle, this.bulletSpeed * 1.05)); } this.burstCount = 0; break; } } } }
+
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        let s = this.size;
+
+        // Base shape (dark purple, more angular)
+        fill(this.baseColor);
+        stroke(0, 0, 10); // Dark outline
+        strokeWeight(2);
+        beginShape();
+        let sides = 6; // Hexagonal base
+        for (let i = 0; i < sides; i++) {
+            let angle = map(i, 0, sides, 0, TWO_PI) + PI / sides; // Offset rotation
+            let radius = s/2 * (i%2 === 0 ? 1.0 : 0.85); // Slightly irregular hex
+            vertex(cos(angle) * radius, sin(angle) * radius);
+        }
+        endShape(CLOSE);
+
+        // Barrel aiming at player
+        let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : PI/2;
+        rotate(aimAngle - PI/2); // Rotate barrel to aim (-PI/2 because rect draws from top-left)
+
+        // Barrel (dark gunmetal)
+        fill(this.barrelColor);
+        stroke(0, 0, 5);
+        strokeWeight(1.5);
+        rect(-s * 0.15, -s * 0.5, s * 0.3, s * 0.7); // Barrel shape
+
+        // Glowing light + Aura
+        let lightPulse = 1.0;
+        let auraAlpha = 0;
+        if (this.shootTimer < 60 || this.burstCount > 0) {
+            lightPulse = map(sin(frameCount * 0.4), -1, 1, 0.6, 1.6); // Faster pulse when firing
+            auraAlpha = map(lightPulse, 0.6, 1.6, 30, 80);
+        } else {
+             auraAlpha = map(sin(frameCount * 0.1), -1, 1, 10, 35); // Slow ambient pulse
+        }
+
+        // Aura
+        noStroke();
+        fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), alpha(this.glowColor) * (auraAlpha/40));
+        ellipse(0, 0, s * 1.5 * lightPulse, s * 1.5 * lightPulse );
+
+        // Light
+        fill(this.lightColor);
+        noStroke();
+        ellipse(0, s * 0.05, s * 0.2 * lightPulse, s * 0.2 * lightPulse); // Position light on barrel
+
+        pop();
+    }
+
+    getExplosionColor() { return this.explosionColor; }
+    getHitColor() { return this.hitColor; }
+}
+
+// ===== MODIFIED SWARMER ENEMY =====
+class SwarmerEnemy extends BaseEnemy {
+    constructor(x, y) {
+        super(x, y, 16, 1, 5, 1); // Size remains small
+        if (x === undefined || y === undefined) {
+            this._setDefaultSpawnPosition();
+        }
+        this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.6 + currentLevel * 0.12); // Slightly faster
+        this.vel = p5.Vector.random2D().mult(this.maxSpeed);
+        this.turnForce = 0.035 + random(0.025); // Slightly more erratic turning
+        this.phaseOffset = random(TWO_PI);
+
+        // Evil Colors
+        this.bodyColor = color(130, 80, 45);      // Murky green/teal
+        this.wingColor = color(130, 60, 30, 75);  // Darker, translucent wings
+        this.eyeColor = color(0, 100, 90);        // Small red eye dot
+        this.explosionColor = color(140, 95, 95); // Brighter green/cyan explosion
+        this.hitColor = color(130, 100, 100);     // Bright green hit
+    }
+
+    update() {
+        let targetY = height * 0.7;
+        let targetX = width / 2;
+        if(ship && !isPaused) {
+             // Tend towards player general area but with more randomness
+            targetX = ship.pos.x + random(-width*0.3, width*0.3);
+            targetY = ship.pos.y + random(30, 180);
+        }
+        let desired = createVector(targetX - this.pos.x, targetY - this.pos.y);
+        desired.normalize();
+        desired.mult(this.maxSpeed);
+
+        // More erratic wave motion
+        let wave = createVector(desired.y, -desired.x);
+        wave.normalize();
+        wave.mult(sin(frameCount * 0.07 + this.phaseOffset) * this.maxSpeed * 0.65); // Faster, wider wave
+        desired.add(wave);
+
+        let steer = p5.Vector.sub(desired, this.vel);
+        steer.limit(this.turnForce);
+        this.vel.add(steer);
+        this.vel.limit(this.maxSpeed);
+        this.pos.add(this.vel);
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.vel.heading() + PI / 2);
+        let s = this.size;
+
+        // Wings (darker, slightly jagged)
+        let wingPulse = map(sin(frameCount * 0.25 + this.phaseOffset), -1, 1, 0.7, 1.3);
+        fill(this.wingColor);
+        noStroke();
+        triangle(-s * 0.3, -s * 0.1, -s * 0.9 * wingPulse, -s * 0.5 * wingPulse, -s * 0.6 * wingPulse, s * 0.4 * wingPulse); // Left wing
+        triangle(s * 0.3, -s * 0.1, s * 0.9 * wingPulse, -s * 0.5 * wingPulse, s * 0.6 * wingPulse, s * 0.4 * wingPulse); // Right wing
+
+        // Body (murky green)
+        fill(this.bodyColor);
+        stroke(0,0,15); // Dark outline
+        strokeWeight(0.5);
+        ellipse(0, 0, s * 0.7, s); // Elongated body
+
+        // Small red eye
+        fill(this.eyeColor);
+        noStroke();
+        ellipse(0, -s * 0.25, s * 0.15, s * 0.15);
+
+
+        pop();
+    }
+
+    getExplosionColor() { return this.explosionColor; }
+    getHitColor() { return this.hitColor; }
+}
+
+// ===== EnemyBullet Class (No visual changes needed unless desired) =====
+class EnemyBullet {
+    constructor(x, y, angle, speed) {
+        this.pos = createVector(x, y);
+        this.vel = p5.Vector.fromAngle(angle);
+        this.vel.mult(speed);
+        this.size = 7;
+        // Keep original color, or change if desired e.g., to purple: color(270, 80, 100)
+        this.color = color(0, 90, 100); // Original red
+    }
+    update() { this.pos.add(this.vel); }
+    draw() {
+        noStroke();
+        // Outer glow
+        fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50);
+        ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8);
+        // Core bullet
+        fill(this.color);
+        ellipse(this.pos.x, this.pos.y, this.size, this.size);
+    }
+    hitsShip(ship) {
+        let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y);
+        let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius * 1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5);
+        return d < this.size * 0.6 + targetRadius;
+    }
+    isOffscreen() {
+        let margin = this.size * 3;
+        return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin);
+    }
+}
 // ==================
 // Nebula Class
 // ==================
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
+
