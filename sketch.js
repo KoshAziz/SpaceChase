@@ -19,7 +19,7 @@
 // - ADDED: Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - ADDED: Win Screen after completing Level 15 // ENHANCED (UI Style)
 // - ADDED: Monospace Font & UI Color Palette // NEW UI FEATURE
-// - ADDED: Styled HUD with Icons & Panel // NEW UI FEATURE
+// - ADDED: Styled HUD with Icons & Panel // MODIFIED (Moved Upgrade Levels)
 // - ADDED: Styled Buttons & Menu Panels // NEW UI FEATURE
 // --- Modifications ---
 // - Removed Name Input and Leaderboard system.
@@ -44,13 +44,13 @@
 // - Added upgrade purchase particle effect.
 // - Added distinct shop background.
 // - REMOVED Auto-Fire Upgrade functionality entirely.
-// - ENHANCED: Added backgrounds to HUD elements. // MODIFIED (Mobile Layout) -> Replaced with Panel UI
 // - ENHANCED: Added particles for shield hits and pickup collection.
 // - ENHANCED: Changed enemy bullet appearance.
 // - MODIFIED: Reduced ship thrust value.
 // - MODIFIED: Reduced black hole visual jitter ("slower" appearance).
 // - MODIFIED: Reduced size of engine thrust visual effect.
 // - MODIFIED: Adjusted UI element sizes and layout for mobile friendliness.
+// - MODIFIED: Moved Rate/Spread level text to bottom-right corner.
 // --------------------------
 
 
@@ -154,17 +154,17 @@ function setup() {
   if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
   createStarfield(200);
   textAlign(CENTER, CENTER);
-  textFont('monospace'); // Use monospace font for retro feel
+  textFont('monospace'); // Use monospace font
 
   // Define UI Colors
-  uiPanelColor = color(220, 50, 20, 85); // Dark semi-transparent blue-grey
-  uiBorderColor = color(180, 70, 80, 90); // Cyan border
-  uiTextColor = color(0, 0, 95); // Off-white text
-  uiHighlightColor = color(60, 80, 100); // Yellow highlight
-  uiButtonColor = color(200, 60, 50); // Default button blue
-  uiButtonHoverColor = color(200, 70, 60); // Brighter blue on hover
-  uiButtonDisabledColor = color(0, 0, 30); // Dark grey disabled
-  uiButtonBorderColor = color(200, 70, 90); // Brighter border
+  uiPanelColor = color(220, 50, 20, 85);
+  uiBorderColor = color(180, 70, 80, 90);
+  uiTextColor = color(0, 0, 95);
+  uiHighlightColor = color(60, 80, 100);
+  uiButtonColor = color(200, 60, 50);
+  uiButtonHoverColor = color(200, 70, 60);
+  uiButtonDisabledColor = color(0, 0, 30);
+  uiButtonBorderColor = color(200, 70, 90);
 
   // Initial background gradient colors
   currentTopColor = color(260, 80, 10);
@@ -216,155 +216,17 @@ function draw() {
 
 
 // --- Screen Display Functions ---
-
-// Display the initial start screen (Styled)
-function displayStartScreen() {
-    let titleText = "Space-Chase";
-    let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER);
-    let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3;
-    for (let i = 0; i < titleText.length; i++) {
-        let char = titleText[i]; let charWidth = textWidth(char);
-        let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); // Faster wave
-        fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4));
-        let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); // Faster color cycle
-        text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth;
-    }
-    // Decorative Lines
-    stroke(uiBorderColor); strokeWeight(1.5);
-    line(width * 0.2, titleY + 80, width * 0.8, titleY + 80);
-    line(width * 0.3, titleY + 90, width * 0.7, titleY + 90);
-
-    let instructionSize = isMobile ? 20 : 24; textSize(instructionSize); fill(uiTextColor); textAlign(CENTER, CENTER);
-    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
-    // Instruction Background Box
-    let instrWidth = textWidth(startInstruction) + 40;
-    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1);
-    rect(width / 2 - instrWidth / 2, height / 2 + 50, instrWidth, instructionSize + 20, 5);
-    // Instruction Text
-    noStroke(); fill(uiTextColor);
-    text(startInstruction, width / 2, height / 2 + 60 + instructionSize / 2);
-}
-
-// Display the pause overlay (Styled)
-function displayPauseScreen() {
-    // Background Panel
-    drawPanelBackground(width * 0.6, height * 0.4);
-    // Text
-    fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30);
-    textSize(isMobile ? 18 : 22); text("Press ESC to Resume", width / 2, height / 2 + 40);
-}
-
-// Display the upgrade shop interface (Styled)
-function displayUpgradeShop() {
-    // Background Panel
-    drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7));
-    // Titles
-    fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2);
-    textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65));
-    // Money Display
-    textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor);
-    text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115));
-    // Draw Buttons
-    textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER);
-    for (let button of shopButtons) { drawStyledButton(button); }
-}
-
-// Display Game Over Screen (Styled)
-function displayGameOver() {
-    // Background Panel
-    drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
-    // Text
-    fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
-    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75));
-    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22);
-    let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse);
-    let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart";
-    text(restartInstruction, width / 2, height * 0.7);
-    cursor(ARROW);
-}
-
-// Display Win Screen (Styled)
-function displayWinScreen() {
-    // Background Panel
-    drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6);
-    // Draw "YOU WIN!" text
-    let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3;
-    let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX;
-    for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; }
-    // Final Score
-    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80));
-    // Restart Instructions
-    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse);
-    let restartInstruction = isMobile ? "Tap Screen to Play Again" : "Click or Press Enter to Play Again";
-    text(restartInstruction, width / 2, height * 0.7);
-    cursor(ARROW);
-}
-
-// Helper function to draw styled UI panels
-function drawPanelBackground(panelWidth, panelHeight) {
-    let panelX = width / 2 - panelWidth / 2;
-    let panelY = height / 2 - panelHeight / 2;
-    fill(uiPanelColor);
-    stroke(uiBorderColor);
-    strokeWeight(2);
-    rect(panelX, panelY, panelWidth, panelHeight, 10); // Rounded corners
-}
-
-// Helper function to draw styled buttons
-function drawStyledButton(button) {
-    let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = "";
-    // Determine button state
-    if (button.id === 'fireRate') { cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxLevel}`; label = `Fire Rate ${currentLevelText}`; }
-    else if (button.id === 'spreadShot') { cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxLevel}`; label = `Spread Shot ${currentLevelText}`; }
-    else if (button.id === 'nextLevel') { label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; }
-
-    let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
-    let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
-
-    // Determine colors based on state
-    if (button.id !== 'nextLevel') {
-        if (isMaxed) { buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); label += " (MAX)"; borderCol = color(0, 0, 40); }
-        else if (!canAfford) { buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); label += ` ($${cost})`; borderCol = color(0, 80, 70); }
-        else { buttonCol = hover ? uiButtonHoverColor : uiButtonColor; label += ` ($${cost})`; borderCol = uiButtonBorderColor; }
-    } else { buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60); borderCol = color(90, 80, 85); }
-
-    // Draw Button background and border
-    fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5);
-    rect(button.x, button.y, button.w, button.h, 6);
-
-    // Subtle inner highlight/shadow for depth
-    noFill(); strokeWeight(1);
-    stroke(0, 0, 100, 20); // Highlight top/left
-    line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2);
-    line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2);
-    stroke(0, 0, 0, 30); // Shadow bottom/right
-    line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2);
-    line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
-
-    // Draw Text
-    fill(textCol); noStroke();
-    text(label, button.x + button.w / 2, button.y + button.h / 2);
-}
+function displayStartScreen() { let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; } stroke(uiBorderColor); strokeWeight(1.5); line(width * 0.2, titleY + 80, width * 0.8, titleY + 80); line(width * 0.3, titleY + 90, width * 0.7, titleY + 90); let instructionSize = isMobile ? 20 : 24; textSize(instructionSize); fill(uiTextColor); textAlign(CENTER, CENTER); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; let instrWidth = textWidth(startInstruction) + 40; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1); rect(width / 2 - instrWidth / 2, height / 2 + 50, instrWidth, instructionSize + 20, 5); noStroke(); fill(uiTextColor); text(startInstruction, width / 2, height / 2 + 60 + instructionSize / 2); }
+function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text("Press ESC to Resume", width / 2, height / 2 + 40); }
+function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115)); textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
+function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
+function displayWinScreen() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6); let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; } fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen to Play Again" : "Click or Press Enter to Play Again"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
+function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2); rect(panelX, panelY, panelWidth, panelHeight, 10); }
+function drawStyledButton(button) { let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; if (button.id === 'fireRate') { cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxLevel}`; label = `Fire Rate ${currentLevelText}`; } else if (button.id === 'spreadShot') { cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxLevel}`; label = `Spread Shot ${currentLevelText}`; } else if (button.id === 'nextLevel') { label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; } let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); if (button.id !== 'nextLevel') { if (isMaxed) { buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); label += " (MAX)"; borderCol = color(0, 0, 40); } else if (!canAfford) { buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); label += ` ($${cost})`; borderCol = color(0, 80, 70); } else { buttonCol = hover ? uiButtonHoverColor : uiButtonColor; label += ` ($${cost})`; borderCol = uiButtonBorderColor; } } else { buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60); borderCol = color(90, 80, 85); } fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(label, button.x + button.w / 2, button.y + button.h / 2); }
 
 
 // --- Main Game Logic ---
-function runGameLogic() {
-  // --- PAUSE CHECK ---
-  if (isPaused) { if (ship) ship.draw(); for (let b of bullets) b.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw(); displayHUD(); return; }
-  // --- END PAUSE CHECK ---
-  if (!ship) return;
-  if (screenShakeDuration > 0) screenShakeDuration--; if (screenShakeDuration <= 0) screenShakeIntensity = 0;
-  ship.update(); ship.draw();
-  for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
-  for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
-  for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
-  for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
-  for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
-  for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); powerUps[i].draw(); if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); } }
-  handlePotions(); handleCollisions(); handlePowerUps();
-  if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } if (random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); } }
-  if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
-}
+function runGameLogic() { if (isPaused) { if (ship) ship.draw(); for (let b of bullets) b.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw(); displayHUD(); return; } if (!ship) return; if (screenShakeDuration > 0) screenShakeDuration--; if (screenShakeDuration <= 0) screenShakeIntensity = 0; ship.update(); ship.draw(); for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } } for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } } for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } } for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } } for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); } for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); powerUps[i].draw(); if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); } } handlePotions(); handleCollisions(); handlePowerUps(); if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } if (random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); } } if (gameState === GAME_STATE.PLAYING) { displayHUD(); } }
 
 
 // --- Collision and Pickup Handling ---
@@ -377,8 +239,59 @@ function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = m
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.06); stroke(hue(planetBaseColor), 20, 100, 20); ellipse(0, 0, planetSize * 1.06, planetSize * 1.06); pop(); }
-function displayHUD() { let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 14 : 18; let spacing = isMobile ? 8 : 12; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); textSize(textSizeVal); fill(uiTextColor); textAlign(LEFT, CENTER); let currentX = sideMargin; text(`LEVEL: ${currentLevel}`, currentX, hudH / 2); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2; text(`PTS: ${points}`, currentX, hudH / 2); currentX += textWidth(`PTS: ${points}`) + spacing * 2; fill(uiHighlightColor); text(`$: ${money}`, currentX, hudH / 2); currentX += textWidth(`$: ${money}`) + spacing * 2; fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, hudH / 2); currentX += textWidth(`♥: ${lives}`) + spacing * 2; fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); currentX += textWidth(`🛡: ${ship.shieldCharges}`) + spacing * 3; textAlign(RIGHT, CENTER); fill(uiTextColor); text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, hudH / 2); }
-function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER); let msgWidth = textWidth(infoMessage); let padding = 10; let boxH = msgSize + padding; let boxY = height - boxH - 10; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(width/2 - msgWidth/2 - padding, boxY, msgWidth + padding*2, boxH, 5); fill(uiTextColor); noStroke(); text(infoMessage, width / 2, boxY + boxH / 2); }
+
+// Display Heads Up Display (Styled Panel) - MODIFIED
+function displayHUD() {
+    let hudH = isMobile ? 45 : 60; // Height of the HUD panel
+    let topMargin = 5;
+    let sideMargin = 10;
+    let iconSize = isMobile ? 16 : 20;
+    let textSizeVal = isMobile ? 14 : 18;
+    let spacing = isMobile ? 8 : 12; // Spacing between elements
+    let bottomMargin = 10; // Margin for bottom-right text
+
+    // Draw Top Panel Background
+    fill(uiPanelColor);
+    stroke(uiBorderColor);
+    strokeWeight(1.5);
+    rect(0, 0, width, hudH); // Draw panel across the top
+
+    // Draw Top Panel Content (Left-aligned)
+    textSize(textSizeVal);
+    fill(uiTextColor);
+    textAlign(LEFT, CENTER);
+    let currentX = sideMargin;
+
+    // Level and Points
+    text(`LEVEL: ${currentLevel}`, currentX, hudH / 2);
+    currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
+    text(`PTS: ${points}`, currentX, hudH / 2);
+    currentX += textWidth(`PTS: ${points}`) + spacing * 2;
+
+    // Money
+    fill(uiHighlightColor); // Yellow for money
+    text(`$: ${money}`, currentX, hudH / 2);
+    currentX += textWidth(`$: ${money}`) + spacing * 2;
+
+    // Lives
+    fill(color(0, 80, 100)); // Red for lives
+    text(`♥: ${lives}`, currentX, hudH / 2); // Using heart symbol
+    currentX += textWidth(`♥: ${lives}`) + spacing * 2;
+
+    // Shields
+    fill(color(180, 70, 100)); // Cyan for shields
+    text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); // Using shield symbol (may not render everywhere)
+    // currentX += textWidth(`🛡: ${ship.shieldCharges}`) + spacing * 3; // Removed for space
+
+    // Draw Upgrade Levels (Bottom Right Corner)
+    textAlign(RIGHT, BOTTOM); // Align bottom-right
+    fill(uiTextColor); // Standard text color
+    textSize(textSizeVal * 0.9); // Slightly smaller text
+    text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin);
+}
+
+
+function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER); let msgWidth = textWidth(infoMessage); let padding = 10; let boxH = msgSize + padding; let boxY = height - boxH - (isMobile? 15 : 30); /* Adjusted Y */ fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(width/2 - msgWidth/2 - padding, boxY, msgWidth + padding*2, boxH, 5); fill(uiTextColor); noStroke(); text(infoMessage, width / 2, boxY + boxH / 2); }
 
 // --- Game State Control ---
 function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0; cursor(); spawnInitialAsteroids(); }
@@ -460,3 +373,4 @@ class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x,
 // Nebula Class
 // ==================
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
+
