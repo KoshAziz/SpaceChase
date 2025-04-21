@@ -70,6 +70,7 @@
 // - ADDED: Previous Game State Tracking for Settings Menu return.
 // - MODIFIED: Screen Shake duration increased to ~2 seconds.
 // - MODIFIED: Spaceship drawing logic for a more detailed look.
+// - MODIFIED: Implemented hold spacebar to shoot functionality. // <<< NEW MODIFICATION
 // --------------------------
 
 
@@ -116,7 +117,7 @@ let powerUpSpawnRate = 0.0015; let potionSpawnRate = 0.001; let nebulaSpawnRate 
 let initialAsteroids = 5; let minAsteroidSize = 15; const SHIELD_POINTS_THRESHOLD = 50; const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0; const MAX_ENEMY_SPEED_BASIC = 3.0; const MAX_ENEMY_SPEED_KAMIKAZE = 5.5; const MAX_ENEMY_SPEED_SWARMER = 2.5;
 
-let spacebarHeld = false;
+let spacebarHeld = false; // <<< Keep track of spacebar state
 
 // --- UI & Messages ---
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
@@ -220,8 +221,81 @@ function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 -
 function drawStyledButton(button) { let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false; switch (button.id) { case 'fireRate': cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break; case 'spreadShot': cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break; case 'chargeShot': cost = ship.getUpgradeCost('chargeShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.chargeShotLevel}/${ship.maxChargeLevel}`; label = `Charge Shot ${currentLevelText}`; isUpgradeButton = true; break; case 'rearGun': cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break; case 'homingMissiles': cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break; case 'laserBeam': cost = ship.getUpgradeCost('laserBeam'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.laserBeamLevel}/${ship.maxLaserLevel}`; label = `Laser Beam ${currentLevelText}`; isUpgradeButton = true; break; case 'nextLevel': label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break; } let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); if (button.id !== 'nextLevel') { if (isMaxed) { buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); label += " (MAX)"; borderCol = color(0, 0, 40); } else if (!canAfford) { buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); label += ` ($${cost})`; borderCol = color(0, 80, 70); } else { buttonCol = hover ? uiButtonHoverColor : uiButtonColor; label += ` ($${cost})`; borderCol = uiButtonBorderColor; } } else { buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60); borderCol = color(90, 80, 85); } fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); if (isUpgradeButton) { textSize(isMobile ? 13 : 15); } else { textSize(isMobile ? 15 : 17); } fill(textCol); noStroke(); textAlign(CENTER, CENTER); text(label, button.x + button.w / 2, button.y + button.h / 2); }
 
 
-// --- Main Game Logic --- (Unchanged)
-function runGameLogic() { if (isPaused) { if (ship) ship.draw(); if (ship && ship.droneActive) ship.drone.draw(); for (let b of bullets) b.draw(); for (let cs of chargeShots) cs.draw(); for (let m of homingMissiles) m.draw(); for (let l of laserBeams) l.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw(); displayHUD(); return; } if (!ship) return; ship.update(); if (ship.droneActive) ship.drone.update(); ship.draw(); if (ship.droneActive) ship.drone.draw(); for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } } for (let i = chargeShots.length - 1; i >= 0; i--) { chargeShots[i].update(); chargeShots[i].draw(); if (chargeShots[i].isOffscreen()) { chargeShots.splice(i, 1); } } for (let i = homingMissiles.length - 1; i >= 0; i--) { homingMissiles[i].update(); homingMissiles[i].draw(); if (homingMissiles[i].isOffscreen() || homingMissiles[i].lifespan <= 0) { homingMissiles.splice(i, 1); } } for (let i = laserBeams.length - 1; i >= 0; i--) { laserBeams[i].update(); laserBeams[i].draw(); if (laserBeams[i].isDead()) { laserBeams.splice(i, 1); } } for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } } for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } } for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } } for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); } if (ship.laserActive) { let laserDamage = 0.05 + ship.laserBeamLevel * 0.02; let laserWidth = 5 + ship.laserBeamLevel * 1.5; let laserOrigin = createVector(ship.pos.x, ship.pos.y - ship.size * 0.7); for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let d = p5.Vector.dist(enemy.pos, laserOrigin); let angleToEnemy = atan2(enemy.pos.y - laserOrigin.y, enemy.pos.x - laserOrigin.x); if (abs(angleToEnemy + PI/2) < PI / 10 && d > 0) { let projectedPoint = p5.Vector.sub(enemy.pos, laserOrigin); projectedPoint.rotate(-(-PI/2)); let distToLine = abs(projectedPoint.x); if (distToLine < (enemy.size / 2 + laserWidth / 2)) { if (enemy.takeDamage(laserDamage)) { let pointsToAdd = enemy.pointsValue; let moneyToAdd = enemy.moneyValue; if(ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += floor(pointsToAdd); money += floor(moneyToAdd); comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(i, 1); } else { if(frameCount % 5 === 0) { createParticles(enemy.pos.x + random(-enemy.size/2, enemy.size/2), enemy.pos.y + random(-enemy.size/2, enemy.size/2), 1, ship.laserColor, 2, 0.5, 0.3); } } if (ship.laserBeamLevel < 3) { /* break; */ } } } } } handlePotions(); handleCollisions(); handlePowerUps(); if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Bonus: +${bonusPoints} PTS, +$${bonusMoney}! (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } } if (comboTextTimeout > 0) { comboTextTimeout--; if (comboTextTimeout <= 0) { showComboText = false; } } if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; let currentTotalEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(15, 5 + currentLevel * 2); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentTotalEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { let totalWeight = basicEnemyWeight + kamikazeWeight + turretWeight + swarmerWeight; let typeRoll = random(totalWeight); if (typeRoll < swarmerWeight && currentLevel >= 3) { let swarmCount = floor(random(5, 10)); let spawnX = random(width * 0.2, width * 0.8); let spawnY = -20; for (let i = 0; i < swarmCount; i++) { if (enemyShips.length < maxEnemiesAllowed) { let offsetPos = createVector(spawnX + random(-50, 50), spawnY + random(-30, 30)); enemyShips.push(new SwarmerEnemy(offsetPos.x, offsetPos.y)); } else break; } } else if (typeRoll < swarmerWeight + turretWeight && currentLevel >= 5) { enemyShips.push(new TurretEnemy()); } else if (typeRoll < swarmerWeight + turretWeight + kamikazeWeight && currentLevel >= 2) { enemyShips.push(new KamikazeEnemy()); } else { enemyShips.push(new BasicEnemy()); } } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); } } if (gameState === GAME_STATE.PLAYING) { displayHUD(); displayComboText(); } }
+// --- Main Game Logic ---
+// MODIFIED: Added check for spacebarHeld to continuously shoot in runGameLogic
+function runGameLogic() {
+    if (isPaused) {
+        // Draw paused state
+        if (ship) ship.draw();
+        if (ship && ship.droneActive) ship.drone.draw();
+        for (let b of bullets) b.draw();
+        for (let cs of chargeShots) cs.draw();
+        for (let m of homingMissiles) m.draw();
+        for (let l of laserBeams) l.draw();
+        for (let p of particles) p.draw();
+        for (let a of asteroids) a.draw();
+        for (let e of enemyShips) e.draw();
+        for (let eb of enemyBullets) eb.draw();
+        for (let pt of potions) pt.draw();
+        for (let pu of powerUps) pu.draw();
+        displayHUD();
+        return;
+    }
+
+    if (!ship) return;
+
+    // <<< ADDED: Check for continuous shooting if spacebar is held >>>
+    if (spacebarHeld && !isMobile && gameState === GAME_STATE.PLAYING) {
+         if (ship.chargeShotLevel > 0) {
+              // If charge shot upgrade exists, holding spacebar initiates charging
+              ship.startCharging();
+         } else {
+              // Otherwise, holding spacebar shoots continuously (respecting cooldown)
+              ship.shoot();
+         }
+    }
+    // <<< END ADDED >>>
+
+    ship.update();
+    if (ship.droneActive) ship.drone.update();
+    ship.draw();
+    if (ship.droneActive) ship.drone.draw();
+
+    // Update and draw projectiles, particles, enemies, etc.
+    for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
+    for (let i = chargeShots.length - 1; i >= 0; i--) { chargeShots[i].update(); chargeShots[i].draw(); if (chargeShots[i].isOffscreen()) { chargeShots.splice(i, 1); } }
+    for (let i = homingMissiles.length - 1; i >= 0; i--) { homingMissiles[i].update(); homingMissiles[i].draw(); if (homingMissiles[i].isOffscreen() || homingMissiles[i].lifespan <= 0) { homingMissiles.splice(i, 1); } }
+    for (let i = laserBeams.length - 1; i >= 0; i--) { laserBeams[i].update(); laserBeams[i].draw(); if (laserBeams[i].isDead()) { laserBeams.splice(i, 1); } }
+    for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
+    for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
+    for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
+    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
+
+    // Laser damage check
+    if (ship.laserActive) { let laserDamage = 0.05 + ship.laserBeamLevel * 0.02; let laserWidth = 5 + ship.laserBeamLevel * 1.5; let laserOrigin = createVector(ship.pos.x, ship.pos.y - ship.size * 0.7); for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let d = p5.Vector.dist(enemy.pos, laserOrigin); let angleToEnemy = atan2(enemy.pos.y - laserOrigin.y, enemy.pos.x - laserOrigin.x); if (abs(angleToEnemy + PI/2) < PI / 10 && d > 0) { let projectedPoint = p5.Vector.sub(enemy.pos, laserOrigin); projectedPoint.rotate(-(-PI/2)); let distToLine = abs(projectedPoint.x); if (distToLine < (enemy.size / 2 + laserWidth / 2)) { if (enemy.takeDamage(laserDamage)) { let pointsToAdd = enemy.pointsValue; let moneyToAdd = enemy.moneyValue; if(ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += floor(pointsToAdd); money += floor(moneyToAdd); comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(i, 1); } else { if(frameCount % 5 === 0) { createParticles(enemy.pos.x + random(-enemy.size/2, enemy.size/2), enemy.pos.y + random(-enemy.size/2, enemy.size/2), 1, ship.laserColor, 2, 0.5, 0.3); } } if (ship.laserBeamLevel < 3) { /* break; */ } } } } }
+
+    // Handle potions, collisions, power-ups, combo system, spawning
+    handlePotions();
+    handleCollisions();
+    handlePowerUps();
+
+    if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Bonus: +${bonusPoints} PTS, +$${bonusMoney}! (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } }
+    if (comboTextTimeout > 0) { comboTextTimeout--; if (comboTextTimeout <= 0) { showComboText = false; } }
+
+    if (gameState === GAME_STATE.PLAYING) {
+        // Spawn new entities based on level and time
+        let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; let currentTotalEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(15, 5 + currentLevel * 2); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3;
+        if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
+        if (random(1) < currentTotalEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { let totalWeight = basicEnemyWeight + kamikazeWeight + turretWeight + swarmerWeight; let typeRoll = random(totalWeight); if (typeRoll < swarmerWeight && currentLevel >= 3) { let swarmCount = floor(random(5, 10)); let spawnX = random(width * 0.2, width * 0.8); let spawnY = -20; for (let i = 0; i < swarmCount; i++) { if (enemyShips.length < maxEnemiesAllowed) { let offsetPos = createVector(spawnX + random(-50, 50), spawnY + random(-30, 30)); enemyShips.push(new SwarmerEnemy(offsetPos.x, offsetPos.y)); } else break; } } else if (typeRoll < swarmerWeight + turretWeight && currentLevel >= 5) { enemyShips.push(new TurretEnemy()); } else if (typeRoll < swarmerWeight + turretWeight + kamikazeWeight && currentLevel >= 2) { enemyShips.push(new KamikazeEnemy()); } else { enemyShips.push(new BasicEnemy()); } }
+        if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
+        if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
+        if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
+    }
+
+    // Draw HUD and combo text
+    if (gameState === GAME_STATE.PLAYING) { displayHUD(); displayComboText(); }
+}
+
 
 // --- Collision and Pickup Handling --- (Unchanged)
 function handlePowerUps() { if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].draw(); } return; } if (!ship) return; for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); powerUps[i].draw(); if (powerUps[i].hitsShip(ship)) { let powerUpType = powerUps[i].type; let pickupPos = powerUps[i].pos.copy(); let pickupColor = powerUps[i].color; powerUps.splice(i, 1); createParticles(pickupPos.x, pickupPos.y, 25, pickupColor, 4, 1.8, 0.8); switch (powerUpType) { case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break; case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break; case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 60, color(210, 100, 100), 12, 3.5, 1.2); for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 15, asteroids[k].color, 3, 1.5); } asteroids = []; for (let k = enemyShips.length - 1; k >= 0; k--) { createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 20, enemyShips[k].getExplosionColor()); } enemyShips = []; break; case POWERUP_TYPES.SCORE_MULT: ship.scoreMultiplierTimer = 600; ship.scoreMultiplierValue = 2; infoMessage = `SCORE x${ship.scoreMultiplierValue}!`; createParticles(ship.pos.x, ship.pos.y, 30, color(60, 100, 100)); break; case POWERUP_TYPES.DRONE: if (!ship.droneActive) { ship.droneActive = true; ship.drone = new Drone(ship); infoMessage = "DRONE ACTIVATED!"; createParticles(ship.pos.x, ship.pos.y, 30, color(180, 50, 100)); } else { infoMessage = "DRONE ALREADY ACTIVE!"; } break; case POWERUP_TYPES.INVINCIBILITY: ship.invincibilityTimer = 480; infoMessage = "INVINCIBLE!"; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 0, 100)); ship.tempShieldActive = false; ship.shieldCharges = 0; break; } infoMessageTimeout = 120; } else if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); } } }
@@ -235,7 +309,7 @@ function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); let detailScale = 0.01; let detailLayers = 3; for (let layer = 0; layer < detailLayers; layer++) { let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers); let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40); fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha); beginShape(); for (let angle = 0; angle < TWO_PI; angle += PI / 60) { let xoff = map(cos(angle), -1, 1, 0, 3 + layer); let yoff = map(sin(angle), -1, 1, 0, 3 + layer); let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale, frameCount * 0.001 * (layer + 1)); let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15)); let x = radius * cos(angle); let y = radius * sin(angle); vertex(x, y); } endShape(CLOSE); } let cloudLayers = 4; let cloudOffsetSpeed = 0.005; for (let i = 0; i < cloudLayers; i++) { let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25); fill(0, 0, 100, cloudAlpha); let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2); let cloudSize = planetSize * (0.8 - i * 0.1); let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i, frameCount * 0.002) * PI; let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i, frameCount * 0.0025) * 0.8); arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN); arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); } let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5); noFill(); for(let i=0; i<5; i++) { strokeWeight(planetSize * 0.02 * i + 1); stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5); ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03)); } pop(); }
 
 // --- HUD & Info Messages ---
-// MODIFIED: Draw mobile action buttons
+// MODIFIED: Draw mobile action buttons (Unchanged from previous provided code)
 function displayHUD() {
     let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 18 : 22; let spacing = isMobile ? 8 : 12; let bottomMargin = 10;
     fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); // Top HUD Panel
@@ -328,8 +402,61 @@ function selectSettingsItemAction(index) { let setting = settingsItems[index]; s
 // MODIFIED: Check for mobile button touches first in touchStarted
 function mousePressed() { let btn = mobileSettingsButton; if (gameState === GAME_STATE.PLAYING && !isPaused && isMobile && mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2) { isPaused = true; previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; cursor(ARROW); return; } else if (gameState === GAME_STATE.START_MENU) { for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } } else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } } else if (gameState === GAME_STATE.PLAYING && !isPaused) { if (!isMobile || !(mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2)) { if (ship.chargeShotLevel > 0) { ship.startCharging(); } else { ship.shoot(); } } } else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
 function mouseReleased() { if (gameState === GAME_STATE.PLAYING && !isPaused && ship && ship.isCharging) { ship.releaseChargeShot(); } }
-function keyPressed() { if (keyCode === ESCAPE) { if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();} } else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); } } else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } } else if (gameState === GAME_STATE.SETTINGS_MENU) { if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; } else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); } } else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { if (ship.chargeShotLevel > 0) { ship.startCharging(); } else { ship.shoot(); } spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } if (keyCode === 76) { ship.fireLaser(); return false; } } else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } } }
-function keyReleased() { if (keyCode === 32) { spacebarHeld = false; if (gameState === GAME_STATE.PLAYING && !isPaused && ship && ship.isCharging) { ship.releaseChargeShot(); } } }
+// MODIFIED: keyPressed and keyReleased for spacebar (keyCode 32)
+function keyPressed() {
+    if (keyCode === ESCAPE) {
+        if (gameState === GAME_STATE.PLAYING) {
+            isPaused = !isPaused;
+            if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();}
+        } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+            selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back'));
+        }
+    } else if (gameState === GAME_STATE.START_MENU) {
+        if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; }
+        else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; }
+        else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); }
+    } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+        if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; }
+        else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; }
+        else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); }
+    } else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
+        // <<< MODIFIED: Only set flag on spacebar press >>>
+        if (keyCode === 32) { // Spacebar
+             if (!spacebarHeld) { // Prevent repeated calls while held
+                 spacebarHeld = true;
+                 // Charging starts in runGameLogic if spacebar is held and charge shot is available
+             }
+             return false; // Prevent default browser behavior
+        }
+        // <<< END MODIFIED >>>
+        if (keyCode === 77) { // M key
+            ship.fireMissile();
+            return false;
+        }
+        if (keyCode === 76) { // L key
+            ship.fireLaser();
+            return false;
+        }
+    } else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+        if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); }
+    } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
+        if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; }
+    }
+}
+
+function keyReleased() {
+    // <<< MODIFIED: Handle spacebar release >>>
+    if (keyCode === 32) { // Spacebar
+        spacebarHeld = false;
+        // Handle charge shot release if it was charging
+        if (gameState === GAME_STATE.PLAYING && !isPaused && ship && ship.isCharging) {
+            ship.releaseChargeShot();
+        }
+        return false; // Optional: prevent default if needed, usually not for release
+    }
+    // <<< END MODIFIED >>>
+}
+
 
 function touchStarted() {
     if (touches.length === 0) return false;
