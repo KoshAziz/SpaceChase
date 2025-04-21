@@ -135,12 +135,12 @@ const MAX_LEVEL = 15;
 // Game Settings & Thresholds
 let baseAsteroidSpawnRate;
 let currentAsteroidSpawnRate;
-let baseEnemySpawnRate = 0.002;
+let baseEnemySpawnRate = 0.004;
 let basicEnemyWeight = 10;
 let kamikazeWeight = 0;
 let turretWeight = 0;
 let swarmerWeight = 0;
-let powerUpSpawnRate = 0.0015;
+let powerUpSpawnRate = 0.0010;
 let potionSpawnRate = 0.001;
 let nebulaSpawnRate = 0.0005;
 let shootingStarSpawnRate = 0.001;
