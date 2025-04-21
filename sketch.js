@@ -1,10 +1,3 @@
-Okay, I've moved the mobile settings button from the top-right to the bottom-left corner.
-
-This involved changing the `calculateMobileSettingsButtonPosition` function to set the `x` coordinate based on the left edge (`mobileSettingsButton.padding`) and the `y` coordinate based on the bottom edge (`height - mobileSettingsButton.size - mobileSettingsButton.padding`).
-
-Here is the complete updated `sketch.js` code with this change:
-
-```javascript
 // --- Features ---
 // - Start Menu with Options (Start Game, Settings)
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
