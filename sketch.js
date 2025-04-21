@@ -39,7 +39,7 @@
 // - Added Touch Controls: Tap to shoot and move towards tap.
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
 // - Max shield charges reduced to 1.
-// - Asteroids visuals enhanced (shading, craters, rotation).
+// - Asteroids visuals enhanced (shading, craters, rotation). // FURTHER ENHANCED
 // - Added occasional background planet, subtle galaxy, black hole effect.
 // - Increased Ship Speed (MaxSpeed unchanged, acceleration reduced)
 // - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
@@ -332,11 +332,7 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 // ======================================================================
 // ========================== CLASS DEFINITIONS =========================
 // ======================================================================
-// Ship, Bullet, Asteroid, Particle, Star, ShootingStar, HealthPotion, PowerUp Classes
-// BaseEnemy, BasicEnemy, KamikazeEnemy, TurretEnemy, SwarmerEnemy, EnemyBullet Classes
-// Nebula Class
-// (Classes remain unchanged from the previous version and are omitted here for brevity)
-// ======================================================================
+
 // ==================
 // Ship Class
 // ==================
@@ -410,10 +406,178 @@ class Ship {
 // Bullet Class
 // ==================
 class Bullet { constructor(x, y, angle = 0) { this.pos = createVector(x, y); this.speed = 17; this.size = 5.5; this.startHue = frameCount % 360; this.hue = this.startHue; let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); this.trail = []; this.trailLength = 5; } update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); this.hue = (this.hue + 5) % 360; } draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, 90, 100, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, 95, 100); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); } isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } }
+
 // ==================
 // Asteroid Class
 // ==================
-class Asteroid { constructor(x, y, size, vel) { this.size = size || random(30, 85); this.pos = createVector(); let isInitialPlacement = (x !== undefined && y !== undefined); if (isInitialPlacement) { this.pos.x = x; this.pos.y = y; } else { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.7); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.7); } } if (vel) { this.vel = vel; } else { let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1; let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2; this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax)); this.speed *= (this.size > 50 ? 0.9 : 1.1); this.speed *= random(0.9, 1.1); if (isInitialPlacement) { this.vel = p5.Vector.random2D(); } else { let targetX = width / 2 + random(-width * 0.25, width * 0.25); let targetY = height / 2 + random(-height * 0.25, height * 0.25); let direction = createVector(targetX - this.pos.x, targetY - this.pos.y); direction.normalize(); direction.rotate(random(-PI / 12, PI / 12)); this.vel = direction; } this.vel.mult(this.speed); } this.color = color(random(20, 50), random(30, 70), random(35, 65)); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.04, 0.04); this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(9, 18)); for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.45, this.size * 0.35); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); } this.craters = []; let numCraters = floor(random(2, 7)); for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.4); let craterSize = random(this.size * 0.1, this.size * 0.3); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); } } update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.06, 0.06); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); let highlightColor = color(mainHue, mainSat * 0.7, mainBri * 1.3); fill(highlightColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x - 1.5, v.y - 1.5); } endShape(CLOSE); let shadowColor = color(mainHue, mainSat * 1.2, mainBri * 0.6); fill(shadowColor); noStroke(); beginShape(); for (let v of this.vertices) { vertex(v.x + 1.5, v.y + 1.5); } endShape(CLOSE); fill(this.color); stroke(mainHue, mainSat * 0.4, mainBri * random(1.4, 1.8)); strokeWeight(1.8); beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE); noStroke(); fill(hue(this.color), saturation(this.color)*0.7, brightness(this.color) * 0.4, 90); for (let crater of this.craters) { ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.7, 1.3)); } pop(); } hits(bullet) { let d = dist(this.pos.x, this.pos.y, bullet.pos.x, bullet.pos.y); return d < this.size / 2 + bullet.size / 2; } hitsShip(ship) { let targetX = ship.pos.x; let targetY = ship.pos.y; let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5); let d = dist(this.pos.x, this.pos.y, targetX, targetY); return d < this.size / 2 + targetRadius; } }
+class Asteroid {
+    constructor(x, y, size, vel) {
+        this.size = size || random(30, 85);
+        this.pos = createVector();
+        let isInitialPlacement = (x !== undefined && y !== undefined);
+
+        if (isInitialPlacement) {
+            this.pos.x = x;
+            this.pos.y = y;
+        } else {
+            let edge = floor(random(3)); // Only spawn top, left, right
+            if (edge === 0) { // Top
+                this.pos.x = random(width);
+                this.pos.y = -this.size / 2;
+            } else if (edge === 1) { // Right
+                this.pos.x = width + this.size / 2;
+                this.pos.y = random(height * 0.7);
+            } else { // Left
+                this.pos.x = -this.size / 2;
+                this.pos.y = random(height * 0.7);
+            }
+        }
+
+        if (vel) {
+            this.vel = vel;
+        } else {
+            let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1;
+            let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2;
+            this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax));
+            this.speed *= (this.size > 50 ? 0.9 : 1.1);
+            this.speed *= random(0.9, 1.1);
+
+            let direction;
+            if (isInitialPlacement) {
+                direction = p5.Vector.random2D();
+            } else {
+                // Target towards the center-ish area
+                let targetX = width / 2 + random(-width * 0.25, width * 0.25);
+                let targetY = height / 2 + random(-height * 0.25, height * 0.25);
+                direction = createVector(targetX - this.pos.x, targetY - this.pos.y);
+                direction.normalize();
+                direction.rotate(random(-PI / 12, PI / 12)); // Slight angle variation
+            }
+            this.vel = direction;
+            this.vel.mult(this.speed);
+        }
+
+        this.color = color(random(20, 50), random(30, 70), random(35, 65));
+        this.rotation = random(TWO_PI);
+        this.rotationSpeed = random(-0.04, 0.04);
+        this.rotationAccel = 0.0001;
+
+        // Generate vertices for irregular shape
+        this.vertices = [];
+        let numVertices = floor(random(9, 18));
+        for (let i = 0; i < numVertices; i++) {
+            let angleOffset = map(i, 0, numVertices, 0, TWO_PI);
+            let r = this.size / 2 + random(-this.size * 0.45, this.size * 0.35); // More variation
+            let v = p5.Vector.fromAngle(angleOffset);
+            v.mult(r);
+            this.vertices.push(v);
+        }
+
+        // Generate craters
+        this.craters = [];
+        let numCraters = floor(random(2, 7));
+        for (let i = 0; i < numCraters; i++) {
+            let angle = random(TWO_PI);
+            let radius = random(this.size * 0.1, this.size * 0.4); // Distribute craters wider
+            let craterSize = random(this.size * 0.1, this.size * 0.3);
+            let craterPos = p5.Vector.fromAngle(angle).mult(radius);
+            this.craters.push({
+                pos: craterPos,
+                size: craterSize
+            });
+        }
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel);
+        this.rotationSpeed = constrain(this.rotationSpeed, -0.06, 0.06);
+        this.rotation += this.rotationSpeed;
+
+        // Screen Wrap
+        let buffer = this.size;
+        if (this.pos.x < -buffer) this.pos.x = width + buffer;
+        if (this.pos.x > width + buffer) this.pos.x = -buffer;
+        if (this.pos.y < -buffer) this.pos.y = height + buffer;
+        if (this.pos.y > height + buffer) this.pos.y = -buffer;
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.rotation);
+
+        // Get base color components
+        let mainBri = brightness(this.color);
+        let mainSat = saturation(this.color);
+        let mainHue = hue(this.color);
+
+        // Apply a simple gradient for shading/highlighting
+        let gradSteps = 10;
+        let bodyRadius = this.size / 2;
+        for (let i = 0; i < gradSteps; i++) {
+            let inter = i / gradSteps;
+            let y = lerp(-bodyRadius, bodyRadius, inter);
+            let h = lerp(0, bodyRadius * 2, inter);
+            let w = sqrt(max(0, bodyRadius*bodyRadius - y*y)) * 2;
+            let bri = lerp(mainBri * 1.4, mainBri * 0.5, inter); // Top brighter, bottom darker
+            fill(mainHue, mainSat, bri);
+            noStroke();
+            ellipse(0, y, w*0.95, h / gradSteps * 1.2); // Draw overlapping ellipses for gradient
+        }
+
+
+        // Draw the main irregular shape outline
+        strokeWeight(1.8);
+        stroke(mainHue, mainSat * 0.4, mainBri * 1.1); // Slightly brighter outline
+        noFill(); // We used gradient fill above
+        beginShape();
+        for (let v of this.vertices) {
+            vertex(v.x, v.y);
+        }
+        endShape(CLOSE);
+
+        // --- Draw Craters with highlights ---
+        noStroke();
+        let craterBaseColor = color(mainHue, mainSat * 0.8, mainBri * 0.5, 90); // Darker base
+        let craterHighlightColor = color(mainHue, mainSat * 0.6, mainBri * 1.1, 70); // Lighter highlight
+        for (let crater of this.craters) {
+            fill(craterBaseColor);
+            ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.7, 1.3)); // Base crater
+            // Add subtle highlight inside
+             fill(craterHighlightColor);
+             ellipse(crater.pos.x + crater.size * 0.1, crater.pos.y + crater.size * 0.1, crater.size * 0.6, crater.size * 0.6 * random(0.7, 1.3));
+        }
+
+         // --- Add subtle surface texture lines ---
+        strokeWeight(0.5);
+        stroke(mainHue, mainSat * 0.9, mainBri * 0.8, 40); // Subtle, slightly darker lines
+        let numLines = 5;
+        for (let i = 0; i < numLines; i++) {
+            let yLine = map(i, 0, numLines -1, -bodyRadius * 0.7, bodyRadius * 0.7);
+            let xLine = sqrt(max(0, bodyRadius*bodyRadius - yLine*yLine)) * 0.7;
+            line(-xLine, yLine, xLine, yLine);
+        }
+
+
+        pop();
+    }
+
+
+    hits(bullet) {
+        let d = dist(this.pos.x, this.pos.y, bullet.pos.x, bullet.pos.y);
+        return d < this.size / 2 + bullet.size / 2;
+    }
+
+    hitsShip(ship) {
+        let targetX = ship.pos.x;
+        let targetY = ship.pos.y;
+        let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5);
+        let d = dist(this.pos.x, this.pos.y, targetX, targetY);
+        // Slightly reduced asteroid collision radius for fairness
+        return d < this.size / 2 * 0.9 + targetRadius;
+    }
+}
 // ==================
 // Particle Class
 // ==================
@@ -443,6 +607,7 @@ class KamikazeEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 22, 1, 1
 class TurretEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 35, 3, 50, 10); if (x === undefined || y === undefined) { let edge = random(1) < 0.5 ? -1 : 1; this.pos.x = (edge < 0) ? -this.size : width + this.size; this.pos.y = random(height * 0.1, height * 0.7); this.vel.set(edge * random(-0.4, -0.1), random(-0.1, 0.1)); } else { this.vel.set(random(-0.2, 0.2), random(-0.2, 0.2)); } this.bulletSpeed = 2.5 + currentLevel * 0.05; this.fireMode = floor(random(3)); this.shootCooldown = random(180, 300); this.shootTimer = this.shootCooldown; this.patternTimer = 0; this.patternAngle = random(TWO_PI); this.burstCount = 0; this.baseColor = color(260, 50, 60); this.barrelColor = color(260, 60, 80); this.lightColor = color(120, 80, 100); this.explosionColor = color(260, 70, 90); this.hitColor = this.barrelColor; } update() { super.update(); if (this.pos.x < this.size * 2 && this.vel.x < 0) this.vel.x *= -0.5; if (this.pos.x > width - this.size * 2 && this.vel.x > 0) this.vel.x *= -0.5; if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) { this.vel.y *= -0.5; } this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.startShootingPattern(); this.shootCooldown = random(max(120, 240 - currentLevel * 8), max(180, 360 - currentLevel * 12)); this.shootTimer = this.shootCooldown; } this.updateShootingPattern(); } startShootingPattern() { this.fireMode = floor(random(3)); this.patternTimer = 0; this.patternAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : random(TWO_PI); switch (this.fireMode) { case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 10; break; case 1: this.burstCount = 10 + currentLevel; this.patternTimer = 5; break; case 2: this.burstCount = 3 + floor(currentLevel / 3); this.patternTimer = 0; break; } } updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { switch (this.fireMode) { case 0: let angleToPlayer = atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angleToPlayer, this.bulletSpeed)); this.patternTimer = 10; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, this.patternAngle, this.bulletSpeed * 0.8)); this.patternAngle += PI / (6 + currentLevel * 0.5); this.patternTimer = 5; this.burstCount--; break; case 2: let spreadArc = PI / 4 + (currentLevel * PI / 30); for(let i = 0; i < this.burstCount; i++) { let angle = this.patternAngle + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angle, this.bulletSpeed)); } this.burstCount = 0; break; } } } } draw() { push(); translate(this.pos.x, this.pos.y); fill(this.baseColor); stroke(0, 0, 40); strokeWeight(2); beginShape(); for (let i = 0; i < 8; i++) { let angle = map(i, 0, 8, 0, TWO_PI); vertex(cos(angle) * this.size / 2, sin(angle) * this.size / 2); } endShape(CLOSE); let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : PI/2; rotate(aimAngle); fill(this.barrelColor); stroke(0, 0, 20); strokeWeight(1.5); rect(-this.size * 0.1, 0, this.size * 0.2, this.size * 0.6); let lightPulse = 1.0; if (this.shootTimer < 60 || this.burstCount > 0) { lightPulse = map(sin(frameCount * 0.3), -1, 1, 0.5, 1.5); } fill(this.lightColor); noStroke(); ellipse(0, this.size * 0.1, 6 * lightPulse, 6 * lightPulse); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.barrelColor; } }
 class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 15, 1, 5, 1); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.5 + currentLevel * 0.1); this.vel = p5.Vector.random2D().mult(this.maxSpeed); this.turnForce = 0.03 + random(0.02); this.phaseOffset = random(TWO_PI); this.bodyColor = color(90, 70, 80); this.wingColor = color(90, 50, 60, 80); this.explosionColor = color(90, 90, 90); this.hitColor = color(90, 100, 100); } update() { let targetY = height * 0.7; let targetX = width / 2; if(ship && !isPaused) { targetX = ship.pos.x + random(-width*0.2, width*0.2); targetY = ship.pos.y + random(50, 150); } let desired = createVector(targetX - this.pos.x, targetY - this.pos.y); desired.normalize(); desired.mult(this.maxSpeed); let wave = createVector(desired.y, -desired.x); wave.normalize(); wave.mult(sin(frameCount * 0.05 + this.phaseOffset) * this.maxSpeed * 0.5); desired.add(wave); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.turnForce); this.vel.add(steer); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); fill(this.bodyColor); noStroke(); ellipse(0, 0, this.size * 0.6, this.size); let wingPulse = map(sin(frameCount * 0.2 + this.phaseOffset), -1, 1, 0.8, 1.2); fill(this.wingColor); triangle(-this.size * 0.3, -this.size * 0.1, -this.size * 0.8 * wingPulse, -this.size * 0.4 * wingPulse, -this.size * 0.5 * wingPulse, this.size * 0.3 * wingPulse); triangle(this.size * 0.3, -this.size * 0.1, this.size * 0.8 * wingPulse, -this.size * 0.4 * wingPulse, this.size * 0.5 * wingPulse, this.size * 0.3 * wingPulse); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(0, 80, 100, 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius = ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5); return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
+// ==================
+// Nebula Class
+// ==================
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
-
-```
