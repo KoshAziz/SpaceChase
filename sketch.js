@@ -7,7 +7,7 @@
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot) - Uses Money // ENHANCED (UI Style)
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
 // - Redesigned Spaceship Look (Score-based color/shape, added details) // FURTHER ENHANCED
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect)
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail)
 // - Enhanced Engine Thrust Effect (More reactive) // ENHANCED (Particles, Reduced Thrust Value, Smaller Visual)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
@@ -39,7 +39,7 @@
 // - Added Touch Controls: Tap to shoot and move towards tap.
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
 // - Max shield charges reduced to 1.
-// - Asteroids visuals enhanced (shading, craters, rotation). // FURTHER ENHANCED
+// - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
 // - Added occasional background planet, subtle galaxy, black hole effect.
 // - Increased Ship Speed (MaxSpeed unchanged, acceleration reduced)
 // - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
@@ -171,7 +171,7 @@ let isMobile = false;
 
 // --- Background Scenery Variables ---
 let planetVisible = false;
-let planetPos, planetVel, planetSize, planetBaseColor, planetDetailColor1, planetDetailColor2;
+let planetPos, planetVel, planetSize, planetBaseColor, planetDetailColor1, planetDetailColor2, planetCloudColor, planetNoiseSeed;
 let lastPlanetAppearanceTime = -Infinity;
 const PLANET_MIN_INTERVAL = 30000;
 const PLANET_MAX_INTERVAL = 60000;
@@ -249,7 +249,7 @@ function calculateMobileSettingsButtonPosition() {
 function draw() {
     // Background Updates
     if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
-    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } } else { planetVisible = false; }
+    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); planetCloudColor = color(0, 0, 100, 30); planetNoiseSeed = random(1000); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } } else { planetVisible = false; }
     if (settingBackgroundEffectsEnabled && gameState === GAME_STATE.PLAYING && !isPaused && random(1) < shootingStarSpawnRate) { shootingStars.push(new ShootingStar()); }
 
     // Drawing
@@ -299,7 +299,65 @@ function handlePotions() { if (gameState !== GAME_STATE.PLAYING || isPaused) { f
 function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); if (settingBackgroundEffectsEnabled) { for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.SETTINGS_MENU || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.UPGRADE_SHOP) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.SETTINGS_MENU || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.UPGRADE_SHOP) star.update(); star.draw(); } } else { fill(0, 0, 80, 70); noStroke(); for (let star of stars) { ellipse(star.x, star.y, 1.5, 1.5); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.SETTINGS_MENU || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.UPGRADE_SHOP) { star.y += star.speed * 0.5; if (star.y > height + 2) { star.y = -2; star.x = random(width); } } } } }
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
-function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.06); stroke(hue(planetBaseColor), 20, 100, 20); ellipse(0, 0, planetSize * 1.06, planetSize * 1.06); pop(); }
+// --- Enhanced Planet Drawing ---
+function drawPlanet() {
+    push();
+    translate(planetPos.x, planetPos.y);
+    noStroke();
+
+    // Base planet color
+    fill(planetBaseColor);
+    ellipse(0, 0, planetSize, planetSize);
+
+    // More detailed landmasses/features using noise
+    let detailScale = 0.01; // Adjust noise scale for feature size
+    let detailLayers = 3;
+    for (let layer = 0; layer < detailLayers; layer++) {
+        let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers);
+        let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40);
+        fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha);
+
+        beginShape();
+        for (let angle = 0; angle < TWO_PI; angle += PI / 60) { // Increase vertex count
+            let xoff = map(cos(angle), -1, 1, 0, 3 + layer);
+            let yoff = map(sin(angle), -1, 1, 0, 3 + layer);
+            // Use noise based on angle and planet seed for consistent but varied shapes
+            let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale, frameCount * 0.001 * (layer + 1)); // Slow evolution
+            let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15)); // Apply noise to radius
+            let x = radius * cos(angle);
+            let y = radius * sin(angle);
+            vertex(x, y);
+        }
+        endShape(CLOSE);
+    }
+
+
+    // Swirling Cloud Layers
+    let cloudLayers = 4;
+    let cloudOffsetSpeed = 0.005;
+    for (let i = 0; i < cloudLayers; i++) {
+        let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25); // Fade outer layers
+        fill(0, 0, 100, cloudAlpha); // White clouds
+        let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2); // Different speeds/directions
+        let cloudSize = planetSize * (0.8 - i * 0.1);
+        let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i, frameCount * 0.002) * PI;
+        let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i, frameCount * 0.0025) * 0.8); // Variable length
+        arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN);
+        arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); // Second arc for thickness/variation
+    }
+
+    // Subtle atmosphere glow
+    let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5);
+    noFill();
+    for(let i=0; i<5; i++) {
+        strokeWeight(planetSize * 0.02 * i + 1);
+        stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5);
+        ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03));
+    }
+
+
+    pop();
+}
 
 // --- HUD & Info Messages ---
 function displayHUD() { let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 18 : 22; let spacing = isMobile ? 8 : 12; let bottomMargin = 10; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); textSize(textSizeVal); fill(uiTextColor); textAlign(LEFT, CENTER); let currentX = sideMargin; text(`LEVEL: ${currentLevel}`, currentX, hudH / 2); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2; text(`PTS: ${points}`, currentX, hudH / 2); currentX += textWidth(`PTS: ${points}`) + spacing * 2; fill(uiHighlightColor); text(`$: ${money}`, currentX, hudH / 2); currentX += textWidth(`$: ${money}`) + spacing * 2; fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, hudH / 2); currentX += textWidth(`♥: ${lives}`) + spacing * 2; fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.8); text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin);
@@ -506,6 +564,7 @@ class Asteroid {
         push();
         translate(this.pos.x, this.pos.y);
         rotate(this.rotation);
+        noStroke(); // Remove all strokes by default for this draw call
 
         // Get base color components
         let mainBri = brightness(this.color);
@@ -522,23 +581,19 @@ class Asteroid {
             let w = sqrt(max(0, bodyRadius*bodyRadius - y*y)) * 2;
             let bri = lerp(mainBri * 1.4, mainBri * 0.5, inter); // Top brighter, bottom darker
             fill(mainHue, mainSat, bri);
-            noStroke();
             ellipse(0, y, w*0.95, h / gradSteps * 1.2); // Draw overlapping ellipses for gradient
         }
 
-
-        // Draw the main irregular shape outline
-        strokeWeight(1.8);
-        stroke(mainHue, mainSat * 0.4, mainBri * 1.1); // Slightly brighter outline
-        noFill(); // We used gradient fill above
+        // Draw the main irregular shape using the gradient fill
+        // (Removed the separate outline drawing)
         beginShape();
         for (let v of this.vertices) {
             vertex(v.x, v.y);
         }
         endShape(CLOSE);
 
+
         // --- Draw Craters with highlights ---
-        noStroke();
         let craterBaseColor = color(mainHue, mainSat * 0.8, mainBri * 0.5, 90); // Darker base
         let craterHighlightColor = color(mainHue, mainSat * 0.6, mainBri * 1.1, 70); // Lighter highlight
         for (let crater of this.craters) {
@@ -551,7 +606,7 @@ class Asteroid {
 
          // --- Add subtle surface texture lines ---
         strokeWeight(0.5);
-        stroke(mainHue, mainSat * 0.9, mainBri * 0.8, 40); // Subtle, slightly darker lines
+        stroke(mainHue, mainSat * 0.9, mainBri * 0.8, 25); // Even more Subtle, slightly darker lines, reduced alpha
         let numLines = 5;
         for (let i = 0; i < numLines; i++) {
             let yLine = map(i, 0, numLines -1, -bodyRadius * 0.7, bodyRadius * 0.7);
