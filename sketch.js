@@ -261,7 +261,46 @@ function draw() {
 
 
 // --- Screen Display Functions ---
-function displayStartScreen() { let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; } stroke(uiBorderColor); strokeWeight(1.5); line(width * 0.2, titleY + 80, width * 0.8, titleY + 80); line(width * 0.3, titleY + 90, width * 0.7, titleY + 90); let instructionSize = isMobile ? 20 : 24; textSize(instructionSize); fill(uiTextColor); textAlign(CENTER, CENTER); let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; let instrWidth = textWidth(startInstruction) + 40; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1); rect(width / 2 - instrWidth / 2, height / 2 + 50, instrWidth, instructionSize + 20, 5); noStroke(); fill(uiTextColor); text(startInstruction, width / 2, height / 2 + 60 + instructionSize / 2); }
+function displayStartScreen() {
+    let titleText = "Space-Chase";
+    let titleSize = isMobile ? 56 : 72;
+    textSize(titleSize);
+    textAlign(CENTER, CENTER);
+    let totalWidth = textWidth(titleText);
+    let startX = width / 2 - totalWidth / 2;
+    let currentX = startX;
+    // --- MODIFICATION: Moved title down ---
+    let titleY = height / 2.5; // Original was height / 3
+    // -------------------------------------
+    for (let i = 0; i < titleText.length; i++) {
+        let char = titleText[i];
+        let charWidth = textWidth(char);
+        let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10);
+        fill(0, 0, 0, 50);
+        text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4));
+        let h = (frameCount * 4 + i * 25) % 360;
+        fill(h, 95, 100);
+        text(char, currentX + charWidth / 2, titleY + yOffset);
+        currentX += charWidth;
+    }
+    stroke(uiBorderColor);
+    strokeWeight(1.5);
+    line(width * 0.2, titleY + 80, width * 0.8, titleY + 80);
+    line(width * 0.3, titleY + 90, width * 0.7, titleY + 90);
+    let instructionSize = isMobile ? 20 : 24;
+    textSize(instructionSize);
+    fill(uiTextColor);
+    textAlign(CENTER, CENTER);
+    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
+    let instrWidth = textWidth(startInstruction) + 40;
+    fill(uiPanelColor);
+    stroke(uiBorderColor);
+    strokeWeight(1);
+    rect(width / 2 - instrWidth / 2, height / 2 + 50, instrWidth, instructionSize + 20, 5);
+    noStroke();
+    fill(uiTextColor);
+    text(startInstruction, width / 2, height / 2 + 60 + instructionSize / 2);
+}
 function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text("Press ESC to Resume", width / 2, height / 2 + 40); }
 function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115)); textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
@@ -610,7 +649,46 @@ function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.06); stroke(hue(planetBaseColor), 20, 100, 20); ellipse(0, 0, planetSize * 1.06, planetSize * 1.06); pop(); }
 
 // --- HUD & Info Messages ---
-function displayHUD() { let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 14 : 18; let spacing = isMobile ? 8 : 12; let bottomMargin = 10; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); textSize(textSizeVal); fill(uiTextColor); textAlign(LEFT, CENTER); let currentX = sideMargin; text(`LEVEL: ${currentLevel}`, currentX, hudH / 2); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2; text(`PTS: ${points}`, currentX, hudH / 2); currentX += textWidth(`PTS: ${points}`) + spacing * 2; fill(uiHighlightColor); text(`$: ${money}`, currentX, hudH / 2); currentX += textWidth(`$: ${money}`) + spacing * 2; fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, hudH / 2); currentX += textWidth(`♥: ${lives}`) + spacing * 2; fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.9); text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin); }
+function displayHUD() {
+    let hudH = isMobile ? 45 : 60;
+    let topMargin = 5;
+    let sideMargin = 10;
+    let iconSize = isMobile ? 16 : 20;
+    // --- MODIFICATION: Increased HUD text size ---
+    let textSizeVal = isMobile ? 18 : 22; // Original was 14 : 18
+    // ------------------------------------------
+    let spacing = isMobile ? 8 : 12;
+    let bottomMargin = 10;
+
+    fill(uiPanelColor);
+    stroke(uiBorderColor);
+    strokeWeight(1.5);
+    rect(0, 0, width, hudH);
+
+    textSize(textSizeVal); // Uses the modified size
+    fill(uiTextColor);
+    textAlign(LEFT, CENTER);
+    let currentX = sideMargin;
+    text(`LEVEL: ${currentLevel}`, currentX, hudH / 2);
+    currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
+    text(`PTS: ${points}`, currentX, hudH / 2);
+    currentX += textWidth(`PTS: ${points}`) + spacing * 2;
+    fill(uiHighlightColor);
+    text(`$: ${money}`, currentX, hudH / 2);
+    currentX += textWidth(`$: ${money}`) + spacing * 2;
+    fill(color(0, 80, 100));
+    text(`♥: ${lives}`, currentX, hudH / 2);
+    currentX += textWidth(`♥: ${lives}`) + spacing * 2;
+    fill(color(180, 70, 100));
+    text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2);
+
+    textAlign(RIGHT, BOTTOM);
+    fill(uiTextColor);
+    // --- MODIFICATION: Adjusted size for bottom-right text ---
+    textSize(textSizeVal * 0.8); // Original was textSizeVal * 0.9
+    // ------------------------------------------------------
+    text(`RATE:${ship.fireRateLevel} SPREAD:${ship.spreadShotLevel}`, width - sideMargin, height - bottomMargin);
+}
 function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER); let msgWidth = textWidth(infoMessage); let padding = 10; let boxH = msgSize + padding; let boxY = height - boxH - (isMobile? 15 : 30); fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(width/2 - msgWidth/2 - padding, boxY, msgWidth + padding*2, boxH, 5); fill(uiTextColor); noStroke(); text(infoMessage, width / 2, boxY + boxH / 2); }
 function displayComboText() { if (showComboText && comboCounter >= 2) { let comboSize = isMobile ? 28 : 36; let comboY = height * 0.25; let alpha = map(comboTextTimeout, 0, 60, 0, 100); push(); textAlign(CENTER, CENTER); textSize(comboSize); let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.08; translate(width / 2, comboY); scale(scaleFactor); stroke(0, 0, 0, alpha * 0.8); strokeWeight(4); fill(uiHighlightColor); text(`COMBO x${comboCounter}!`, 0, 0); noStroke(); fill(255); pop(); } }
 
