@@ -1,5 +1,6 @@
 // --- Features ---
-// - Start Screen (Enter/Tap to Start) - Title "Space-Chase" + Dynamic // ENHANCED (Style, Animation)
+// - Start Menu with Options (Start Game, Settings) // NEW FEATURE
+// - Settings Menu (Placeholder with Back button) // NEW FEATURE
 // - Level System based on Points (Up to Level 15)
 // - Rainbow Bullets (Hue Cycling) // ENHANCED (Trail Effect)
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot) - Uses Money // ENHANCED (UI Style)
@@ -60,6 +61,7 @@
 // - MODIFIED: Title position moved down on Start Screen.
 // - MODIFIED: HUD text size increased.
 // - MODIFIED: Ship thrust increased for non-mobile (computer) controls.
+// - REPLACED: Start Screen with Start Menu.
 // --------------------------
 
 
@@ -78,10 +80,20 @@ let nebulas = [];
 
 
 // Game State Management
-const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2, UPGRADE_SHOP: 3, WIN_SCREEN: 4 };
-let gameState = GAME_STATE.START_SCREEN;
+// --- MODIFICATION: Added START_MENU and SETTINGS_MENU states ---
+const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, PLAYING: 2, GAME_OVER: 3, UPGRADE_SHOP: 4, WIN_SCREEN: 5 };
+let gameState = GAME_STATE.START_MENU; // Start at the menu
+// -------------------------------------------------------------
 let isPaused = false;
 
+// --- MODIFICATION: Start Menu Variables ---
+let menuItems = ['Start Game', 'Settings'];
+let selectedMenuItem = 0;
+let settingsMenuItems = ['Back']; // Just a back button for now
+let selectedSettingsMenuItem = 0;
+let startMenuButtons = []; // For clickable areas
+let settingsMenuButtons = []; // For clickable areas
+// ---------------------------------------
 
 // Power-Up Types
 const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, EMP_BURST: 2 };
@@ -198,8 +210,12 @@ function setup() {
     // Initial background gradient colors
     currentTopColor = color(260, 80, 10);
     currentBottomColor = color(240, 70, 25);
-    // Set initial difficulty
+    // Set initial difficulty (will be set again on game start)
     setDifficultyForLevel(currentLevel);
+    // --- MODIFICATION: Setup menu buttons ---
+    setupMenuButtons();
+    setupSettingsMenuButtons();
+    // -------------------------------------
 }
 
 
@@ -230,29 +246,80 @@ function setDifficultyForLevel(level) {
 
 function setupShopButtons() { shopButtons = []; let buttonWidth = isMobile ? 190 : 240; let buttonHeight = isMobile ? 45 : 55; let startY = height / 2 - (isMobile ? 75 : 90); let spacing = isMobile ? 65 : 80; let nextLevelSpacing = isMobile ? 25 : 30; shopButtons.push({ id: 'fireRate', x: width / 2 - buttonWidth / 2, y: startY, w: buttonWidth, h: buttonHeight }); shopButtons.push({ id: 'spreadShot', x: width / 2 - buttonWidth / 2, y: startY + spacing, w: buttonWidth, h: buttonHeight }); shopButtons.push({ id: 'nextLevel', x: width / 2 - buttonWidth / 2, y: startY + spacing * 2 + nextLevelSpacing, w: buttonWidth, h: buttonHeight }); }
 
+// --- MODIFICATION: Functions to setup menu buttons ---
+function setupMenuButtons() {
+    startMenuButtons = [];
+    let buttonWidth = isMobile ? 180 : 220;
+    let buttonHeight = isMobile ? 40 : 50;
+    let startY = height / 2 - buttonHeight; // Position buttons around the center
+    let spacing = isMobile ? 55 : 65;
+    for (let i = 0; i < menuItems.length; i++) {
+        startMenuButtons.push({
+            id: menuItems[i],
+            x: width / 2 - buttonWidth / 2,
+            y: startY + i * spacing,
+            w: buttonWidth,
+            h: buttonHeight
+        });
+    }
+}
+
+function setupSettingsMenuButtons() {
+    settingsMenuButtons = [];
+    let buttonWidth = isMobile ? 150 : 180;
+    let buttonHeight = isMobile ? 40 : 50;
+    // Position back button near the bottom center
+    let backButtonY = height * 0.75;
+    settingsMenuButtons.push({
+        id: 'Back',
+        x: width / 2 - buttonWidth / 2,
+        y: backButtonY,
+        w: buttonWidth,
+        h: buttonHeight
+    });
+}
+// --------------------------------------------------
 
 // ==================
 // p5.js Draw Loop
 // ==================
 function draw() {
-    // --- Background Updates ---
-    if (gameState !== GAME_STATE.START_SCREEN && frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
-    if (gameState !== GAME_STATE.START_SCREEN) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } }
+    // --- Background Updates (Run regardless of state for visual consistency) ---
+    if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
+    if (gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } }
     if (gameState === GAME_STATE.PLAYING && !isPaused && random(1) < shootingStarSpawnRate) { shootingStars.push(new ShootingStar()); }
 
     // --- Drawing ---
-    drawBackgroundAndStars();
+    drawBackgroundAndStars(); // Draw background first
 
     push(); // Isolate screen shake
     if (screenShakeDuration > 0) { translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity)); }
 
     // --- Game State Logic & Drawing ---
     switch (gameState) {
-        case GAME_STATE.START_SCREEN: displayStartScreen(); break;
-        case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseScreen(); } break;
-        case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
-        case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break; // Still draw faded game behind
-        case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break; // Still draw faded game behind
+        // --- MODIFICATION: Added menu states ---
+        case GAME_STATE.START_MENU:
+            displayStartMenu();
+            break;
+        case GAME_STATE.SETTINGS_MENU:
+            displaySettingsMenu();
+            break;
+        // ------------------------------------
+        case GAME_STATE.PLAYING:
+            runGameLogic();
+            if (isPaused) { displayPauseScreen(); }
+            break;
+        case GAME_STATE.UPGRADE_SHOP:
+            displayUpgradeShop();
+            break;
+        case GAME_STATE.GAME_OVER:
+            runGameLogic(); // Still draw faded game behind
+            displayGameOver();
+            break;
+        case GAME_STATE.WIN_SCREEN:
+            runGameLogic(); // Still draw faded game behind
+            displayWinScreen();
+            break;
     }
 
     // --- Overlays ---
@@ -264,7 +331,10 @@ function draw() {
 
 
 // --- Screen Display Functions ---
-function displayStartScreen() {
+
+// --- MODIFICATION: New displayStartMenu function ---
+function displayStartMenu() {
+    // Draw Title
     let titleText = "Space-Chase";
     let titleSize = isMobile ? 56 : 72;
     textSize(titleSize);
@@ -272,38 +342,122 @@ function displayStartScreen() {
     let totalWidth = textWidth(titleText);
     let startX = width / 2 - totalWidth / 2;
     let currentX = startX;
-    // --- MODIFICATION: Moved title down ---
-    let titleY = height / 2.5; // Original was height / 3
-    // -------------------------------------
+    let titleY = height / 3.5; // Adjusted Y position for menu space
     for (let i = 0; i < titleText.length; i++) {
         let char = titleText[i];
         let charWidth = textWidth(char);
         let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10);
-        fill(0, 0, 0, 50);
+        fill(0, 0, 0, 50); // Shadow
         text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4));
         let h = (frameCount * 4 + i * 25) % 360;
-        fill(h, 95, 100);
+        fill(h, 95, 100); // Rainbow text
         text(char, currentX + charWidth / 2, titleY + yOffset);
         currentX += charWidth;
     }
-    stroke(uiBorderColor);
-    strokeWeight(1.5);
-    line(width * 0.2, titleY + 80, width * 0.8, titleY + 80);
-    line(width * 0.3, titleY + 90, width * 0.7, titleY + 90);
-    let instructionSize = isMobile ? 20 : 24;
-    textSize(instructionSize);
-    fill(uiTextColor);
+
+    // Draw Menu Items
+    let menuTextSize = isMobile ? 24 : 30;
+    textSize(menuTextSize);
     textAlign(CENTER, CENTER);
-    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
-    let instrWidth = textWidth(startInstruction) + 40;
-    fill(uiPanelColor);
-    stroke(uiBorderColor);
-    strokeWeight(1);
-    rect(width / 2 - instrWidth / 2, height / 2 + 50, instrWidth, instructionSize + 20, 5);
-    noStroke();
-    fill(uiTextColor);
-    text(startInstruction, width / 2, height / 2 + 60 + instructionSize / 2);
+
+    for (let i = 0; i < startMenuButtons.length; i++) {
+        let button = startMenuButtons[i];
+        let label = button.id;
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        let selected = (i === selectedMenuItem);
+
+        // Style the button appearance
+        let buttonCol = uiButtonColor;
+        let textCol = uiTextColor;
+        let borderCol = uiButtonBorderColor;
+
+        if (selected || hover) {
+            buttonCol = uiButtonHoverColor;
+            borderCol = color(hue(uiButtonHoverColor), 80, 100); // Brighter border
+        }
+
+        fill(buttonCol);
+        stroke(borderCol);
+        strokeWeight(selected ? 2.5 : 1.5);
+        rect(button.x, button.y, button.w, button.h, 8); // Rounded corners
+
+        // Add inner bevel effect (optional)
+        noFill();
+        strokeWeight(1);
+        stroke(0, 0, 100, 20); // Light top/left edge
+        line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2);
+        line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2);
+        stroke(0, 0, 0, 30); // Dark bottom/right edge
+        line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2);
+        line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+
+
+        fill(textCol);
+        noStroke();
+        text(label, button.x + button.w / 2, button.y + button.h / 2);
+    }
+    cursor(ARROW); // Ensure cursor is visible on menu
 }
+// --------------------------------------------------
+
+// --- MODIFICATION: New displaySettingsMenu function ---
+function displaySettingsMenu() {
+    drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.6); // Reuse panel drawing
+
+    // Title
+    fill(uiTextColor);
+    textSize(isMobile ? 36 : 48);
+    textAlign(CENTER, TOP);
+    text("Settings", width / 2, height * 0.25);
+
+    // Placeholder text
+    textSize(isMobile ? 18 : 22);
+    textAlign(CENTER, CENTER);
+    text("(Settings options TBD)", width/2, height * 0.4);
+
+    // Draw Back Button
+    let backButton = settingsMenuButtons[0]; // Assuming only one button for now
+    let label = backButton.id;
+    let menuTextSize = isMobile ? 20 : 24;
+    textSize(menuTextSize);
+    textAlign(CENTER, CENTER);
+
+    let hover = !isMobile && (mouseX > backButton.x && mouseX < backButton.x + backButton.w && mouseY > backButton.y && mouseY < backButton.y + backButton.h);
+    let selected = (0 === selectedSettingsMenuItem); // Only one item to select
+
+    let buttonCol = uiButtonColor;
+    let textCol = uiTextColor;
+    let borderCol = uiButtonBorderColor;
+
+    if (selected || hover) {
+        buttonCol = uiButtonHoverColor;
+        borderCol = color(hue(uiButtonHoverColor), 80, 100);
+    }
+
+    fill(buttonCol);
+    stroke(borderCol);
+    strokeWeight(selected ? 2.5 : 1.5);
+    rect(backButton.x, backButton.y, backButton.w, backButton.h, 8);
+
+    // Inner bevel effect
+    noFill();
+    strokeWeight(1);
+    stroke(0, 0, 100, 20);
+    line(backButton.x + 2, backButton.y + 2, backButton.x + backButton.w - 2, backButton.y + 2);
+    line(backButton.x + 2, backButton.y + 2, backButton.x + 2, backButton.y + backButton.h - 2);
+    stroke(0, 0, 0, 30);
+    line(backButton.x + 2, backButton.y + backButton.h - 2, backButton.x + backButton.w - 2, backButton.y + backButton.h - 2);
+    line(backButton.x + backButton.w - 2, backButton.y + 2, backButton.x + backButton.w - 2, backButton.y + backButton.h - 2);
+
+    fill(textCol);
+    noStroke();
+    text(label, backButton.x + backButton.w / 2, backButton.y + backButton.h / 2);
+
+     cursor(ARROW);
+}
+// ----------------------------------------------------
+
+
 function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text("Press ESC to Resume", width / 2, height / 2 + 40); }
 function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * (isMobile ? 0.75 : 0.7)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.2); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.2 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.2 + (isMobile ? 90 : 115)); textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
@@ -328,7 +482,7 @@ function runGameLogic() {
         return;
     }
 
-    if (!ship) return;
+    if (!ship) return; // Should not happen in PLAYING state, but safety check
 
     // --- Updates ---
     if (screenShakeDuration > 0) screenShakeDuration--;
@@ -468,7 +622,11 @@ function runGameLogic() {
 
 // --- Collision and Pickup Handling ---
 function handlePowerUps() {
-    if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].draw(); } return; }
+    // Only draw if paused or in non-playing states where they might linger
+    if (gameState !== GAME_STATE.PLAYING || isPaused) {
+         for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].draw(); }
+         return;
+    }
     if (!ship) return;
 
     for (let i = powerUps.length - 1; i >= 0; i--) {
@@ -479,15 +637,37 @@ function handlePowerUps() {
             let pickupPos = powerUps[i].pos.copy();
             let pickupColor = powerUps[i].color;
             powerUps.splice(i, 1);
-            createParticles(pickupPos.x, pickupPos.y, 25, pickupColor, 4, 1.8, 0.8);
+            createParticles(pickupPos.x, pickupPos.y, 25, pickupColor, 4, 1.8, 0.8); // Pickup particles
 
             switch (powerUpType) {
-                case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break; /* TODO: Play sound */
-                case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break; /* TODO: Play sound */
-                case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 60, color(210, 100, 100), 12, 3.5, 1.2); for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 15, asteroids[k].color, 3, 1.5); } asteroids = []; for (let k = enemyShips.length - 1; k >= 0; k--) { createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 20, enemyShips[k].getExplosionColor()); } enemyShips = []; break; /* TODO: Play sound */
+                case POWERUP_TYPES.TEMP_SHIELD:
+                    ship.tempShieldActive = true;
+                    infoMessage = "TEMPORARY SHIELD!";
+                    createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); // Shield effect
+                    break; /* TODO: Play sound */
+                case POWERUP_TYPES.RAPID_FIRE:
+                    ship.rapidFireTimer = 300; // 5 seconds at 60fps
+                    infoMessage = "RAPID FIRE!";
+                    createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); // Rapid fire effect
+                    break; /* TODO: Play sound */
+                case POWERUP_TYPES.EMP_BURST:
+                    infoMessage = "EMP BURST!";
+                    createParticles(ship.pos.x, ship.pos.y, 60, color(210, 100, 100), 12, 3.5, 1.2); // Big EMP flash
+                    // Destroy asteroids and enemies
+                    for (let k = asteroids.length - 1; k >= 0; k--) {
+                         createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 15, asteroids[k].color, 3, 1.5);
+                    }
+                    asteroids = [];
+                    for (let k = enemyShips.length - 1; k >= 0; k--) {
+                         createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 20, enemyShips[k].getExplosionColor());
+                    }
+                    enemyShips = [];
+                    break; /* TODO: Play sound */
             }
-            infoMessageTimeout = 120;
-        } else if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); }
+            infoMessageTimeout = 120; // Show message for 2 seconds
+        } else if (powerUps[i].isOffscreen()) {
+            powerUps.splice(i, 1); // Remove if offscreen
+        }
     }
 }
 function handleCollisions() {
@@ -635,18 +815,37 @@ function handleCollisions() {
     }
 }
 function handlePotions() {
-    if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = potions.length - 1; i >= 0; i--) { potions[i].draw(); } return; }
+     // Only draw if paused or in non-playing states where they might linger
+     if (gameState !== GAME_STATE.PLAYING || isPaused) {
+         for (let i = potions.length - 1; i >= 0; i--) { potions[i].draw(); }
+         return;
+     }
     if (!ship) return;
     for (let i = potions.length - 1; i >= 0; i--) {
         potions[i].update();
         potions[i].draw();
-        if (potions[i].hitsShip(ship)) { /* TODO: Play potion pickup sound */ createParticles(potions[i].pos.x, potions[i].pos.y, 20, color(0, 80, 100), 4, 1.5); if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { points += 25; infoMessage = "+25 POINTS (MAX LIVES)!"; infoMessageTimeout = 90; } potions.splice(i, 1); }
-        else if (potions[i].isOffscreen()) { potions.splice(i, 1); }
+        if (potions[i].hitsShip(ship)) {
+            /* TODO: Play potion pickup sound */
+            createParticles(potions[i].pos.x, potions[i].pos.y, 20, color(0, 80, 100), 4, 1.5); // Pickup particles
+            if (lives < MAX_LIVES) {
+                lives++;
+                infoMessage = "+1 LIFE!";
+                infoMessageTimeout = 90;
+            } else {
+                points += 25; // Bonus points if at max lives
+                infoMessage = "+25 POINTS (MAX LIVES)!";
+                infoMessageTimeout = 90;
+            }
+            potions.splice(i, 1); // Remove potion
+        }
+        else if (potions[i].isOffscreen()) {
+            potions.splice(i, 1); // Remove if offscreen
+        }
     }
 }
 
 // --- Background Drawing Functions ---
-function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if (gameState === GAME_STATE.PLAYING && !isPaused) star.update(); star.draw(); } }
+function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.SETTINGS_MENU || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.UPGRADE_SHOP) star.update(); star.draw(); } } // Keep stars moving in menus/endscreens
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.06); stroke(hue(planetBaseColor), 20, 100, 20); ellipse(0, 0, planetSize * 1.06, planetSize * 1.06); pop(); }
@@ -696,17 +895,182 @@ function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSi
 function displayComboText() { if (showComboText && comboCounter >= 2) { let comboSize = isMobile ? 28 : 36; let comboY = height * 0.25; let alpha = map(comboTextTimeout, 0, 60, 0, 100); push(); textAlign(CENTER, CENTER); textSize(comboSize); let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.08; translate(width / 2, comboY); scale(scaleFactor); stroke(0, 0, 0, alpha * 0.8); strokeWeight(4); fill(uiHighlightColor); text(`COMBO x${comboCounter}!`, 0, 0); noStroke(); fill(255); pop(); } }
 
 // --- Game State Control ---
-function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; cursor(); spawnInitialAsteroids(); }
+function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); /* Don't reset background colors here */ lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; // Reset frameCount for consistent spawning/timing
+infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; cursor(); // Reset cursor
+spawnInitialAsteroids(); }
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function startNextLevel() { if (gameState !== GAME_STATE.UPGRADE_SHOP) return; currentLevel++; setDifficultyForLevel(currentLevel); ship.resetPositionForNewLevel(); asteroids = []; frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15; spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor(); }
 
+// --- MODIFICATION: Function to handle menu selections ---
+function selectMenuItem(index) {
+    /* TODO: Play menu select sound */
+    switch (menuItems[index]) {
+        case 'Start Game':
+            startGame();
+            break;
+        case 'Settings':
+            gameState = GAME_STATE.SETTINGS_MENU;
+            selectedSettingsMenuItem = 0; // Default select 'Back'
+            break;
+        // Add cases for other menu items here (e.g., 'How to Play')
+    }
+}
+
+function selectSettingsMenuItemAction(index) {
+     /* TODO: Play menu select sound */
+    switch (settingsMenuItems[index]) {
+        case 'Back':
+            gameState = GAME_STATE.START_MENU;
+            selectedMenuItem = 0; // Default select 'Start Game'
+             break;
+         // Add cases for actual settings later
+    }
+}
+// ----------------------------------------------------
+
 
 // --- Input Handling ---
-function mousePressed() { if (gameState === GAME_STATE.START_SCREEN) { startGame(); } else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); /* TODO: Play shoot sound */ } else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { startGame(); } }
-function keyPressed() { if (keyCode === ESCAPE && gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) cursor(ARROW); else cursor(); } else if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } else if (gameState === GAME_STATE.PLAYING && !isPaused) { if (keyCode === 32) { ship.shoot(); /* TODO: Play shoot sound */ return false; } } else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } }
-function touchStarted() { if (touches.length === 0) return false; let touchX = touches[0].x; let touchY = touches[0].y; if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { startGame(); return false; } else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); return false; } } return false; } else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); /* TODO: Play shoot sound */ return false; } return false; }
+function mousePressed() {
+    // --- MODIFICATION: Handle menu clicks ---
+    if (gameState === GAME_STATE.START_MENU) {
+        for (let i = 0; i < startMenuButtons.length; i++) {
+            let button = startMenuButtons[i];
+            if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) {
+                selectMenuItem(i);
+                return; // Prevent other clicks
+            }
+        }
+    } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+         for (let i = 0; i < settingsMenuButtons.length; i++) {
+            let button = settingsMenuButtons[i];
+            if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) {
+                selectSettingsMenuItemAction(i);
+                return;
+            }
+        }
+    }
+    // --------------------------------------
+    else if (gameState === GAME_STATE.PLAYING && !isPaused) {
+        ship.shoot();
+        /* TODO: Play shoot sound */
+    } else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+        for (let button of shopButtons) {
+            if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) {
+                handleShopButtonPress(button.id);
+                break;
+            }
+        }
+    } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
+        // --- MODIFICATION: Return to start menu instead of directly starting ---
+        gameState = GAME_STATE.START_MENU;
+        selectedMenuItem = 0; // Reset selection
+        // Optionally call resetGame() here if you want a full reset immediately
+        // resetGame();
+        // -----------------------------------------------------------------------
+    }
+}
+
+function keyPressed() {
+    if (keyCode === ESCAPE) {
+        if (gameState === GAME_STATE.PLAYING) {
+             isPaused = !isPaused;
+             if (isPaused) cursor(ARROW); else cursor();
+        } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+             // Allow ESC to go back from settings
+             selectSettingsMenuItemAction(0); // Treat ESC as clicking 'Back'
+        }
+    } else if (gameState === GAME_STATE.START_MENU) {
+        if (keyCode === UP_ARROW) {
+            selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length;
+             /* TODO: Play menu navigation sound */
+        } else if (keyCode === DOWN_ARROW) {
+            selectedMenuItem = (selectedMenuItem + 1) % menuItems.length;
+             /* TODO: Play menu navigation sound */
+        } else if (keyCode === ENTER || keyCode === RETURN) {
+            selectMenuItem(selectedMenuItem);
+        }
+    } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+         // Basic navigation for settings (only Back for now)
+         if (keyCode === UP_ARROW || keyCode === DOWN_ARROW) {
+             // Could add more items later
+             selectedSettingsMenuItem = 0; // Stay on Back
+              /* TODO: Play menu navigation sound (or error sound?) */
+         } else if (keyCode === ENTER || keyCode === RETURN) {
+             selectSettingsMenuItemAction(selectedSettingsMenuItem);
+         }
+    } else if (gameState === GAME_STATE.PLAYING && !isPaused) {
+        if (keyCode === 32) { // Spacebar
+            ship.shoot();
+            /* TODO: Play shoot sound */
+            return false; // Prevent default browser behavior (scrolling)
+        }
+    } else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+        if (keyCode === ENTER || keyCode === RETURN) {
+            handleShopButtonPress('nextLevel');
+        }
+    } else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
+        if (keyCode === ENTER || keyCode === RETURN) {
+            // --- MODIFICATION: Return to start menu ---
+            gameState = GAME_STATE.START_MENU;
+             selectedMenuItem = 0;
+             // resetGame(); // Optional immediate reset
+            // -----------------------------------------
+        }
+    }
+}
+function touchStarted() {
+    if (touches.length === 0) return false;
+    let touchX = touches[0].x;
+    let touchY = touches[0].y;
+
+    // --- MODIFICATION: Handle menu taps ---
+    if (gameState === GAME_STATE.START_MENU) {
+        for (let i = 0; i < startMenuButtons.length; i++) {
+            let button = startMenuButtons[i];
+            if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) {
+                selectMenuItem(i);
+                return false; // Consume touch event
+            }
+        }
+        return false; // Consume touch if not on button in this state
+    } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+         for (let i = 0; i < settingsMenuButtons.length; i++) {
+            let button = settingsMenuButtons[i];
+            if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) {
+                selectSettingsMenuItemAction(i);
+                return false;
+            }
+        }
+        return false;
+    }
+    // --------------------------------------
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
+         // --- MODIFICATION: Return to start menu ---
+         gameState = GAME_STATE.START_MENU;
+         selectedMenuItem = 0;
+         // resetGame(); // Optional immediate reset
+         return false;
+         // -----------------------------------------
+    } else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+        for (let button of shopButtons) {
+            if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) {
+                handleShopButtonPress(button.id);
+                return false; // Consume touch event
+            }
+        }
+        return false; // Consume touch if not on button in this state
+    } else if (gameState === GAME_STATE.PLAYING && !isPaused) {
+        // Keep existing touch-to-shoot logic for gameplay
+        ship.shoot();
+        /* TODO: Play shoot sound */
+        return false; // Consume touch event
+    }
+    return false; // Default consume touch
+}
 function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP) return; if (buttonId === 'nextLevel') { startNextLevel(); /* TODO: Play sound */ } else { let success = ship.attemptUpgrade(buttonId); if (success) { /* TODO: Play sound */ let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); } } else { /* TODO: Play sound */ let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
-function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.PAUSE_SCREEN ) { /* Potentially re-setup buttons or panel sizes if needed */ } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); // --- MODIFICATION: Resize menu buttons on window resize ---
+if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } // ----------------------------------------------------
+if (gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.WIN_SCREEN || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.PAUSE_SCREEN ) { /* Potentially re-setup buttons or panel sizes if needed */ } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } }
 
 
 
@@ -830,7 +1194,7 @@ class Ship {
         this.tempShieldActive = false;
      }
 
-    // --- MODIFIED Ship.update method ---
+    // --- Ship.update method with Computer Speed Boost ---
     update() {
         if (this.invulnerableTimer > 0) { this.invulnerableTimer--; }
         if (this.rapidFireTimer > 0) { this.rapidFireTimer--; }
@@ -891,7 +1255,7 @@ class Ship {
         this.pos.x = constrain(this.pos.x, margin, width - margin);
         this.pos.y = constrain(this.pos.y, margin, height - margin);
     }
-    // --- End of MODIFIED Ship.update method ---
+    // --- End of Ship.update method ---
 
 
     shoot() {
