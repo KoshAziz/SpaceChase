@@ -71,6 +71,8 @@
 // - MODIFIED: Screen Shake duration increased to ~2 seconds.
 // - MODIFIED: Spaceship drawing logic for a more detailed look.
 // - MODIFIED: Implemented hold spacebar to shoot functionality. // <<< NEW MODIFICATION
+// - MODIFIED: Centered mobile button emojis. // <<< NEW MODIFICATION
+// - MODIFIED: Changed mobile button emojis. // <<< NEW MODIFICATION
 // --------------------------
 
 
@@ -309,7 +311,7 @@ function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); let detailScale = 0.01; let detailLayers = 3; for (let layer = 0; layer < detailLayers; layer++) { let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers); let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40); fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha); beginShape(); for (let angle = 0; angle < TWO_PI; angle += PI / 60) { let xoff = map(cos(angle), -1, 1, 0, 3 + layer); let yoff = map(sin(angle), -1, 1, 0, 3 + layer); let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale, frameCount * 0.001 * (layer + 1)); let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15)); let x = radius * cos(angle); let y = radius * sin(angle); vertex(x, y); } endShape(CLOSE); } let cloudLayers = 4; let cloudOffsetSpeed = 0.005; for (let i = 0; i < cloudLayers; i++) { let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25); fill(0, 0, 100, cloudAlpha); let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2); let cloudSize = planetSize * (0.8 - i * 0.1); let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i, frameCount * 0.002) * PI; let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i, frameCount * 0.0025) * 0.8); arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN); arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); } let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5); noFill(); for(let i=0; i<5; i++) { strokeWeight(planetSize * 0.02 * i + 1); stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5); ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03)); } pop(); }
 
 // --- HUD & Info Messages ---
-// MODIFIED: Draw mobile action buttons (Unchanged from previous provided code)
+// MODIFIED: Draw mobile action buttons
 function displayHUD() {
     let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 18 : 22; let spacing = isMobile ? 8 : 12; let bottomMargin = 10;
     fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH); // Top HUD Panel
@@ -337,7 +339,7 @@ function displayHUD() {
             let btnColor = uiButtonColor;
             let textColor = uiTextColor;
             let borderColor = uiButtonBorderColor;
-            let icon = '🚀';
+            let icon = '💥'; // <<< CHANGED EMOJI
             let subText = `${ship.currentMissiles}`; // Show ammo count
             let isDisabled = ship.currentMissiles <= 0 || ship.missileCooldown > 0;
 
@@ -351,7 +353,11 @@ function displayHUD() {
             }
             fill(btnColor); stroke(borderColor); strokeWeight(1.5); rect(btn.x, btn.y, btn.size, btn.size, 8);
             // Icon
-            textSize(btn.size * 0.5); fill(textColor); noStroke(); text(icon, btn.x + btn.size / 2, btn.y + btn.size * 0.45);
+            push(); // Isolate textAlign change
+            textAlign(CENTER, CENTER); // Ensure centering
+            textSize(btn.size * 0.5); fill(textColor); noStroke();
+            text(icon, btn.x + btn.size / 2, btn.y + btn.size / 2); // <<< ADJUSTED Y
+            pop(); // Restore previous textAlign
             // Subtext (Ammo/Cooldown)
             textSize(btn.size * 0.25); fill(textColor); text(subText, btn.x + btn.size / 2, btn.y + btn.size * 0.8);
         }
@@ -362,7 +368,7 @@ function displayHUD() {
             let btnColor = uiButtonColor;
             let textColor = uiTextColor;
             let borderColor = uiButtonBorderColor;
-            let icon = '⚡';
+            let icon = '💡'; // <<< CHANGED EMOJI
             let subText = ``;
             let isDisabled = ship.laserActive || ship.laserCooldown > 0;
 
@@ -379,7 +385,11 @@ function displayHUD() {
             }
             fill(btnColor); stroke(borderColor); strokeWeight(1.5); rect(btn.x, btn.y, btn.size, btn.size, 8);
              // Icon
-             textSize(btn.size * 0.5); fill(textColor); noStroke(); text(icon, btn.x + btn.size / 2, btn.y + btn.size * 0.45);
+             push(); // Isolate textAlign change
+             textAlign(CENTER, CENTER); // Ensure centering
+             textSize(btn.size * 0.5); fill(textColor); noStroke();
+             text(icon, btn.x + btn.size / 2, btn.y + btn.size / 2); // <<< ADJUSTED Y
+             pop(); // Restore previous textAlign
              // Subtext (Cooldown/Duration)
              if(subText !== '') {
                  textSize(btn.size * 0.25); fill(textColor); text(subText, btn.x + btn.size / 2, btn.y + btn.size * 0.8);
