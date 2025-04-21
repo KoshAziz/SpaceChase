@@ -1,6 +1,6 @@
 // --- Features ---
 // - Start Screen (Enter/Tap to Start) - Title "Space-Chase" + Dynamic // MODIFIED (Size, Effect, Color, Mobile Size)
-// - Level System based on Points
+// - Level System based on Points (Up to Level 15) // MODIFIED (15 Levels)
 // - Rainbow Bullets (Hue Cycling) // ENHANCED (Trail Effect)
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot) - Uses Money // MODIFIED (Mobile Size)
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
@@ -10,13 +10,14 @@
 // - Asteroid Splitting
 // - Player Lives (Max 3)
 // - Simple Explosion Particles (Asteroid destruction + Bullet impact) // ENHANCED (Variety, Count)
-// - Score-based Difficulty Increase - Uses Levels + Time
+// - Score-based Difficulty Increase - Uses Levels + Time // MODIFIED (Scales to Lvl 15)
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max). // ENHANCED (Visual Pulse)
 // - Simple Enemy Ships that shoot at the player (No Auto-Aim). // MODIFIED (Appearance: Black Ship, Slight Drift)
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst) // ENHANCED (Visual Pulse)
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
 // - ADDED: Pause Functionality (Press ESC during gameplay)
-// - ADDED: Upgrade Shop Screen between levels
+// - ADDED: Upgrade Shop Screen between levels (Levels 1-14)
+// - ADDED: Win Screen after completing Level 15 // NEW FEATURE
 // --- Modifications ---
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (milestones) and Money (upgrades) systems.
@@ -65,7 +66,7 @@ let nebulas = [];
 
 
 // Game State Management
-const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2, UPGRADE_SHOP: 3 };
+const GAME_STATE = { START_SCREEN: 0, PLAYING: 1, GAME_OVER: 2, UPGRADE_SHOP: 3, WIN_SCREEN: 4 }; // <-- ADDED WIN_SCREEN
 let gameState = GAME_STATE.START_SCREEN;
 let isPaused = false;
 
@@ -81,7 +82,27 @@ let money = 0;
 let lives = 3;
 const MAX_LIVES = 3;
 let currentLevel = 1;
-const LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 7500, 10500];
+// Point thresholds to FINISH each level (index k = points needed to finish level k)
+// Array length is 16 for levels 1 through 15 (index 15 = finish level 15)
+const LEVEL_THRESHOLDS = [
+    0,     // Start Level 1
+    500,   // Finish Level 1 (Start L2)
+    1500,  // Finish Level 2 (Start L3)
+    3000,  // Finish Level 3 (Start L4)
+    5000,  // Finish Level 4 (Start L5)
+    7500,  // Finish Level 5 (Start L6)
+    10500, // Finish Level 6 (Start L7)
+    14000, // Finish Level 7 (Start L8) +3500
+    18000, // Finish Level 8 (Start L9) +4000
+    22500, // Finish Level 9 (Start L10) +4500
+    27500, // Finish Level 10 (Start L11) +5000
+    33000, // Finish Level 11 (Start L12) +5500
+    39000, // Finish Level 12 (Start L13) +6000
+    45500, // Finish Level 13 (Start L14) +6500
+    52500, // Finish Level 14 (Start L15) +7000
+    60000  // Finish Level 15 (WIN!) +7500
+];
+const MAX_LEVEL = 15; // Define the maximum level
 
 
 // Game Settings & Thresholds
@@ -192,11 +213,14 @@ function createStarfield(numStars) {
 
 // Set difficulty parameters based on the current level
 function setDifficultyForLevel(level) {
+    let effectiveLevel = min(level, MAX_LEVEL); // Cap difficulty scaling at MAX_LEVEL visually
     let mobileFactor = isMobile ? 0.7 : 1.0; // Reduce spawn rates slightly on mobile
-    baseAsteroidSpawnRate = (0.009 + (level - 1) * 0.0015) * mobileFactor;
+    // Increase base spawn rates with level
+    baseAsteroidSpawnRate = (0.009 + (effectiveLevel - 1) * 0.0015) * mobileFactor;
     currentAsteroidSpawnRate = baseAsteroidSpawnRate;
-    baseEnemySpawnRate = (0.002 + (level - 1) * 0.0005) * mobileFactor;
+    baseEnemySpawnRate = (0.002 + (effectiveLevel - 1) * 0.0005) * mobileFactor;
     currentEnemySpawnRate = baseEnemySpawnRate;
+    // Note: Other difficulty factors (speed, shoot rate) scale directly in their respective classes
 }
 
 // Define buttons for the upgrade shop, adjusting for mobile
@@ -259,6 +283,7 @@ function draw() {
         case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseScreen(); } break;
         case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
         case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
+        case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break; // <-- ADDED Win Screen case
     }
 
     // --- Overlays ---
@@ -273,83 +298,104 @@ function draw() {
 // Display the initial start screen (Adjusted for mobile)
 function displayStartScreen() {
     let titleText = "Space-Chase";
-    let titleSize = isMobile ? 56 : 72; // Smaller title on mobile
-    textSize(titleSize);
-    textAlign(CENTER, CENTER);
-    let totalWidth = textWidth(titleText);
-    let startX = width / 2 - totalWidth / 2;
-    let currentX = startX;
-    let titleY = height / 3;
+    let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER);
+    let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3;
     for (let i = 0; i < titleText.length; i++) {
-        let char = titleText[i]; let charWidth = textWidth(char);
-        let yOffset = sin(frameCount * 0.08 + i * 0.6) * (isMobile ? 6 : 8); // Smaller wave on mobile
-        fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); // Adjusted shadow
-        let h = (frameCount * 2 + i * 20) % 360; fill(h, 90, 100);
-        text(char, currentX + charWidth / 2, titleY + yOffset);
-        currentX += charWidth;
+        let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.08 + i * 0.6) * (isMobile ? 6 : 8);
+        fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4));
+        let h = (frameCount * 2 + i * 20) % 360; fill(h, 90, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth;
     }
-    let instructionSize = isMobile ? 20 : 24; // Smaller instructions on mobile
-    textSize(instructionSize); fill(0, 0, 100); textAlign(CENTER, CENTER);
-    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start";
-    text(startInstruction, width / 2, height / 2 + 60);
+    let instructionSize = isMobile ? 20 : 24; textSize(instructionSize); fill(0, 0, 100); textAlign(CENTER, CENTER);
+    let startInstruction = isMobile ? "Tap Screen to Start" : "Press Enter to Start"; text(startInstruction, width / 2, height / 2 + 60);
 }
 
 // Display the pause overlay
 function displayPauseScreen() {
     fill(0, 0, 0, 60); rect(0, 0, width, height);
-    fill(0, 0, 100); textSize(isMobile ? 60 : 72); textAlign(CENTER, CENTER);
-    text("PAUSED", width / 2, height / 2 - 30);
-    textSize(isMobile ? 20 : 24);
-    text("Press ESC to Resume", width / 2, height / 2 + 50);
+    fill(0, 0, 100); textSize(isMobile ? 60 : 72); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30);
+    textSize(isMobile ? 20 : 24); text("Press ESC to Resume", width / 2, height / 2 + 50);
 }
 
 // Display the upgrade shop interface (Adjusted for mobile)
 function displayUpgradeShop() {
-    fill(240, 60, 20, 95); rect(0, 0, width, height);
-    fill(0, 0, 100);
+    fill(240, 60, 20, 95); rect(0, 0, width, height); fill(0, 0, 100);
     textSize(isMobile ? 40 : 52); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, 60);
     textSize(isMobile ? 28 : 36); text("Upgrade Shop", width / 2, isMobile ? 110 : 125);
     textSize(isMobile ? 22 : 28); textAlign(CENTER, TOP); text(`Money: $${money}`, width / 2, isMobile ? 150 : 180);
-
-    textSize(isMobile ? 15 : 18); textAlign(CENTER, CENTER); // Smaller button text on mobile
+    textSize(isMobile ? 15 : 18); textAlign(CENTER, CENTER);
     for (let button of shopButtons) {
         let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = "";
         if (button.id === 'fireRate') { cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxLevel}`; label = `Fire Rate ${currentLevelText}`; }
         else if (button.id === 'spreadShot') { cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxLevel}`; label = `Spread Shot ${currentLevelText}`; }
         else if (button.id === 'nextLevel') { label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; }
-
         let buttonColor; let textColor = color(0, 0, 100); let borderColor = color(0, 0, 85);
-        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); // Hover only on non-mobile
-
-        if (button.id !== 'nextLevel') {
-            if (isMaxed) { buttonColor = color(0, 0, 55); textColor = color(0, 0, 80); label += " (MAX)"; borderColor = color(0, 0, 40); }
-            else if (!canAfford) { buttonColor = color(0, 75, 50); textColor = color(0, 0, 90); label += ` ($${cost})`; borderColor = color(0, 80, 70); }
-            else { buttonColor = hover ? color(120, 75, 65) : color(120, 70, 55); label += ` ($${cost})`; borderColor = color(120, 80, 80); }
-        } else { buttonColor = hover ? color(90, 75, 70) : color(90, 70, 60); borderColor = color(90, 80, 85); }
-
-        fill(buttonColor); stroke(borderColor); strokeWeight(hover ? 3 : 2);
-        rect(button.x, button.y, button.w, button.h, 8); // Draw button rect
-        fill(textColor); noStroke();
-        text(label, button.x + button.w / 2, button.y + button.h / 2); // Draw button text
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        if (button.id !== 'nextLevel') { if (isMaxed) { buttonColor = color(0, 0, 55); textColor = color(0, 0, 80); label += " (MAX)"; borderColor = color(0, 0, 40); } else if (!canAfford) { buttonColor = color(0, 75, 50); textColor = color(0, 0, 90); label += ` ($${cost})`; borderColor = color(0, 80, 70); } else { buttonColor = hover ? color(120, 75, 65) : color(120, 70, 55); label += ` ($${cost})`; borderColor = color(120, 80, 80); } }
+        else { buttonColor = hover ? color(90, 75, 70) : color(90, 70, 60); borderColor = color(90, 80, 85); }
+        fill(buttonColor); stroke(borderColor); strokeWeight(hover ? 3 : 2); rect(button.x, button.y, button.w, button.h, 8);
+        fill(textColor); noStroke(); text(label, button.x + button.w / 2, button.y + button.h / 2);
     }
+}
+
+// Display Game Over Screen (Adjusted for mobile)
+function displayGameOver() {
+    fill(0, 0, 0, 60); rect(0, 0, width, height);
+    fill(0, 90, 100); textSize(isMobile ? 58 : 72); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
+    fill(0, 0, 100); textSize(isMobile ? 28 : 36); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 70));
+    textAlign(CENTER, CENTER); textSize(isMobile ? 20 : 24);
+    let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse);
+    let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart";
+    text(restartInstruction, width / 2, height * 0.7);
+    cursor(ARROW);
+}
+
+// Display Win Screen (NEW)
+function displayWinScreen() {
+    fill(120, 60, 30, 90); // Greenish overlay
+    rect(0, 0, width, height);
+
+    // Draw "YOU WIN!" text
+    let winTextSize = isMobile ? 64 : 80;
+    textSize(winTextSize);
+    textAlign(CENTER, CENTER);
+    let winY = height / 3;
+    // Simple rainbow effect for win text
+    let winText = "YOU WIN!";
+    let totalWinWidth = textWidth(winText);
+    let startWinX = width / 2 - totalWinWidth / 2;
+    let currentWinX = startWinX;
+    for (let i = 0; i < winText.length; i++) {
+        let char = winText[i];
+        let charWidth = textWidth(char);
+        let h = (frameCount * 3 + i * 30) % 360;
+        fill(h, 90, 100);
+        text(char, currentWinX + charWidth / 2, winY);
+        currentWinX += charWidth;
+    }
+
+    // Final Score
+    fill(0, 0, 100); // White text
+    textSize(isMobile ? 28 : 36);
+    text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80));
+
+    // Restart Instructions
+    textAlign(CENTER, CENTER);
+    textSize(isMobile ? 20 : 24);
+    let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100);
+    fill(0, 0, pulse); // Pulsing white text
+    let restartInstruction = isMobile ? "Tap Screen to Play Again" : "Click or Press Enter to Play Again";
+    text(restartInstruction, width / 2, height * 0.7);
+    cursor(ARROW); // Ensure cursor is visible
 }
 
 
 // --- Main Game Logic ---
 function runGameLogic() {
   // --- PAUSE CHECK ---
-  if (isPaused) {
-      if (ship) ship.draw(); for (let b of bullets) b.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw();
-      displayHUD(); return;
-  }
+  if (isPaused) { if (ship) ship.draw(); for (let b of bullets) b.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw(); displayHUD(); return; }
   // --- END PAUSE CHECK ---
-
   if (!ship) return;
-
-  // Update timers
   if (screenShakeDuration > 0) screenShakeDuration--; if (screenShakeDuration <= 0) screenShakeIntensity = 0;
-
-  // Update & Draw Game Objects
   ship.update(); ship.draw();
   for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
   for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
@@ -357,22 +403,8 @@ function runGameLogic() {
   for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
   for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
   for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); powerUps[i].draw(); if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); } }
-
-  // Handle Pickups and Collisions
   handlePotions(); handleCollisions(); handlePowerUps();
-
-  // --- Spawning Logic ---
-  if (gameState === GAME_STATE.PLAYING) {
-      let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5;
-      let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3;
-      if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
-      if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); }
-      if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-      if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
-      if (random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
-  }
-
-  // Display HUD
+  if (gameState === GAME_STATE.PLAYING) { let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; currentEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5; let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(8, 2 + floor(currentLevel / 2)); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3; if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); } if (random(1) < currentEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) { enemyShips.push(new EnemyShip()); } if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); } if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); } if (random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); } }
   if (gameState === GAME_STATE.PLAYING) { displayHUD(); }
 }
 
@@ -398,11 +430,36 @@ function handlePowerUps() {
 }
 
 
-// Handle Bullet Hits, Player Damage, and Level Progression
+// Handle Bullet Hits, Player Damage, and Level/Win Progression (MODIFIED)
 function handleCollisions() {
     if (gameState !== GAME_STATE.PLAYING || !ship || isPaused) return;
     // Bullets vs Asteroids
-    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { /* TODO: Play sound */ let impactParticleCount = floor(random(3, 6)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 40, 100), 2, 0.8, 0.7); let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2; let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; /* TODO: Play sound */ } } let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; /* TODO: Play sound */ } let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); /* TODO: Play sound */ if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } if (currentLevel < LEVEL_THRESHOLDS.length && points >= LEVEL_THRESHOLDS[currentLevel]) { /* TODO: Play sound */ points += 100 * currentLevel; money += 25 * currentLevel; gameState = GAME_STATE.UPGRADE_SHOP; infoMessage = `Level ${currentLevel} Cleared!`; infoMessageTimeout = 180; setupShopButtons(); cursor(ARROW); bullets = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; return; } break; } } }
+    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { /* TODO: Play sound */ let impactParticleCount = floor(random(3, 6)); createParticles(bullets[j].pos.x, bullets[j].pos.y, impactParticleCount, color(60, 40, 100), 2, 0.8, 0.7); let oldPoints = points; let asteroidSizeValue = asteroids[i] ? asteroids[i].size : 50; points += floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); money += 2; let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; /* TODO: Play sound */ } } let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; /* TODO: Play sound */ } let currentAsteroid = asteroids[i]; let asteroidPos = currentAsteroid.pos.copy(); let asteroidColor = currentAsteroid.color; asteroids.splice(i, 1); bullets.splice(j, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); /* TODO: Play sound */ if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
+
+                // --- Check for Level Up or Win ---
+                if (currentLevel < MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) {
+                    // Go to Upgrade Shop (Levels 1-14 complete)
+                    /* TODO: Play level up fanfare sound */
+                    points += 100 * currentLevel; money += 25 * currentLevel;
+                    gameState = GAME_STATE.UPGRADE_SHOP;
+                    infoMessage = `Level ${currentLevel} Cleared!`; infoMessageTimeout = 180;
+                    setupShopButtons(); cursor(ARROW);
+                    bullets = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
+                    return; // Exit collision check
+                } else if (currentLevel === MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) {
+                    // Beat Final Level - Go to Win Screen
+                    /* TODO: Play game win sound */
+                    gameState = GAME_STATE.WIN_SCREEN;
+                    infoMessage = ""; infoMessageTimeout = 0; // Clear messages
+                    cursor(ARROW); // Show cursor
+                    // Optionally clear screen elements for win screen
+                    bullets = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; asteroids = []; particles = [];
+                    return; // Exit collision check
+                }
+                // --- End Level Up / Win Check ---
+
+                break; // Bullet hit one asteroid
+            } } }
     // Bullets vs Enemy Ships
     for (let i = enemyShips.length - 1; i >= 0; i--) { if (!enemyShips[i]) continue; for (let j = bullets.length - 1; j >= 0; j--) { if (enemyShips[i] && bullets[j] && enemyShips[i].hits(bullets[j])) { /* TODO: Play sound */ points += 20; money += 5; createParticles(enemyShips[i].pos.x, enemyShips[i].pos.y, 20, color(300, 80, 90), 4, 1.5); enemyShips.splice(i, 1); bullets.splice(j, 1); break; } } }
     // Player Ship Collisions
@@ -422,154 +479,42 @@ function handlePotions() {
 
 
 // --- Background Drawing Functions ---
-
-// Draw Background Gradient, Stars, Nebulas, and Scenery
-function drawBackgroundAndStars() {
-    for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke();
-    for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } }
-    drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); }
-    for (let i = shootingStars.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } }
-    for (let star of stars) { if (gameState === GAME_STATE.PLAYING && !isPaused) star.update(); star.draw(); }
-}
-
-// Draw distant black hole effect (Modified for less jitter)
-function drawBlackHole() {
-    push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05;
-    fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1);
-    let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill();
-    let slowVariation = sin(frameCount * 0.01);
-    for (let i = 0; i < ringCount; i++) {
-        let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2);
-        let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor;
-        let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5;
-        let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5);
-        strokeWeight(sw); stroke(hue, 90, 90, alpha);
-        ellipse(bhX, bhY, size, size); // Removed random jitter from position and size
-    }
-    pop();
-}
-
-// Draw distant galaxy effect
+function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if (gameState === GAME_STATE.PLAYING && !isPaused) star.update(); star.draw(); } }
+function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
-// Draw the occasional background planet
 function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); fill(planetDetailColor1); arc(0, 0, planetSize, planetSize, PI * 0.1, PI * 0.6, OPEN); arc(0, 0, planetSize * 0.8, planetSize * 0.8, PI * 0.7, PI * 1.2, OPEN); fill(planetDetailColor2); arc(0, 0, planetSize * 0.9, planetSize * 0.9, PI * 1.3, PI * 1.9, OPEN); noFill(); strokeWeight(planetSize * 0.06); stroke(hue(planetBaseColor), 20, 100, 20); ellipse(0, 0, planetSize * 1.06, planetSize * 1.06); pop(); }
-
-// Display Heads Up Display (Adjusted for mobile)
-function displayHUD() {
-    let hudTextSize = isMobile ? 14 : 18; // Smaller text on mobile
-    let hudPadding = isMobile ? 5 : 8;
-    let lineSpacing = isMobile ? 20 : 25;
-    let topMargin = 10; // Closer to top
-    let leftMargin = 10;
-    textSize(hudTextSize); noStroke();
-
-    // Helper to draw text with background
-    const drawHudText = (txt, x, y, alignment) => {
-        textAlign(alignment, TOP); let txtWidth = textWidth(txt);
-        fill(0, 0, 0, 40); // Background box
-        let boxHeight = hudTextSize + hudPadding;
-        let boxY = y - hudPadding / 2;
-        if (alignment === LEFT) { rect(x - hudPadding / 2, boxY, txtWidth + hudPadding, boxHeight, 3); }
-        else if (alignment === RIGHT) { rect(x + hudPadding / 2 - (txtWidth + hudPadding), boxY, txtWidth + hudPadding, boxHeight, 3); }
-        fill(0, 0, 100, 90); // Text color
-        text(txt, x, y);
-    };
-
-    // Mobile Layout: All info top-left
-    if (isMobile) {
-        drawHudText(`L:${currentLevel} P:${points} $:${money}`, leftMargin, topMargin, LEFT);
-        drawHudText(`HP:${lives}/${MAX_LIVES} SH:${ship.shieldCharges}/${MAX_SHIELD_CHARGES}`, leftMargin, topMargin + lineSpacing, LEFT);
-        // Could add upgrade levels here too if needed, compactly
-        // drawHudText(`R:${ship.fireRateLevel} S:${ship.spreadShotLevel}`, leftMargin, topMargin + lineSpacing * 2, LEFT);
-    }
-    // Desktop Layout: Split left/right
-    else {
-        drawHudText("Points: " + points, leftMargin, topMargin, LEFT);
-        drawHudText(`Money: $${money}`, leftMargin, topMargin + lineSpacing, LEFT);
-        drawHudText(`Lives: ${lives} / ${MAX_LIVES}`, leftMargin, topMargin + lineSpacing * 2, LEFT);
-        drawHudText(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, leftMargin, topMargin + lineSpacing * 3, LEFT);
-        drawHudText(`Level: ${currentLevel}`, leftMargin, topMargin + lineSpacing * 4, LEFT);
-        let rightMargin = width - leftMargin;
-        drawHudText(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, rightMargin, topMargin, RIGHT);
-        drawHudText(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, rightMargin, topMargin + lineSpacing, RIGHT);
-    }
-}
-
-// Display temporary info messages (Adjusted for mobile)
-function displayInfoMessage() {
-    let msgSize = isMobile ? 15 : 18; // Smaller text on mobile
-    textSize(msgSize); fill(0, 0, 100); textAlign(CENTER, BOTTOM);
-    let msgWidth = textWidth(infoMessage); let padding = 10;
-    fill(0,0,0,40); rect(width/2 - msgWidth/2 - padding, height - (msgSize + padding*2), msgWidth + padding*2, msgSize + padding, 5);
-    fill(0, 0, 100); text(infoMessage, width / 2, height - (padding*1.5));
-}
-
-// Display Game Over Screen (Adjusted for mobile)
-function displayGameOver() {
-    fill(0, 0, 0, 60); rect(0, 0, width, height);
-    fill(0, 90, 100); textSize(isMobile ? 58 : 72); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
-    fill(0, 0, 100); textSize(isMobile ? 28 : 36); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 70));
-    textAlign(CENTER, CENTER); textSize(isMobile ? 20 : 24);
-    let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse);
-    let restartInstruction = isMobile ? "Tap Screen to Restart" : "Click or Press Enter to Restart";
-    text(restartInstruction, width / 2, height * 0.7);
-    cursor(ARROW);
-}
+function displayHUD() { let hudTextSize = isMobile ? 14 : 18; let hudPadding = isMobile ? 5 : 8; let lineSpacing = isMobile ? 20 : 25; let topMargin = 10; let leftMargin = 10; textSize(hudTextSize); noStroke(); const drawHudText = (txt, x, y, alignment) => { textAlign(alignment, TOP); let txtWidth = textWidth(txt); fill(0, 0, 0, 40); let boxHeight = hudTextSize + hudPadding; let boxY = y - hudPadding / 2; if (alignment === LEFT) { rect(x - hudPadding / 2, boxY, txtWidth + hudPadding, boxHeight, 3); } else if (alignment === RIGHT) { rect(x + hudPadding / 2 - (txtWidth + hudPadding), boxY, txtWidth + hudPadding, boxHeight, 3); } fill(0, 0, 100, 90); text(txt, x, y); }; if (isMobile) { drawHudText(`L:${currentLevel} P:${points} $:${money}`, leftMargin, topMargin, LEFT); drawHudText(`HP:${lives}/${MAX_LIVES} SH:${ship.shieldCharges}/${MAX_SHIELD_CHARGES}`, leftMargin, topMargin + lineSpacing, LEFT); } else { drawHudText("Points: " + points, leftMargin, topMargin, LEFT); drawHudText(`Money: $${money}`, leftMargin, topMargin + lineSpacing, LEFT); drawHudText(`Lives: ${lives} / ${MAX_LIVES}`, leftMargin, topMargin + lineSpacing * 2, LEFT); drawHudText(`Shields: ${ship.shieldCharges} / ${MAX_SHIELD_CHARGES}`, leftMargin, topMargin + lineSpacing * 3, LEFT); drawHudText(`Level: ${currentLevel}`, leftMargin, topMargin + lineSpacing * 4, LEFT); let rightMargin = width - leftMargin; drawHudText(`Rate Lvl: ${ship.fireRateLevel}/${ship.maxLevel}`, rightMargin, topMargin, RIGHT); drawHudText(`Spread Lvl: ${ship.spreadShotLevel}/${ship.maxLevel}`, rightMargin, topMargin + lineSpacing, RIGHT); } }
+function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); fill(0, 0, 100); textAlign(CENTER, BOTTOM); let msgWidth = textWidth(infoMessage); let padding = 10; fill(0,0,0,40); rect(width/2 - msgWidth/2 - padding, height - (msgSize + padding*2), msgWidth + padding*2, msgSize + padding, 5); fill(0, 0, 100); text(infoMessage, width / 2, height - (padding*1.5)); }
 
 // --- Game State Control ---
-
-// Reset game variables to initial state
-function resetGame() {
-    ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
-    points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel);
-    currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false;
-    frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0;
-    cursor(); spawnInitialAsteroids();
-}
-// Start a new game
+function resetGame() { ship = new Ship(); bullets = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; points = 0; money = 0; lives = 3; currentLevel = 1; setDifficultyForLevel(currentLevel); currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25); lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0; screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0; cursor(); spawnInitialAsteroids(); }
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
-// Proceed to the next level from the shop
-function startNextLevel() {
-    if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
-    currentLevel++; setDifficultyForLevel(currentLevel); ship.resetPositionForNewLevel(); asteroids = [];
-    frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
-    spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
-}
+function startNextLevel() { if (gameState !== GAME_STATE.UPGRADE_SHOP) return; currentLevel++; setDifficultyForLevel(currentLevel); ship.resetPositionForNewLevel(); asteroids = []; frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15; spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor(); }
 
 
 // --- Input Handling ---
-
-// Handle Mouse Clicks
 function mousePressed() {
     if (gameState === GAME_STATE.START_SCREEN) { startGame(); }
     else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); /* TODO: Play shoot sound */ }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } }
-    else if (gameState === GAME_STATE.GAME_OVER) { startGame(); }
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { startGame(); } // Restart from Game Over or Win
 }
-// Handle Keyboard Presses
 function keyPressed() {
     if (keyCode === ESCAPE && gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) cursor(ARROW); else cursor(); }
     else if (gameState === GAME_STATE.START_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
     else if (gameState === GAME_STATE.PLAYING && !isPaused) { if (keyCode === 32) { ship.shoot(); /* TODO: Play shoot sound */ return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
-    else if (gameState === GAME_STATE.GAME_OVER) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } }
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { startGame(); } } // Restart from Game Over or Win
 }
-// Handle Touch Input
 function touchStarted() {
     if (touches.length === 0) return false; let touchX = touches[0].x; let touchY = touches[0].y;
     if (gameState === GAME_STATE.START_SCREEN) { startGame(); return false; }
-    else if (gameState === GAME_STATE.GAME_OVER) { startGame(); return false; }
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { startGame(); return false; } // Restart from Game Over or Win
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); return false; } } return false; }
     else if (gameState === GAME_STATE.PLAYING && !isPaused) { ship.shoot(); /* TODO: Play shoot sound */ return false; }
     return false;
 }
-// Handle Shop Button Logic
-function handleShopButtonPress(buttonId) {
-    if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
-    if (buttonId === 'nextLevel') { startNextLevel(); /* TODO: Play sound */ }
-    else { let success = ship.attemptUpgrade(buttonId); if (success) { /* TODO: Play sound */ let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); } } else { /* TODO: Play sound */ let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } }
-}
-// Handle Window Resizing
+function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP) return; if (buttonId === 'nextLevel') { startNextLevel(); /* TODO: Play sound */ } else { let success = ship.attemptUpgrade(buttonId); if (success) { /* TODO: Play sound */ let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); } } else { /* TODO: Play sound */ let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
 function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } }
 
 
@@ -578,29 +523,7 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 // ==================
 // Ship Class
 // ==================
-class Ship {
-    constructor() {
-        this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
-        this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975; this.maxSpeed = 9.5; this.size = 30;
-        this.cockpitColor = color(180, 100, 100); this.baseEngineColor1 = color(30, 100, 100); this.baseEngineColor2 = color(0, 100, 100);
-        this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60);
-        this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.2;
-        this.invulnerableTimer = 0; this.invulnerabilityDuration = 120;
-        this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0;
-        this.baseUpgradeCost = 30; this.costMultiplier = 2.0;
-        this.rapidFireTimer = 0; this.tempShieldActive = false; this.hoverOffset = 0;
-    }
-    gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
-    loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
-    setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
-    changeShape(level) { this.shapeState = (level % 2); }
-    get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } }
-    getUpgradeCost(upgradeType) { let level; if (upgradeType === 'fireRate') { level = this.fireRateLevel; if (level >= this.maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(this.costMultiplier, level)); } else if (upgradeType === 'spreadShot') { level = this.spreadShotLevel; if (level >= this.maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(this.costMultiplier, level)); } else { return Infinity; } }
-    attemptUpgrade(upgradeType) { let cost = this.getUpgradeCost(upgradeType); if (typeof cost !== 'number') return false; let currentLevel, maxLevelForType; if (upgradeType === 'fireRate') { currentLevel = this.fireRateLevel; maxLevelForType = this.maxLevel; } else if (upgradeType === 'spreadShot') { currentLevel = this.spreadShotLevel; maxLevelForType = this.maxLevel; } else { return false; } if (currentLevel < maxLevelForType && money >= cost) { money -= cost; if (upgradeType === 'fireRate') this.fireRateLevel++; else if (upgradeType === 'spreadShot') this.spreadShotLevel++; return true; } else { return false; } }
-    resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; }
-    update() { if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.rapidFireTimer > 0) { this.rapidFireTimer--; } if (this.shootCooldown > 0) { this.shootCooldown--; } this.hoverOffset = sin(frameCount * 0.05) * 2; let isTouching = touches.length > 0; let acceleration = createVector(0, 0); let applyThrustParticles = false; if (isTouching) { let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos); if (direction.magSq() > 1) { direction.normalize(); let targetVel = direction.mult(this.maxSpeed * this.touchThrustMultiplier); this.vel.lerp(targetVel, 0.15); applyThrustParticles = true; } } else { let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { acceleration.y -= this.thrust; applyThrustParticles = true;} if (movingDown) { acceleration.y += this.thrust; } if (movingLeft) { acceleration.x -= this.thrust; applyThrustParticles = true;} if (movingRight) { acceleration.x += this.thrust; applyThrustParticles = true;} this.vel.add(acceleration); this.vel.mult(this.friction); } if (applyThrustParticles && frameCount % 3 === 0) { let thrustColor = lerpColor(this.baseEngineColor1, color(60, 100, 100), this.fireRateLevel / this.maxLevel); createParticles(this.pos.x, this.pos.y + this.size * 0.55, 1, thrustColor, 3, 1.5, 0.5); } this.vel.limit(this.maxSpeed); this.pos.add(this.vel); let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin); }
-    shoot() { if (this.shootCooldown <= 0) { let originY = this.pos.y - this.size * 0.6 + this.hoverOffset; let originPoints = [createVector(this.pos.x, originY)]; if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { let offset = this.size * 0.15; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; } else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { let offset = this.size * 0.2; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; } else if (this.spreadShotLevel >= this.maxLevel) { let offset1 = this.size * 0.25; let offset2 = this.size * 0.1; originPoints = [ createVector(this.pos.x - offset1, originY + 8), createVector(this.pos.x - offset2, originY + 3), createVector(this.pos.x, originY), createVector(this.pos.x + offset2, originY + 3), createVector(this.pos.x + offset1, originY + 8) ]; } let numShots = 1; let spreadAngle = 0; if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { numShots = 3; spreadAngle = PI / 20; } else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { numShots = 3; spreadAngle = PI / 15; } else if (this.spreadShotLevel >= this.maxLevel) { numShots = 5; spreadAngle = PI / 12; } for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle)); } this.shootCooldown = this.currentShootDelay; } }
-    draw() { if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) { push(); translate(this.pos.x, this.pos.y + this.hoverOffset); if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); } else if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); strokeWeight(2); stroke(shieldHue, 90, 100, shieldAlpha + 35); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); } let enginePulseFactor = 1.0 + this.vel.mag() * 0.4; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke(); let engineColor1 = lerpColor(this.baseEngineColor1, color(60, 90, 100), this.fireRateLevel / this.maxLevel); let engineColor2 = lerpColor(this.baseEngineColor2, color(45, 90, 100), this.fireRateLevel / this.maxLevel); for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(engineColor2), saturation(engineColor2), engineBrightness, alpha); ellipse(0, this.size * 0.55, i * 0.8, i * 1.2); } fill(hue(engineColor1), saturation(engineColor1), 100); ellipse(0, this.size * 0.55, engineSize * 0.5, engineSize * 1.0); stroke(0, 0, 85); strokeWeight(1.5); let pointsHue = (200 + points * 0.2) % 360; fill(pointsHue, 85, 98); let bodyWidthFactor = 0.6; beginShape(); if (this.shapeState === 0) { vertex(0, -this.size * 0.7); bezierVertex( this.size * bodyWidthFactor * 0.8, -this.size * 0.3, this.size * bodyWidthFactor * 0.9, this.size * 0.0, this.size * bodyWidthFactor * 1.0, this.size * 0.4); bezierVertex( this.size * bodyWidthFactor * 0.5, this.size * 0.6, -this.size * bodyWidthFactor * 0.5, this.size * 0.6, -this.size * bodyWidthFactor * 1.0, this.size * 0.4); bezierVertex(-this.size * bodyWidthFactor * 0.9, this.size * 0.0, -this.size * bodyWidthFactor * 0.8, -this.size * 0.3, 0, -this.size * 0.7); } else { let s = this.size * 1.1; let evolvedWidthFactor = bodyWidthFactor * 1.1; vertex(0, -s * 0.8); bezierVertex( s * evolvedWidthFactor * 0.8, -s * 0.2, s * evolvedWidthFactor * 0.9, s * 0.1, s * evolvedWidthFactor * 1.0, s * 0.5); bezierVertex( s * evolvedWidthFactor * 0.5, s * 0.7, -s * evolvedWidthFactor * 0.5, s * 0.7, -s * evolvedWidthFactor * 1.0, s * 0.5); bezierVertex(-s * evolvedWidthFactor * 0.9, s * 0.1, -s * evolvedWidthFactor * 0.8, -s * 0.2, 0, -s * 0.8); } endShape(CLOSE); strokeWeight(1.2); stroke(this.detailColor); if (this.shapeState === 0) { line(-this.size * bodyWidthFactor * 0.5, -this.size * 0.1, -this.size * bodyWidthFactor * 0.75, this.size * 0.3); line( this.size * bodyWidthFactor * 0.5, -this.size * 0.1, this.size * bodyWidthFactor * 0.75, this.size * 0.3); } else { let s = this.size * 1.1; let ewf = bodyWidthFactor * 1.1; line(-s * ewf * 0.6, -s * 0.05, -s * ewf * 0.8, s * 0.4); line( s * ewf * 0.6, -s * 0.05, s * ewf * 0.8, s * 0.4); line(0, -s*0.4, 0, s*0.1); } let finYOffset = this.shapeState === 0 ? this.size * 0.3 : this.size * 1.1 * 0.35; let finXBase = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.6 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.7; let finTipX = this.shapeState === 0 ? this.size * bodyWidthFactor * 1.1 : this.size * 1.1 * bodyWidthFactor * 1.1 * 1.1; let finRearX = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.75 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.8; let finRearY = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7; fill(this.finColor); stroke(0, 0, 65); strokeWeight(1); triangle( finXBase, finYOffset, finTipX, finYOffset + this.size*0.1, finRearX, finRearY); triangle(-finXBase, finYOffset, -finTipX, finYOffset + this.size*0.1, -finRearX, finRearY); fill(this.cockpitColor); noStroke(); ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5); fill(0, 0, 100, 60); ellipse(0, -this.size * 0.2, this.size * 0.25, this.size * 0.3); pop(); } } }
+class Ship { constructor() { this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0); this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975; this.maxSpeed = 9.5; this.size = 30; this.cockpitColor = color(180, 100, 100); this.baseEngineColor1 = color(30, 100, 100); this.baseEngineColor2 = color(0, 100, 100); this.finColor = color(220, 60, 70); this.detailColor = color(0, 0, 60); this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.2; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.maxLevel = 5; this.fireRateLevel = 0; this.spreadShotLevel = 0; this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.rapidFireTimer = 0; this.tempShieldActive = false; this.hoverOffset = 0; } gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; } loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } } setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; } changeShape(level) { this.shapeState = (level % 2); } get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } } getUpgradeCost(upgradeType) { let level; if (upgradeType === 'fireRate') { level = this.fireRateLevel; if (level >= this.maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(this.costMultiplier, level)); } else if (upgradeType === 'spreadShot') { level = this.spreadShotLevel; if (level >= this.maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(this.costMultiplier, level)); } else { return Infinity; } } attemptUpgrade(upgradeType) { let cost = this.getUpgradeCost(upgradeType); if (typeof cost !== 'number') return false; let currentLevel, maxLevelForType; if (upgradeType === 'fireRate') { currentLevel = this.fireRateLevel; maxLevelForType = this.maxLevel; } else if (upgradeType === 'spreadShot') { currentLevel = this.spreadShotLevel; maxLevelForType = this.maxLevel; } else { return false; } if (currentLevel < maxLevelForType && money >= cost) { money -= cost; if (upgradeType === 'fireRate') this.fireRateLevel++; else if (upgradeType === 'spreadShot') this.spreadShotLevel++; return true; } else { return false; } } resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; } update() { if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.rapidFireTimer > 0) { this.rapidFireTimer--; } if (this.shootCooldown > 0) { this.shootCooldown--; } this.hoverOffset = sin(frameCount * 0.05) * 2; let isTouching = touches.length > 0; let acceleration = createVector(0, 0); let applyThrustParticles = false; if (isTouching) { let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos); if (direction.magSq() > 1) { direction.normalize(); let targetVel = direction.mult(this.maxSpeed * this.touchThrustMultiplier); this.vel.lerp(targetVel, 0.15); applyThrustParticles = true; } } else { let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { acceleration.y -= this.thrust; applyThrustParticles = true;} if (movingDown) { acceleration.y += this.thrust; } if (movingLeft) { acceleration.x -= this.thrust; applyThrustParticles = true;} if (movingRight) { acceleration.x += this.thrust; applyThrustParticles = true;} this.vel.add(acceleration); this.vel.mult(this.friction); } if (applyThrustParticles && frameCount % 3 === 0) { let thrustColor = lerpColor(this.baseEngineColor1, color(60, 100, 100), this.fireRateLevel / this.maxLevel); createParticles(this.pos.x, this.pos.y + this.size * 0.55, 1, thrustColor, 3, 1.5, 0.5); } this.vel.limit(this.maxSpeed); this.pos.add(this.vel); let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin); } shoot() { if (this.shootCooldown <= 0) { let originY = this.pos.y - this.size * 0.6 + this.hoverOffset; let originPoints = [createVector(this.pos.x, originY)]; if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { let offset = this.size * 0.15; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; } else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { let offset = this.size * 0.2; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; } else if (this.spreadShotLevel >= this.maxLevel) { let offset1 = this.size * 0.25; let offset2 = this.size * 0.1; originPoints = [ createVector(this.pos.x - offset1, originY + 8), createVector(this.pos.x - offset2, originY + 3), createVector(this.pos.x, originY), createVector(this.pos.x + offset2, originY + 3), createVector(this.pos.x + offset1, originY + 8) ]; } let numShots = 1; let spreadAngle = 0; if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { numShots = 3; spreadAngle = PI / 20; } else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { numShots = 3; spreadAngle = PI / 15; } else if (this.spreadShotLevel >= this.maxLevel) { numShots = 5; spreadAngle = PI / 12; } for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle)); } this.shootCooldown = this.currentShootDelay; } } draw() { if (this.invulnerableTimer <= 0 || (this.invulnerableTimer > 0 && frameCount % 10 < 5) ) { push(); translate(this.pos.x, this.pos.y + this.hoverOffset); if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); } else if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); strokeWeight(2); stroke(shieldHue, 90, 100, shieldAlpha + 35); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); } let enginePulseFactor = 1.0 + this.vel.mag() * 0.4; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke(); let engineColor1 = lerpColor(this.baseEngineColor1, color(60, 90, 100), this.fireRateLevel / this.maxLevel); let engineColor2 = lerpColor(this.baseEngineColor2, color(45, 90, 100), this.fireRateLevel / this.maxLevel); for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(engineColor2), saturation(engineColor2), engineBrightness, alpha); ellipse(0, this.size * 0.55, i * 0.8, i * 1.2); } fill(hue(engineColor1), saturation(engineColor1), 100); ellipse(0, this.size * 0.55, engineSize * 0.5, engineSize * 1.0); stroke(0, 0, 85); strokeWeight(1.5); let pointsHue = (200 + points * 0.2) % 360; fill(pointsHue, 85, 98); let bodyWidthFactor = 0.6; beginShape(); if (this.shapeState === 0) { vertex(0, -this.size * 0.7); bezierVertex( this.size * bodyWidthFactor * 0.8, -this.size * 0.3, this.size * bodyWidthFactor * 0.9, this.size * 0.0, this.size * bodyWidthFactor * 1.0, this.size * 0.4); bezierVertex( this.size * bodyWidthFactor * 0.5, this.size * 0.6, -this.size * bodyWidthFactor * 0.5, this.size * 0.6, -this.size * bodyWidthFactor * 1.0, this.size * 0.4); bezierVertex(-this.size * bodyWidthFactor * 0.9, this.size * 0.0, -this.size * bodyWidthFactor * 0.8, -this.size * 0.3, 0, -this.size * 0.7); } else { let s = this.size * 1.1; let evolvedWidthFactor = bodyWidthFactor * 1.1; vertex(0, -s * 0.8); bezierVertex( s * evolvedWidthFactor * 0.8, -s * 0.2, s * evolvedWidthFactor * 0.9, s * 0.1, s * evolvedWidthFactor * 1.0, s * 0.5); bezierVertex( s * evolvedWidthFactor * 0.5, s * 0.7, -s * evolvedWidthFactor * 0.5, s * 0.7, -s * evolvedWidthFactor * 1.0, s * 0.5); bezierVertex(-s * evolvedWidthFactor * 0.9, s * 0.1, -s * evolvedWidthFactor * 0.8, -s * 0.2, 0, -s * 0.8); } endShape(CLOSE); strokeWeight(1.2); stroke(this.detailColor); if (this.shapeState === 0) { line(-this.size * bodyWidthFactor * 0.5, -this.size * 0.1, -this.size * bodyWidthFactor * 0.75, this.size * 0.3); line( this.size * bodyWidthFactor * 0.5, -this.size * 0.1, this.size * bodyWidthFactor * 0.75, this.size * 0.3); } else { let s = this.size * 1.1; let ewf = bodyWidthFactor * 1.1; line(-s * ewf * 0.6, -s * 0.05, -s * ewf * 0.8, s * 0.4); line( s * ewf * 0.6, -s * 0.05, s * ewf * 0.8, s * 0.4); line(0, -s*0.4, 0, s*0.1); } let finYOffset = this.shapeState === 0 ? this.size * 0.3 : this.size * 1.1 * 0.35; let finXBase = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.6 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.7; let finTipX = this.shapeState === 0 ? this.size * bodyWidthFactor * 1.1 : this.size * 1.1 * bodyWidthFactor * 1.1 * 1.1; let finRearX = this.shapeState === 0 ? this.size * bodyWidthFactor * 0.75 : this.size * 1.1 * bodyWidthFactor * 1.1 * 0.8; let finRearY = this.shapeState === 0 ? this.size * 0.6 : this.size * 1.1 * 0.7; fill(this.finColor); stroke(0, 0, 65); strokeWeight(1); triangle( finXBase, finYOffset, finTipX, finYOffset + this.size*0.1, finRearX, finRearY); triangle(-finXBase, finYOffset, -finTipX, finYOffset + this.size*0.1, -finRearX, finRearY); fill(this.cockpitColor); noStroke(); ellipse(0, -this.size * 0.15, this.size * 0.4, this.size * 0.5); fill(0, 0, 100, 60); ellipse(0, -this.size * 0.2, this.size * 0.25, this.size * 0.3); pop(); } } }
 
 
 // ==================
