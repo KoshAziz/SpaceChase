@@ -1,3 +1,4 @@
+
 // --- Features ---
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
@@ -74,7 +75,7 @@
 // - ADDED: Previous Game State Tracking for Settings Menu return.
 // - MODIFIED: Screen Shake duration decreased to ~1 second.
 // - MODIFIED: Spaceship drawing logic uses simplified color selection.
-// - MODIFIED: Added text fitting logic to button drawing functions.
+// - MODIFIED: Added text fitting logic to button drawing functions. // ENHANCED for Multi-line
 // - REFACTORED: Cosmetics system simplified to direct color/style selection.
 // - UI Enhancement: Refined color palette, button styles, panel appearance, text shadows, HUD layout for improved aesthetics and readability.
 // --------------------------
@@ -225,7 +226,7 @@ let isMobileShooting = false; // Flag for mobile continuous shooting
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
 // UI Colors (Refined Palette)
 let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, uiButtonHoverColor, uiButtonDisabledColor, uiButtonBorderColor, uiTextShadowColor, uiSpecialButtonColor, uiSpecialButtonHoverColor, uiSpecialButtonBorderColor, uiProgressBarColor, uiProgressBarBgColor;
-const BUTTON_TEXT_PADDING = 12;
+const BUTTON_TEXT_PADDING = 12; // Increased padding for better text fit
 
 // --- Background ---
 let currentTopColor, currentBottomColor;
@@ -382,7 +383,7 @@ function setupCosmeticsMenuButtons() { cosmeticsMenuButtons = []; let buttonWidt
 function setupSkillTreeButtons() {
     skillTreeButtons = [];
     let buttonWidth = isMobile ? 150 : 180;
-    let buttonHeight = isMobile ? 35 : 40;
+    let buttonHeight = isMobile ? 35 : 40; // Adjusted height for skill buttons
     let cols = isMobile ? 2 : 3;
     let rows = ceil(Object.keys(SKILL_DEFINITIONS).length / cols);
     let gridW = cols * buttonWidth + (cols - 1) * (isMobile ? 15 : 20);
@@ -405,7 +406,7 @@ function setupSkillTreeButtons() {
 
     // Add Back Button
     let backButtonWidth = isMobile ? 120 : 150;
-    let backButtonHeight = isMobile ? 35 : 40;
+    let backButtonHeight = isMobile ? 35 : 40; // Adjusted height
     let backButtonX = width / 2 - backButtonWidth / 2;
     let backButtonY = startY + gridH + backButtonYOffset;
     skillTreeButtons.push({ id: 'back', x: backButtonX, y: backButtonY, w: backButtonWidth, h: backButtonHeight });
@@ -445,15 +446,53 @@ function drawShadowedText(label, x, y, size, textColor, shadowColor) {
     text(label, x, y); // Draw main text
 }
 
+
+// MODIFIED: drawButtonText to handle multi-line text fitting
 function drawButtonText(label, button, defaultSize, textColor = uiTextColor, shadowColor = uiTextShadowColor) {
-    let currentTextSize = defaultSize; textSize(currentTextSize); let tw = textWidth(label);
-    while (tw > button.w - BUTTON_TEXT_PADDING && currentTextSize > 8) { currentTextSize--; textSize(currentTextSize); tw = textWidth(label); }
+    let lines = label.split('\n');
+    let currentTextSize = defaultSize;
+    let widestLineWidth = 0;
+
+    // Function to calculate widest line width for a given text size
+    const calculateMaxWidth = (size) => {
+        textSize(size);
+        let maxW = 0;
+        for (const line of lines) {
+            maxW = max(maxW, textWidth(line));
+        }
+        return maxW;
+    };
+
+    // Find the initial widest line width
+    widestLineWidth = calculateMaxWidth(currentTextSize);
+
+    // Reduce text size until the widest line fits
+    while (widestLineWidth > button.w - BUTTON_TEXT_PADDING && currentTextSize > 8) {
+        currentTextSize--;
+        widestLineWidth = calculateMaxWidth(currentTextSize); // Recalculate width with new size
+    }
+
+    // Set final text size for drawing
+    textSize(currentTextSize);
+    textAlign(CENTER, CENTER); // Ensure alignment is correct
+
+    let numLines = lines.length;
+    let lineHeight = currentTextSize * 1.2; // Use line height based on adjusted text size
+    let totalTextHeight = numLines * lineHeight;
+    // Calculate startY to center the block of text vertically within the button
+    let startY = button.y + button.h / 2 - totalTextHeight / 2 + lineHeight / 2; // Start drawing from the vertical center of the first line
+
     // Draw shadow first
     fill(shadowColor);
-    text(label, button.x + button.w / 2 + 1, button.y + button.h / 2 + 1);
+    for (let i = 0; i < numLines; i++) {
+        text(lines[i], button.x + button.w / 2 + 1, startY + i * lineHeight + 1);
+    }
+
     // Draw text
     fill(textColor);
-    text(label, button.x + button.w / 2, button.y + button.h / 2);
+    for (let i = 0; i < numLines; i++) {
+        text(lines[i], button.x + button.w / 2, startY + i * lineHeight);
+    }
 }
 
 
@@ -678,7 +717,7 @@ function displaySkillTree() {
     let tfTextSize = isMobile ? 20 : 26;
     drawShadowedText(`Tech Fragments: ${techFragments}`, width / 2, height * 0.12 + (isMobile ? 50 : 65), tfTextSize, uiHighlightColor, uiTextShadowColor);
 
-    let buttonTextSize = isMobile ? 11 : 13;
+    let buttonTextSize = isMobile ? 11 : 13; // Base size for skill buttons
     textAlign(CENTER, CENTER);
     selectedSkillButton = null; // Reset selected button description check
 
@@ -912,7 +951,7 @@ function drawUpgradeShopButton(button) {
     let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
     let isDisabled = (isUpgradeButton && (isMaxed || !canAfford));
     let isSpecial = (button.id === 'nextLevel');
-    let defaultTextSize = isUpgradeButton ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17);
+    let defaultTextSize = isUpgradeButton ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17); // Base text size
 
     // Adjust text color for disabled state
     if (isMaxed) baseTextColor = color(0, 0, 60);
@@ -1593,7 +1632,9 @@ function displayHUD() {
     // Helper to draw HUD text with icon and shadow
     const drawHudItem = (icon, value, valueColor) => {
         // Ensure enough space before drawing next item, especially on mobile
-        if (currentX + textWidth(icon) + spacing*0.3 + textWidth(value) + spacing*0.5 > width - sideMargin) {
+        textSize(textSizeVal); // Set size for accurate width measurement
+        let itemWidth = textWidth(icon) + spacing*0.3 + textWidth(value) + spacing*1.5;
+        if (currentX + itemWidth > width - sideMargin) {
             return; // Prevent drawing off-screen
         }
         drawShadowedText(icon, currentX, firstRowY, textSizeVal, uiTextColor, uiTextShadowColor);
@@ -1674,11 +1715,12 @@ function displayHUD() {
 
 function displayInfoMessage() {
     let msgSize = isMobile ? 15 : 18;
+    textSize(msgSize); // Set text size *before* measuring width
     textAlign(CENTER, CENTER);
     let msgWidth = textWidth(infoMessage); // Use textSize set by drawShadowedText
     let padding = BUTTON_TEXT_PADDING;
     let boxW = msgWidth + padding * 2;
-    let boxH = msgSize + padding;
+    let boxH = msgSize + padding; // Height based on single line text size
     let boxX = width / 2 - boxW / 2;
     boxX = constrain(boxX, padding, width - boxW - padding);
     let boxY = height - boxH - (isMobile? 15 : 30);
@@ -2770,7 +2812,7 @@ class BackgroundStructure {
         this.lights = [];
         this.initializeStructure();
 
-        this.lightTimer = floor(random(120)); // Offset light blinking cycle
+        this.lightTimer = floor(random(180)); // Longer cycle for variety
     }
 
     initializeStructure() {
@@ -2868,7 +2910,7 @@ class BackgroundStructure {
     update() {
         this.pos.add(this.vel);
         this.rotation += this.rotationSpeed;
-        this.lightTimer = (this.lightTimer + 1) % 180; // Longer cycle for variety
+        this.lightTimer = (this.lightTimer + 1) % 180; // Update light timer cycle
     }
 
     draw() {
