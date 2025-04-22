@@ -87,6 +87,7 @@
 // - ADDED: Mission Objective system replacing point-based level progression. Removed shield gain from points.
 // - INCREASED: Potion and Power-up spawn rates and max power-ups allowed.
 // - ADDED: Objective tracking for Potion and Power-up collection. Example objectives added.
+// - MODIFIED: Level 1 Objective target changed from 8 to 5.
 // --------------------------
 
 
@@ -151,7 +152,7 @@ const MAX_LEVEL = 15; // Max level remains 15
 const OBJECTIVE_TYPE = { DESTROY_BASIC: 'destroy_basic', DESTROY_KAMIKAZE: 'destroy_kamikaze', DESTROY_TURRET: 'destroy_turret', DESTROY_SWARMER: 'destroy_swarmer', DESTROY_LASER: 'destroy_laser', DESTROY_ASTEROIDS: 'destroy_asteroids', SURVIVE_TIME: 'survive_time', SCORE_REACH: 'score_reach', COLLECT_POTIONS: 'collect_potions', COLLECT_POWERUPS: 'collect_powerups', PROTECT_FRIENDLY: 'protect_friendly' };
 const LEVEL_OBJECTIVES = [
     null, // Level 0 doesn't exist
-    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 8, description: "Destroy Basic Fighters" },
+    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 5, description: "Destroy Basic Fighters" }, // MODIFIED: Target changed from 8 to 5
     { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 20, description: "Destroy Asteroids" },
     { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 5, description: "Destroy Kamikaze Ships"},
     { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 60 * 60, description: "Survive for 60 seconds" }, // 60 seconds * 60 fps
@@ -430,7 +431,7 @@ function runGameLogic() {
     for (let pu of powerUps) pu.draw();
 
 
-    handleCollisions(); // Handle collisions AFTER updates and BEFORE objective checks
+    handleCollisions(); // Handle collisions BEFORE pickup checks
     handlePotions(); // Handle potion pickup logic AFTER collisions
     handlePowerUps(); // Handle power-up pickup logic AFTER collisions
 
@@ -1617,4 +1618,3 @@ class LaserEnemy extends BaseEnemy {
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 // Nebula Class
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
-
