@@ -1,4 +1,3 @@
-
 // --- Features ---
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
