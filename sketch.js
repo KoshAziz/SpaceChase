@@ -1,4 +1,3 @@
-
 // --- Features ---
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
@@ -24,8 +23,8 @@
 //   - Swarmer Enemy: Small, appears in groups, simple movement. // MODIFIED: Appearance more 'evil'
 //   - Laser Enemy: Charges and fires a continuous beam. // NEW ENEMY TYPE
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING
-// - Visual Nebula Clouds in background // ENHANCED (Subtlety)
-// - Background Structures (Stations/Derelicts) // NEW FEATURE
+// - Visual Nebula Clouds in background // ENHANCED (Subtlety, Noise-based shapes)
+// - Background Structures (Stations/Derelicts) // ENHANCED (Visual Detail, Variety, Lighting)
 // - Pause Functionality (Press ESC during gameplay to Pause/Unpause, Tap Pause Button to access Skills/Settings) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay. Pause Menu added.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 Objective // MODIFIED
@@ -212,8 +211,9 @@ let baseAsteroidSpawnRate; let currentAsteroidSpawnRate; let baseEnemySpawnRate 
 let basicEnemyWeight = 10; let kamikazeWeight = 0; let turretWeight = 0; let swarmerWeight = 0; let laserWeight = 0; // Added laserWeight
 let powerUpSpawnRate = 0.005; // INCREASED (was 0.0015)
 let potionSpawnRate = 0.004; // INCREASED (was 0.001)
-let nebulaSpawnRate = 0.0005; let shootingStarSpawnRate = 0.001;
-let structureSpawnRate = 0.0002; // NEW: Rate for background structures
+let nebulaSpawnRate = 0.0003; // Slightly reduced nebula spawn
+let shootingStarSpawnRate = 0.001;
+let structureSpawnRate = 0.00015; // Slightly reduced structure spawn
 let initialAsteroids = 5; let minAsteroidSize = 15; /* SHIELD_POINTS_THRESHOLD REMOVED */ const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0; const MAX_ENEMY_SPEED_BASIC = 3.0; const MAX_ENEMY_SPEED_KAMIKAZE = 5.5; const MAX_ENEMY_SPEED_SWARMER = 2.5; const MAX_ENEMY_SPEED_LASER = 0.7; // Max speed for Laser enemy
 
@@ -2641,45 +2641,201 @@ class LaserEnemy extends BaseEnemy {
 
 
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
-// Nebula Class
-class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
 
-// NEW: BackgroundStructure Class
+// ENHANCED Nebula Class
+class Nebula {
+    constructor() {
+        this.noiseSeedX = random(1000);
+        this.noiseSeedY = random(1000);
+        this.noiseScale = random(0.003, 0.008); // Controls the 'waviness'
+        this.numLayers = floor(random(3, 6));
+        this.rotation = random(TWO_PI);
+        this.rotationSpeed = random(-0.0004, 0.0004);
+        this.baseAlpha = random(2, 6); // More subtle
+        this.overallWidth = random(width * 0.8, width * 1.8);
+        this.overallHeight = random(height * 0.5, height * 1.0);
+
+        if (random(1) < 0.5) {
+            this.pos = createVector(random(-this.overallWidth * 0.3, -this.overallWidth * 0.1), random(height));
+            this.vel = createVector(random(0.05, 0.15), random(-0.015, 0.015));
+        } else {
+            this.pos = createVector(random(width + this.overallWidth * 0.1, width + this.overallWidth * 0.3), random(height));
+            this.vel = createVector(random(-0.15, -0.05), random(-0.015, 0.015));
+        }
+
+        let h1 = random(240, 330);
+        let h2 = (h1 + random(-60, 60) + 360) % 360;
+        this.color1 = color(h1, random(40, 70), random(10, 35)); // Darker base colors
+        this.color2 = color(h2, random(40, 70), random(10, 35));
+        this.timeOffset = random(1000); // For noise animation
+    }
+    update() {
+        this.pos.add(this.vel);
+        this.rotation += this.rotationSpeed;
+    }
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.rotation);
+        noStroke();
+
+        let currentTime = frameCount * 0.005 + this.timeOffset; // Slow animation over time
+
+        for (let layer = 0; layer < this.numLayers; layer++) {
+            let layerAlpha = this.baseAlpha * map(layer, 0, this.numLayers - 1, 1.0, 0.4);
+            let layerScale = map(layer, 0, this.numLayers - 1, 1.0, 0.6);
+            let layerColor = lerpColor(this.color1, this.color2, layer / (this.numLayers - 1));
+            fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha);
+
+            beginShape();
+            let points = 80; // Number of vertices for the shape
+            for (let i = 0; i < points; i++) {
+                let angle = map(i, 0, points, 0, TWO_PI);
+                // Use noise to displace the radius
+                let xOff = map(cos(angle), -1, 1, 0, 5 * layerScale);
+                let yOff = map(sin(angle), -1, 1, 0, 5 * layerScale);
+                let noiseFactor = noise(this.noiseSeedX + xOff * this.noiseScale, this.noiseSeedY + yOff * this.noiseScale, currentTime + layer * 0.1);
+                let radius = (this.overallWidth / 2) * layerScale * (0.6 + noiseFactor * 0.8); // Base radius + noise displacement
+                let x = cos(angle) * radius;
+                let y = sin(angle) * radius * (this.overallHeight / this.overallWidth); // Maintain aspect ratio
+                vertex(x, y);
+            }
+            endShape(CLOSE);
+        }
+        pop();
+    }
+     isOffscreen() {
+        // Use a simpler bounding box check for offscreen calculation
+        let margin = max(this.overallWidth, this.overallHeight) * 1.1; // Generous margin based on dimensions
+        return (this.pos.x + margin < 0 || this.pos.x - margin > width || this.pos.y + margin < 0 || this.pos.y - margin > height);
+    }
+}
+
+
+// ENHANCED BackgroundStructure Class
 class BackgroundStructure {
     constructor() {
         this.type = random() < 0.4 ? 'Derelict' : 'Station'; // More stations
         this.size = random(width * 0.15, width * 0.4);
         this.rotation = random(TWO_PI);
         this.rotationSpeed = random(-0.0005, 0.0005);
+        this.noiseSeed = random(1000); // For detail generation
 
         // Spawn off-screen
         let edge = floor(random(4));
         if (edge === 0) this.pos = createVector(random(width), -this.size); // Top
-        else if (edge === 1) this.pos = createVector(width + this.size, random(height)); // Right
+        else if (edge === 1) this.pos = createVector(width + this.size, random(height * 0.8)); // Right (avoid bottom corner)
         else if (edge === 2) this.pos = createVector(random(width), height + this.size); // Bottom
-        else this.pos = createVector(-this.size, random(height)); // Left
+        else this.pos = createVector(-this.size, random(height * 0.8)); // Left (avoid bottom corner)
 
         // Very slow drift towards opposite side
-        let targetPos = createVector(width - this.pos.x, height - this.pos.y);
+        let targetPos = createVector(width - this.pos.x + random(-width*0.2, width*0.2), height - this.pos.y + random(-height*0.2, height*0.2)); // Add some randomness to target
         this.vel = p5.Vector.sub(targetPos, this.pos).normalize().mult(random(0.05, 0.15));
 
-        // Colors
-        if (this.type === 'Station') {
-            this.baseColor = color(0, 0, 65); // Grey
-            this.detailColor = color(0, 0, 80);
-            this.lightColor = color(180, 50, 100); // Cyan lights
-        } else { // Derelict
-            this.baseColor = color(30, 30, 40); // Brownish grey
-            this.detailColor = color(20, 40, 25); // Darker rust/brown
-            this.lightColor = color(0, 80, 60); // Dim red lights
-        }
+        // Colors & Details based on type
+        this.components = [];
+        this.lights = [];
+        this.initializeStructure();
+
         this.lightTimer = floor(random(120)); // Offset light blinking cycle
+    }
+
+    initializeStructure() {
+        this.components = [];
+        this.lights = [];
+        let s = this.size;
+        let baseColor, detailColor, lightColor;
+
+        if (this.type === 'Station') {
+            baseColor = color(0, 0, 65);
+            detailColor = color(0, 0, 80);
+            lightColor = color(180, 50, 100); // Cyan lights
+            let highlightColor = color(0, 0, 85);
+
+            // Central Core (maybe cylindrical)
+            this.components.push({ type: 'rect', x: 0, y: 0, w: s * 0.4, h: s * 0.6, c: baseColor, rot: 0 });
+            this.components.push({ type: 'rect', x: 0, y: 0, w: s * 0.6, h: s * 0.4, c: baseColor, rot: 0 }); // Cross shape
+            this.components.push({ type: 'ellipse', x: 0, y: 0, w: s * 0.3, h: s * 0.3, c: detailColor });
+
+            // Arms/Modules
+            let numArms = floor(random(3, 7));
+            for (let i = 0; i < numArms; i++) {
+                let armAngle = TWO_PI / numArms * i + random(-PI/8, PI/8);
+                let armLength = s * random(0.4, 0.8);
+                let armWidth = s * random(0.1, 0.2);
+                let armX = cos(armAngle) * (s * 0.3 + armLength / 2);
+                let armY = sin(armAngle) * (s * 0.3 + armLength / 2);
+                this.components.push({ type: 'rect', x: armX, y: armY, w: armWidth, h: armLength, c: baseColor, rot: armAngle });
+                // Add details to arms
+                let detailX = cos(armAngle) * (s * 0.3 + armLength * 0.8);
+                let detailY = sin(armAngle) * (s * 0.3 + armLength * 0.8);
+                this.components.push({ type: 'ellipse', x: detailX, y: detailY, w: armWidth * 1.1, h: armWidth * 1.1, c: detailColor });
+                // Antenna
+                if (random() < 0.3) {
+                    let antLength = s * random(0.1, 0.3);
+                    let antX1 = detailX;
+                    let antY1 = detailY;
+                    let antX2 = detailX + cos(armAngle + random(-PI/6, PI/6)) * antLength;
+                    let antY2 = detailY + sin(armAngle + random(-PI/6, PI/6)) * antLength;
+                    this.components.push({ type: 'line', x1: antX1, y1: antY1, x2: antX2, y2: antY2, c: highlightColor, weight: 1 });
+                }
+                // Lights on arms
+                if(random() < 0.6){
+                     this.lights.push({x: detailX + random(-armWidth/2, armWidth/2), y: detailY + random(-armWidth/2, armWidth/2), size: s*0.015, color: lightColor, blinkRate: random(30,90)});
+                }
+            }
+             // Central Lights
+            for(let i=0; i< 5; i++){
+                 this.lights.push({x: random(-s*0.1, s*0.1), y: random(-s*0.1, s*0.1), size: s*0.01, color: color(60, 70, 100), blinkRate: 120}); // Yellowish central lights
+            }
+
+
+        } else { // Derelict
+            baseColor = color(30, 30, 40);
+            detailColor = color(20, 40, 25);
+            lightColor = color(0, 80, 60); // Dim red lights
+            let damageColor = color(15, 60, 30); // Rust/damage color
+
+            // Base structure (more fragmented)
+            let numFragments = floor(random(5, 12));
+            for (let i = 0; i < numFragments; i++) {
+                let fragAngle = random(TWO_PI);
+                let fragDist = random(s * 0.1, s * 0.5);
+                let fragX = cos(fragAngle) * fragDist;
+                let fragY = sin(fragAngle) * fragDist;
+                let fragW = s * random(0.1, 0.4);
+                let fragH = s * random(0.1, 0.4);
+                let fragRot = random(TWO_PI);
+                this.components.push({ type: 'rect', x: fragX, y: fragY, w: fragW, h: fragH, c: baseColor, rot: fragRot });
+                 // Add damage/detail panels
+                if(random() < 0.5){
+                    this.components.push({ type: 'rect', x: fragX + random(-fragW/3, fragW/3), y: fragY + random(-fragH/3, fragH/3), w: fragW * random(0.3, 0.7), h: fragH * random(0.3, 0.7), c: detailColor, rot: fragRot + random(-0.2, 0.2) });
+                }
+                 if(random() < 0.3){
+                     this.components.push({ type: 'rect', x: fragX + random(-fragW/3, fragW/3), y: fragY + random(-fragH/3, fragH/3), w: fragW * random(0.1, 0.4), h: fragH * random(0.1, 0.4), c: damageColor, rot: fragRot + random(-0.3, 0.3) });
+                }
+                // Add broken lines/antennas
+                if (random() < 0.2) {
+                     let lineAngle = random(TWO_PI);
+                     let lineLength = s * random(0.05, 0.2);
+                     let lineX1 = fragX;
+                     let lineY1 = fragY;
+                     let lineX2 = fragX + cos(lineAngle) * lineLength;
+                     let lineY2 = fragY + sin(lineAngle) * lineLength;
+                     this.components.push({type: 'line', x1: lineX1, y1: lineY1, x2: lineX2, y2: lineY2, c: detailColor, weight: random(0.5, 1.5) });
+                }
+                 // Add sparse, flickering lights
+                if(random() < 0.15){
+                     this.lights.push({x: fragX, y: fragY, size: s*0.01, color: lightColor, blinkRate: random(80, 150), flicker: true});
+                }
+            }
+        }
     }
 
     update() {
         this.pos.add(this.vel);
         this.rotation += this.rotationSpeed;
-        this.lightTimer = (this.lightTimer + 1) % 120; // Cycle timer for lights
+        this.lightTimer = (this.lightTimer + 1) % 180; // Longer cycle for variety
     }
 
     draw() {
@@ -2687,40 +2843,54 @@ class BackgroundStructure {
         translate(this.pos.x, this.pos.y);
         rotate(this.rotation);
         rectMode(CENTER);
-        noStroke();
+        ellipseMode(CENTER);
 
-        // Simple structure shapes
-        let s = this.size;
-        fill(this.baseColor);
-        if (this.type === 'Station') {
-            // Central hub
-            ellipse(0, 0, s * 0.6, s * 0.6);
-            // Arms
-            for (let i = 0; i < 4; i++) {
-                push(); // Isolate rotation for each arm
-                rotate(PI / 2 * i);
-                rect(0, s * 0.5, s * 0.15, s * 0.5); // Main arm
-                fill(this.detailColor);
-                rect(0, s * 0.7, s * 0.2, s * 0.1); // End piece
-                // Blinking Lights
-                let lightOn = (this.lightTimer > 30 * i && this.lightTimer < 30 * i + 15); // Staggered blink
-                 if (lightOn) {
-                    fill(this.lightColor);
-                    ellipse(0, s * 0.75, s * 0.05, s * 0.05);
-                 }
-                pop(); // Restore rotation
+        // Draw components
+        for (let comp of this.components) {
+            push();
+            translate(comp.x, comp.y);
+            rotate(comp.rot || 0); // Apply individual rotation if specified
+            fill(comp.c);
+            if (comp.type === 'rect') {
+                 noStroke();
+                rect(0, 0, comp.w, comp.h);
+                // Simple shading
+                fill(0, 0, 0, 15);
+                rect(0 + comp.w * 0.1, 0 + comp.h * 0.1, comp.w * 0.8, comp.h * 0.8);
+                 fill(0, 0, 100, 10);
+                rect(0 - comp.w * 0.1, 0 - comp.h * 0.1, comp.w * 0.8, comp.h * 0.8);
+            } else if (comp.type === 'ellipse') {
+                 noStroke();
+                ellipse(0, 0, comp.w, comp.h);
+                // Simple shading
+                fill(0, 0, 0, 15);
+                ellipse(comp.w * 0.05, comp.h * 0.05, comp.w * 0.8, comp.h * 0.8);
+                 fill(0, 0, 100, 10);
+                ellipse(-comp.w * 0.05, -comp.h * 0.05, comp.w * 0.8, comp.h * 0.8);
+            } else if (comp.type === 'line') {
+                stroke(comp.c);
+                strokeWeight(comp.weight || 1);
+                line(0, 0, comp.x2 - comp.x1, comp.y2 - comp.y1); // Draw relative to component center
+                noStroke();
             }
-        } else { // Derelict
-             // Broken hull shape
-             rect(0, 0, s, s * 0.4);
-             fill(this.detailColor);
-             rect(s * 0.3, s * 0.1, s * 0.3, s * 0.25);
-             rect(-s * 0.2, -s * 0.15, s * 0.4, s * 0.1);
-             // Dim blinking light
-             if (this.lightTimer < 5 || (this.lightTimer > 60 && this.lightTimer < 65) ) { // Slow blink
-                fill(this.lightColor);
-                ellipse(s * 0.4, -s * 0.1, s * 0.04, s * 0.04);
-             }
+            pop();
+        }
+
+        // Draw lights
+        noStroke();
+        for(let light of this.lights){
+            let blinkPhase = (this.lightTimer % light.blinkRate) / light.blinkRate; // 0 to 1
+            let lightOn = false;
+            if(light.flicker){
+                lightOn = blinkPhase < 0.3 && random() < 0.7; // Flicker effect
+            } else {
+                lightOn = blinkPhase < 0.5; // Standard blink
+            }
+
+            if(lightOn){
+                fill(light.color);
+                ellipse(light.x, light.y, light.size, light.size);
+            }
         }
 
         pop();
