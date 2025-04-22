@@ -1,84 +1,8 @@
 
 // --- Features ---
-// - Start Menu with Options (Start Game, Skills, Leaderboard, Settings, Cosmetics) // ADDED: Leaderboard
-// - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
-// - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
-// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // REDUCED COSTS // MODIFIED: Resets on Game Over
-// - Mobile Gameplay Settings Button (Positioned top-left within HUD) // MODIFIED: Position fixed
-// - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
-// - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
-// - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
-// - Score/Power-up based Shield System (No longer from points) // ADDED: Passive Shield Regen from Skill Tree
-// - Selectable Ship Colors (Red, Blue, Green, Orange, Purple, Cyan, Yellow) with corresponding details // ENHANCED: More Options
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole, structures) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail, Rings, Moons, Cloud Rotation, Lightning)
-// - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
-// - Asteroid Splitting
-// - Player Lives (Max 3 + Skill Tree Bonus) // MODIFIED
-// - Simple Explosion Particles (Asteroid destruction + Bullet impact) // ENHANCED (Variety, Count)
-// - Score-based Difficulty Increase - Uses Levels + Time (Scales to Lvl 15) // Difficulty still scales per level number
-// - Health Potions: Spawn randomly, restore 1 life on pickup (up to max). // ENHANCED (Visuals) // INCREASED SPAWN RATE // ADDED OBJECTIVE TRACKING
-// - Multiple Enemy Types:
-//   - Basic Enemy: Shoots straight. // MODIFIED: Appearance more 'evil'
-//   - Kamikaze Enemy: Homes in on player, explodes on impact. // MODIFIED: Appearance more 'evil'
-//   - Turret Enemy: Slow/Stationary, fires patterns (bursts/spirals). // MODIFIED: Appearance more 'evil'
-//   - Swarmer Enemy: Small, appears in groups, simple movement. // MODIFIED: Appearance more 'evil'
-//   - Laser Enemy: Charges and fires a continuous beam. // NEW ENEMY TYPE
-// - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING // **REDUCED EMP SPAWN CHANCE**
-// - Visual Nebula Clouds in background // ENHANCED (Subtlety, Noise-based shapes)
-// - Background Structures (Stations/Derelicts) // ENHANCED (Visual Detail, Variety, Lighting)
-// - Pause Functionality (Press ESC during gameplay to Pause/Unpause, Tap Pause Button to access Skills/Settings) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay. Pause Menu added.
-// - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
-// - Win Screen after completing Level 15 Objective // MODIFIED
-// - Monospace Font & UI Color Palette // NEW UI FEATURE (ENHANCED)
-// - Styled HUD with Icons & Panel // MODIFIED (Added Objective Display, Enhanced Style) // REMOVED: Laser level
-// - Styled Buttons & Menu Panels // ENHANCED (UI Style, Text Fit Logic Added)
-// - Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE (Enhanced Visuals)
-// - New Weapon Systems & Upgrades: Homing Missiles, Rear Gun // NEW FEATURE // REMOVED: Laser Beam
-// - Drone Companion Class & Logic // NEW FEATURE
-// - Mobile UI Buttons for Missiles // NEW FEATURE (Enhanced Style) // REMOVED: Laser button
-// - Leaderboard System (Save/Load High Scores with Names) // NEW FEATURE
-// - Name Input Screen for High Scores // NEW FEATURE
-// - Implemented separate Points (score) and Money (upgrades) systems.
-// - Implemented Tech Fragments currency for Skill Tree. // MODIFIED: Resets on Game Over
-// - Asteroids only spawn from Top, Left, and Right edges.
-// - Ship movement changed to free keyboard control (Arrows/WASD).
-// - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
-// - MODIFIED: Background gradient color changes smoothly over time.
-// - Added brief invulnerability after losing a life.
-// - MODIFIED: Touch Controls: Tap/Hold *anywhere* on screen (non-UI button) to move towards touch AND shoot continuously.
-// - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
-// - Max shield charges reduced to 1.
-// - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
-// - Added occasional background planet, subtle galaxy, black hole effect. // ADDED: Structures
-// - Increased Ship Speed (MaxSpeed modified by Skill Tree) // MODIFIED
-// - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
-// - Added screen shake on life loss. // MODIFIED (Duration ~1s)
-// - Changed Title Color Order & Darkened Red
-// - Removed automatic cheapest upgrade on level up.
-// - Added simple sideways drift to enemy movement (Basic Enemy).
-// - Added sound effect placeholder comments.
-// - Added upgrade purchase particle effect.
-// - Added distinct shop background.
-// - REMOVED Auto-Fire Upgrade functionality entirely.
-// - ENHANCED: Added particles for shield hits and pickup collection.
-// - ENHANCED: Changed enemy bullet appearance.
-// - MODIFIED: Reduced ship thrust value (base).
-// - MODIFIED: Reduced black hole visual jitter ("slower" appearance).
-// - MODIFIED: Reduced size of engine thrust visual effect.
-// - MODIFIED: Adjusted UI element sizes and layout for mobile friendliness.
-// - MODIFIED: Moved Rate/Spread level text to bottom-right corner.
-// - REFACTORED: Enemy logic into separate classes extending BaseEnemy.
-// - MODIFIED: Title position raised slightly
-// - MODIFIED: HUD text size increased.
-// - MODIFIED: Ship thrust increased for non-mobile (computer) controls.
-// - REPLACED: Start Screen with Start Menu.
-// - ADDED: Visual Settings Options (Screen Shake, Background FX, Particle Density).
-// - ADDED: Previous Game State Tracking for Settings Menu return.
-// - MODIFIED: Screen Shake duration decreased to ~1 second.
-// - MODIFIED: Spaceship drawing logic uses simplified color selection.
-// - MODIFIED: Added text fitting logic to button drawing functions. // ENHANCED for Multi-line
-// - REFACTORED: Cosmetics system simplified to direct color/style selection.
-// - UI Enhancement: Refined color palette, button styles, panel appearance, text shadows, HUD layout for improved aesthetics and readability.
+// ... (previous features) ...
+// - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // MODIFIED
+// ... (rest of features) ...
 // --------------------------
 
 
@@ -90,7 +14,7 @@ let potions = []; let enemyShips = []; let enemyBullets = []; let powerUps = [];
 let backgroundStructures = [];
 
 // Game State Management
-const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, LEADERBOARD_SCREEN: 8, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7, ENTER_NAME: 9 }; // Enum order matters, added SKILL_TREE, LEADERBOARD, ENTER_NAME
+const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, LEADERBOARD_SCREEN: 8, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7, ENTER_NAME: 9 }; // Enum order matters
 let gameState = GAME_STATE.START_MENU;
 let previousGameState = GAME_STATE.START_MENU; // Tracks where Settings/Cosmetics should return to
 let skillTreeReturnState = GAME_STATE.START_MENU; // Tracks where Skill Tree should return to (Start Menu or Pause)
@@ -147,7 +71,7 @@ let selectedPauseMenuItem = 0;
 let leaderboardData = []; // Array of { name: "...", score: ... }
 const MAX_LEADERBOARD_ENTRIES = 10;
 const MIN_LEADERBOARD_SCORE = 100; // Minimum score to qualify for leaderboard
-let playerNameInput = ""; // Current input for name entry
+let nameInputElement = null; // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEW: HTML Input Element
 let currentPlayerScore = 0; // Score of the player needing name entry
 let leaderboardButtons = []; // Just a back button
 
@@ -619,21 +543,50 @@ function displayEnterNameScreen() {
     drawShadowedText("High Score!", width / 2, height * 0.3, isMobile ? 48 : 56, uiHighlightColor, uiTextShadowColor);
     drawShadowedText(`Score: ${currentPlayerScore}`, width / 2, height * 0.3 + (isMobile ? 55 : 70), isMobile ? 24 : 30, uiTextColor, uiTextShadowColor);
 
-    // Display Name Input
     let inputY = height * 0.55;
     let promptText = "Enter Name (max 15):";
     let promptSize = isMobile ? 18 : 22;
-    drawShadowedText(promptText, width / 2, inputY - promptSize * 1.5, promptSize, uiTextColor, uiTextShadowColor);
+    drawShadowedText(promptText, width / 2, inputY - promptSize * 2.5, promptSize, uiTextColor, uiTextShadowColor);
 
-    let nameTextSize = isMobile ? 24 : 30;
-    let nameDisplay = playerNameInput + (frameCount % 60 < 30 ? "_" : ""); // Blinking cursor
-    drawShadowedText(nameDisplay, width / 2, inputY, nameTextSize, uiTextColor, uiTextShadowColor);
+    // Manage the HTML input element
+    if (!nameInputElement) {
+        let nameTextSize = isMobile ? 24 : 30;
+        let inputWidth = isMobile ? width * 0.6 : width * 0.4;
+        let inputHeight = nameTextSize * 1.5;
+        let inputX = width / 2 - inputWidth / 2;
+        let inputElementY = inputY - inputHeight / 1.5; // Adjust Y position
+
+        nameInputElement = createInput('');
+        nameInputElement.position(inputX, inputElementY);
+        nameInputElement.size(inputWidth, inputHeight);
+        nameInputElement.attribute('maxlength', '15');
+        nameInputElement.attribute('placeholder', 'Pilot Name'); // Add placeholder
+        // Basic styling (adjust colors as needed)
+        nameInputElement.style('font-family', 'monospace');
+        nameInputElement.style('font-size', `${nameTextSize}px`);
+        nameInputElement.style('color', uiTextColor.toString()); // Use UI text color
+        nameInputElement.style('background-color', 'rgba(10, 20, 30, 0.6)'); // Darker semi-transparent bg
+        nameInputElement.style('border', '1.5px solid ' + uiBorderColor.toString());
+        nameInputElement.style('border-radius', '5px');
+        nameInputElement.style('text-align', 'center');
+        nameInputElement.style('outline', 'none');
+        nameInputElement.style('padding', '5px');
+
+        // Attempt to focus to bring up keyboard on mobile
+        // Use setTimeout to help with timing issues on mobile focus triggering
+        setTimeout(() => {
+             if (nameInputElement && nameInputElement.elt) {
+                 nameInputElement.elt.focus();
+                 // On some mobile devices, explicitly triggering click might also help
+                 // nameInputElement.elt.click();
+             }
+        }, 150); // Slightly longer delay might help sometimes
+    }
 
     let instructionY = height * 0.7;
     let instructionSize = isMobile ? 14 : 16;
     drawShadowedText("Type Name, Press ENTER to Submit", width / 2, instructionY, instructionSize, uiTextColor, uiTextShadowColor);
-    drawShadowedText("(Use Backspace to Delete)", width / 2, instructionY + instructionSize * 1.5, instructionSize * 0.9, uiTextColor, uiTextShadowColor);
-    cursor(ARROW); // Keep cursor visible for typing
+    cursor(ARROW); // Keep cursor visible
 }
 function displayLeaderboardScreen() {
     drawPanelBackground(width * (isMobile ? 0.9 : 0.8), height * 0.8);
@@ -756,7 +709,10 @@ function runGameLogic() {
             currentPlayerScore = points; // Store score for potential leaderboard entry
             if (checkHighScore(currentPlayerScore)) {
                 gameState = GAME_STATE.ENTER_NAME; // Go to name entry screen
-                playerNameInput = ""; // Clear previous input
+                if (nameInputElement) { // Clean up just in case
+                    nameInputElement.remove();
+                    nameInputElement = null;
+                }
             } else {
                 gameState = GAME_STATE.WIN_SCREEN; // Go directly to win screen
             }
@@ -795,7 +751,13 @@ function runGameLogic() {
             else { enemyShips.push(new BasicEnemy()); }
         }
         if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-        if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); if (type === POWERUP_TYPES.EMP_BURST) { type = floor(random(NUM_POWERUP_TYPES)); } powerUps.push(new PowerUp(type)); }
+        if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); if (type === POWERUP_TYPES.EMP_BURST && random() > 0.2) { // Reduced EMP chance
+             type = floor(random(NUM_POWERUP_TYPES)); // Reroll if EMP and failed the chance check
+          }
+          if (type !== POWERUP_TYPES.EMP_BURST || (type === POWERUP_TYPES.EMP_BURST && random() <= 0.2)) { // Final check before spawning
+            powerUps.push(new PowerUp(type));
+           }
+        }
         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
         if (settingBackgroundEffectsEnabled && random(1) < structureSpawnRate && backgroundStructures.length < maxStructuresAllowed) { backgroundStructures.push(new BackgroundStructure()); }
     }
@@ -855,7 +817,10 @@ function handleCollisions() {
                      saveGameData(); // Save reset skills & potential leaderboard trigger
                      if(checkHighScore(currentPlayerScore)) { // Check if eligible for leaderboard
                          gameState = GAME_STATE.ENTER_NAME;
-                         playerNameInput = ""; // Clear input field
+                         if (nameInputElement) { // Clean up just in case
+                            nameInputElement.remove();
+                            nameInputElement = null;
+                         }
                      } else {
                          gameState = GAME_STATE.GAME_OVER; // Proceed to standard game over
                      }
@@ -959,7 +924,11 @@ function displayComboText() {
 function resetGame() {
     ship = new Ship();
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
-    points = 0; currentPlayerScore = 0; playerNameInput = "";
+    points = 0; currentPlayerScore = 0;
+    if (nameInputElement) { // Remove input element if exists
+        nameInputElement.remove();
+        nameInputElement = null;
+    }
     money = BASE_STARTING_MONEY + skillTreeData.STARTING_MONEY * SKILL_DEFINITIONS.STARTING_MONEY.effectPerLevel;
     lives = BASE_MAX_LIVES + skillTreeData.MAX_LIVES * SKILL_DEFINITIONS.MAX_LIVES.effectPerLevel;
     currentLevel = 1;
@@ -979,6 +948,11 @@ function startNextLevel() {
     levelTransitionFlash = 15; spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
 function selectMenuItem(index) {
+    // Clean up name input if moving away from Enter Name state (though unlikely path)
+    if (nameInputElement) {
+        nameInputElement.remove();
+        nameInputElement = null;
+    }
     switch (menuItems[index]) {
         case 'Start Game': startGame(); break;
         case 'Skills': previousGameState = GAME_STATE.START_MENU; skillTreeReturnState = GAME_STATE.START_MENU; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break;
@@ -987,33 +961,46 @@ function selectMenuItem(index) {
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
-function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } }
+function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } }
 function selectCosmeticsItemAction(index) {
-    let setting = cosmeticsMenuItems[index]; if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; return; }
+    let setting = cosmeticsMenuItems[index]; if (setting.id === 'back') { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; return; }
     if (setting.type === 'cycle') { if (setting.id === 'shipColor') { let currentIndex = SHIP_COLORS.indexOf(selectedShipColor); let nextIndex = (currentIndex + 1) % SHIP_COLORS.length; selectedShipColor = SHIP_COLORS[nextIndex]; if (ship) { ship.setColors(); } } else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; } }
 }
 function handleSkillTreeButtonPress(skillId) {
-    if (skillId === 'back') { gameState = skillTreeReturnState; if (gameState === GAME_STATE.PLAYING) { setupPauseMenuButtons(); isPaused = true; cursor(ARROW); } else { selectedMenuItem = 0; cursor(ARROW); } return; }
+    if (skillId === 'back') { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = skillTreeReturnState; if (gameState === GAME_STATE.PLAYING) { setupPauseMenuButtons(); isPaused = true; cursor(ARROW); } else { selectedMenuItem = 0; cursor(ARROW); } return; }
     let skillDef = SKILL_DEFINITIONS[skillId]; let currentLevel = skillTreeData[skillId];
     if (currentLevel < skillDef.maxLevel) { let cost = skillDef.costPerLevel[currentLevel]; if (techFragments >= cost) { techFragments -= cost; skillTreeData[skillId]++; saveGameData(); let button = skillTreeButtons.find(b => b.id === skillId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 25, color(120, 70, 100), 5, 1.5, 0.7); } } else { infoMessage = "Not enough Tech Fragments!"; infoMessageTimeout = 60; } } else { infoMessage = "Skill Maxed Out!"; infoMessageTimeout = 60; }
 }
 function handlePauseMenuSelection(index) {
-     let selection = pauseMenuItems[index]; switch(selection) { case 'Resume': isPaused = false; cursor(); break; case 'Skills': skillTreeReturnState = GAME_STATE.PLAYING; previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; case 'Settings': previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break; case 'Main Menu': isPaused = false; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; cursor(ARROW); break; }
+     let selection = pauseMenuItems[index]; switch(selection) { case 'Resume': isPaused = false; cursor(); break; case 'Skills': skillTreeReturnState = GAME_STATE.PLAYING; previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; case 'Settings': previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break; case 'Main Menu': if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} isPaused = false; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; cursor(ARROW); break; }
 }
 
 // --- Input Handling ---
 function mousePressed() {
+    // If the name input exists and the click is outside it, potentially remove focus
+    if (nameInputElement && nameInputElement.elt && document.activeElement === nameInputElement.elt) {
+        // Check if click is outside the input element bounds
+        let inp = nameInputElement.elt;
+        let rect = inp.getBoundingClientRect();
+        if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
+            // inp.blur(); // Optionally remove focus, but might hide keyboard undesirably
+        } else {
+             // Click was inside input, let it proceed
+             return;
+        }
+    }
+
     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused) { let setBtn = mobileSettingsButton; if (mouseX > setBtn.x && mouseX < setBtn.x + setBtn.size && mouseY > setBtn.y && mouseY < setBtn.y + setBtn.size) { isPaused = true; selectedPauseMenuItem = 0; setupPauseMenuButtons(); isMobileShooting = false; cursor(ARROW); return; } }
     switch (gameState) {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
         case GAME_STATE.SKILL_TREE: for (let button of skillTreeButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleSkillTreeButtonPress(button.id); return; } } break;
-        case GAME_STATE.LEADERBOARD_SCREEN: for (let button of leaderboardButtons) { if (button.id === 'back' && mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; return; } } break;
+        case GAME_STATE.LEADERBOARD_SCREEN: for (let button of leaderboardButtons) { if (button.id === 'back' && mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; return; } } break;
         case GAME_STATE.PLAYING: if (isPaused) { for (let i = 0; i < pauseMenuButtons.length; i++) { let button = pauseMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedPauseMenuItem = i; handlePauseMenuSelection(i); return; } } } break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
-        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
-        case GAME_STATE.ENTER_NAME: /* No buttons here, handled by keyboard */ break;
+        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
+        case GAME_STATE.ENTER_NAME: /* Input handles its own clicks/focus */ break;
     }
 }
 function mouseReleased() { /* No action needed */ }
@@ -1021,27 +1008,37 @@ function mouseReleased() { /* No action needed */ }
 function keyPressed() {
     if (gameState === GAME_STATE.ENTER_NAME) {
         if (keyCode === ENTER || keyCode === RETURN) {
-            addScoreToLeaderboard(playerNameInput, currentPlayerScore);
-            gameState = GAME_STATE.LEADERBOARD_SCREEN; // Show leaderboard after submitting
-            setupLeaderboardButtons();
-            playerNameInput = ""; // Clear for next time
-            currentPlayerScore = 0;
-        } else if (keyCode === BACKSPACE) {
-            playerNameInput = playerNameInput.substring(0, playerNameInput.length - 1);
-        } else if (keyCode >= 32 && keyCode <= 126) { // Printable characters
-            if (playerNameInput.length < 15) { // Max name length
-                playerNameInput += key;
+            if (nameInputElement) {
+                let name = nameInputElement.value();
+                addScoreToLeaderboard(name, currentPlayerScore);
+                nameInputElement.remove(); // Remove the input element
+                nameInputElement = null;
+                gameState = GAME_STATE.LEADERBOARD_SCREEN; // Show leaderboard after submitting
+                setupLeaderboardButtons();
+                currentPlayerScore = 0;
             }
         }
-        return; // Prevent other key handlers in this state
+        // Let the input field handle other keys (Backspace, letters, etc.)
+        // We return true to allow default behavior for the input field.
+        return true; // Allow default behavior like typing in the input
     }
 
+    // --- Existing key handling for other states ---
     if (keyCode === ESCAPE) {
+         if (nameInputElement) { // If ESC is pressed while input is active, go back to menu
+             nameInputElement.remove();
+             nameInputElement = null;
+             gameState = GAME_STATE.START_MENU; // Or previous state? Start menu is safer.
+             selectedMenuItem = 0;
+             cursor(ARROW);
+             return false; // Prevent default ESC behavior if any
+         }
         if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) { selectedPauseMenuItem = 0; setupPauseMenuButtons(); cursor(ARROW); isMobileShooting = false; } else { cursor(); } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); }
         else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); }
         else if (gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.LEADERBOARD_SCREEN) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; isPaused = false; cursor(ARROW); } // Allow ESC from shop/leaderboard
         else if (gameState === GAME_STATE.SKILL_TREE) { handleSkillTreeButtonPress('back'); }
+        return false; // Prevent default ESC behavior
     }
     else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } }
     else if (gameState === GAME_STATE.PLAYING && isPaused) { if (keyCode === UP_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem - 1 + pauseMenuItems.length) % pauseMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem + 1) % pauseMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { handlePauseMenuSelection(selectedPauseMenuItem); } }
@@ -1049,14 +1046,35 @@ function keyPressed() {
     else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
-    else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } } // Allow Enter to go back too
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
+    else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } } // Allow Enter to go back too
+
+    // Prevent default browser action for arrow keys, space, enter etc. if not in name entry
+    if ([UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW, 32, ENTER, RETURN].includes(keyCode)) {
+      return false;
+    }
 }
 
 function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
 
 function touchStarted() {
     if (!isMobile || touches.length === 0) return false;
+
+    // If the name input exists and the touch is outside it, potentially remove focus
+     if (nameInputElement && nameInputElement.elt && document.activeElement === nameInputElement.elt) {
+        let inp = nameInputElement.elt;
+        let rect = inp.getBoundingClientRect();
+        // Convert touch coords if needed (p5 uses canvas coords, rect uses viewport)
+        let touchX = touches[0].x;
+        let touchY = touches[0].y;
+        if (touchX < rect.left || touchX > rect.right || touchY < rect.top || touchY > rect.bottom) {
+             // inp.blur(); // Optional: remove focus, might hide keyboard
+        } else {
+              // Touch was inside input, let it proceed
+             return false; // Prevent p5 from processing touch further
+        }
+     }
+
     let uiButtonTapped = false;
     for (let i = 0; i < touches.length; i++) {
         let touchX = touches[i].x; let touchY = touches[i].y;
@@ -1067,7 +1085,7 @@ function touchStarted() {
         } else if (gameState === GAME_STATE.PLAYING && isPaused) {
             for (let j = 0; j < pauseMenuButtons.length; j++) { let button = pauseMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedPauseMenuItem = j; handlePauseMenuSelection(j); uiButtonTapped = true; break; } } if (uiButtonTapped) break;
         } else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { // Handle Leaderboard back button tap
-             for (let button of leaderboardButtons) { if (button.id === 'back' && touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; break; } } if (uiButtonTapped) break;
+             for (let button of leaderboardButtons) { if (button.id === 'back' && touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; break; } } if (uiButtonTapped) break;
         }
     }
     let touchX = touches[0].x; let touchY = touches[0].y;
@@ -1076,7 +1094,7 @@ function touchStarted() {
         else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
-        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
+        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { /* Back button handled above */ }
     }
@@ -1096,6 +1114,17 @@ function windowResized() {
     if (gameState === GAME_STATE.PLAYING && isPaused) setupPauseMenuButtons();
     if (gameState === GAME_STATE.LEADERBOARD_SCREEN) setupLeaderboardButtons();
     calculateMobileActionButtonsPosition();
+    // Reposition input element if it exists and window is resized
+     if (nameInputElement) {
+        let nameTextSize = isMobile ? 24 : 30;
+        let inputWidth = isMobile ? width * 0.6 : width * 0.4;
+        let inputHeight = nameTextSize * 1.5;
+        let inputX = width / 2 - inputWidth / 2;
+        let inputY = height * 0.55; // Recalculate base Y
+        let inputElementY = inputY - inputHeight / 1.5;
+        nameInputElement.position(inputX, inputElementY);
+        nameInputElement.size(inputWidth, inputHeight);
+    }
 }
 
 
@@ -1103,7 +1132,7 @@ function windowResized() {
 // ========================== CLASS DEFINITIONS =========================
 // ======================================================================
 
-// Ship Class (No changes needed for leaderboard)
+// Ship Class (No changes needed)
 class Ship {
     constructor() {
         this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
@@ -1154,7 +1183,7 @@ class Ship {
     fireRearGun(dmgMult) { if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle, dmgMult)); } } }
     draw() { let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0; let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5); if (drawShip) { push(); translate(this.pos.x, this.pos.y + this.hoverOffset); if (this.invincibilityTimer > 0) { let invincibilityAlpha = map(sin(frameCount * 0.5), -1, 1, 40, 90); let invincibilityColor = color(0, 0, 100); fill(invincibilityColor, invincibilityAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); strokeWeight(3); stroke(invincibilityColor, invincibilityAlpha + 20); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); } else if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); } else if (this.shieldCharges > 0) { let shieldFraction = min(1, this.shieldCharges / MAX_SHIELD_CHARGES); let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90) * shieldFraction; let shieldBrightness = 100 * shieldFraction; let shieldRadius = this.shieldVisualRadius * 2.1 * shieldFraction; let shieldHue = 180; fill(shieldHue, 80, shieldBrightness, shieldAlpha); noStroke(); ellipse(0, 0, shieldRadius, shieldRadius); strokeWeight(2); stroke(shieldHue, 90, shieldBrightness, shieldAlpha + 35); noFill(); ellipse(0, 0, shieldRadius, shieldRadius); } let enginePulseFactor = 1.0 + this.vel.mag() * 0.04; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke(); let engineY = this.size * 0.6; for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(this.engineColor2), saturation(this.engineColor2), engineBrightness, alpha); ellipse(0, engineY, i * 0.8, i * 1.2); } fill(hue(this.engineColor1), saturation(this.engineColor1), 100); ellipse(0, engineY, engineSize * 0.5, engineSize * 1.0); let s = this.size; let bodyW = s * 0.5; let wingW = s * (this.shapeState === 0 ? 1.1 : 1.3); let wingH = s * 0.8; let noseL = s * 0.8; strokeWeight(1.5); stroke(this.detailColor1); fill(this.wingColor); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -bodyW * 0.7, s * 0.6); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, bodyW * 0.7, s * 0.6); fill(hue(this.wingColor), saturation(this.wingColor), brightness(this.wingColor)*1.2); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -wingW * 0.4, s * 0.0); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, wingW * 0.4, s * 0.0); fill(this.bodyColor); quad( 0, -noseL, bodyW / 2, s * 0.1, 0, s * 0.4, -bodyW / 2, s * 0.1 ); if (this.shapeState === 1) { fill(this.wingColor); triangle(0, s*0.4, -s*0.2, s*0.7, s*0.2, s*0.7); quad(-bodyW*0.7, s*0.6, -bodyW*0.6, s*0.8, -wingW*0.4, s*0.7, -wingW/2, s*0.5); quad( bodyW*0.7, s*0.6,  bodyW*0.6, s*0.8,  wingW*0.4, s*0.7,  wingW/2, s*0.5); } let cockpitY = -s * 0.15; let cockpitW = s * 0.4; let cockpitH = s * 0.6; fill(this.cockpitColor); ellipse(0, cockpitY, cockpitW, cockpitH); noStroke(); fill(0, 0, 100, 50); ellipse(0, cockpitY - cockpitH * 0.1, cockpitW * 0.7, cockpitH * 0.4); strokeWeight(1); stroke(this.detailColor2); line(0, -noseL * 0.8, 0, cockpitY + cockpitH / 2); line(-bodyW / 2, s * 0.1, -wingW * 0.4, s * 0.0); line( bodyW / 2, s * 0.1, wingW * 0.4, s * 0.0); if (this.shapeState === 1) { line(-bodyW*0.3, s*0.0, -bodyW*0.4, s*0.3); line( bodyW*0.3, s*0.0,  bodyW*0.4, s*0.3); } pop(); } }
 }
-// Projectile Classes (No changes needed for leaderboard)
+// Projectile Classes (No changes needed)
 class Bullet { constructor(x, y, angle = 0, damageMultiplier = 1) { this.pos = createVector(x, y); this.speed = 17; this.size = 5.5; this.style = selectedBulletStyle; this.damage = BASE_BULLET_DAMAGE * damageMultiplier; this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 0; if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; } else if (this.style === 'White') { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } else if (this.style === 'Plasma') { this.hue = 150; this.sat = 100; this.bri = 90; this.trailLength = 6; } else if (this.style === 'Fire') { this.hue = 15; this.sat = 100; this.bri = 100; this.trailLength = 8; } else if (this.style === 'Ice') { this.hue = 200; this.sat = 30; this.bri = 100; this.trailLength = 4; } else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } let baseAngle = -PI / 2; if (angle === PI) { baseAngle = PI/2; angle=0;} this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); this.trail = []; } update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style === 'Rainbow') { this.hue = (this.hue + 5) % 360; } else if (this.style === 'Fire') { this.hue = (this.hue + random(-2, 2) + 360) % 360; this.hue = lerp(this.hue, 15, 0.1); } } draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); } isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 class HomingMissile { constructor(x, y, damage, color) { this.pos = createVector(x, y); this.vel = createVector(random(-1, 1), -random(4, 6)); this.acc = createVector(0, 0); this.maxSpeed = 8 + (ship?.homingMissilesLevel || 1) * 0.5; this.maxForce = 0.25 + (ship?.homingMissilesLevel || 1) * 0.05; this.size = 10; this.damage = damage; this.color = color; this.target = null; this.lifespan = 180; this.trail = []; this.trailLength = 8; } findTarget() { let closestDist = Infinity; let closestEnemy = null; for (let enemy of enemyShips) { let d = p5.Vector.dist(this.pos, enemy.pos); if (d < closestDist && d < width / 2) { closestDist = d; closestEnemy = enemy; } } this.target = closestEnemy; } seek() { if (!this.target || !enemyShips.includes(this.target)) { this.findTarget(); if (!this.target) { this.acc.mult(0); this.lifespan -= 2; return; } } let desired = p5.Vector.sub(this.target.pos, this.pos); desired.setMag(this.maxSpeed); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.maxForce); this.acc.add(steer); } update() { this.lifespan--; if (frameCount % 5 === 0 || !this.target) { this.findTarget(); } this.seek(); this.vel.add(this.acc); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); this.acc.mult(0); this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); noFill(); beginShape(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 60, 0); stroke(hue(this.color), saturation(this.color) * 0.8, brightness(this.color) * 0.9, alpha); strokeWeight(map(i, 0, this.trail.length - 1, this.size * 0.6, 1)); let relativePos = p5.Vector.sub(trailPos, this.pos); relativePos.rotate(-(this.vel.heading() + PI / 2)); vertex(relativePos.x, relativePos.y); } endShape(); fill(this.color); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.4, this.size * 0.5, this.size * 0.4, this.size * 0.5); fill(hue(this.color), saturation(this.color) * 0.7, brightness(this.color) * 0.7); rect(-this.size * 0.4, this.size * 0.2, this.size * 0.2, this.size * 0.5); rect(this.size * 0.2, this.size * 0.2, this.size * 0.2, this.size * 0.5); pop(); } isOffscreen() { let margin = this.size * 2; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } hits(target) { let d = dist(this.pos.x, this.pos.y, target.pos.x, target.pos.y); return d < this.size / 2 + target.size / 2; } }
 // Other Classes (Asteroid, Particle, Star, ShootingStar, HealthPotion, PowerUp, Drone, Enemy*, Nebula, BackgroundStructure) remain unchanged.
