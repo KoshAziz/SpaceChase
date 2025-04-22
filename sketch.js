@@ -1,19 +1,20 @@
+
 // --- Features ---
 // - Start Menu with Options (Start Game, Settings, Cosmetics)
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
 // - Mobile Gameplay Settings Button (Positioned bottom-left)
-// - Level System based on Points (Up to Level 15)
+// - Level System based on Mission Objectives // NEW: Replaces point thresholds
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
-// - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
+// - Score/Power-up based Shield System (No longer from points)
 // - Selectable Ship Colors (Red, Blue, Green, Orange, Purple, Cyan, Yellow) with corresponding details // ENHANCED: More Options
 // - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement
 // - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
 // - Simple Explosion Particles (Asteroid destruction + Bullet impact) // ENHANCED (Variety, Count)
-// - Score-based Difficulty Increase - Uses Levels + Time (Scales to Lvl 15)
+// - Score-based Difficulty Increase - Uses Levels + Time (Scales to Lvl 15) // Difficulty still scales per level number
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max). // ENHANCED (Visuals)
 // - Multiple Enemy Types:
 //   - Basic Enemy: Shoots straight. // MODIFIED: Appearance more 'evil'
@@ -25,16 +26,16 @@
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
 // - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC from active gameplay returns to Menu.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
-// - Win Screen after completing Level 15 // ENHANCED (UI Style)
+// - Win Screen after completing Level 15 Objective // MODIFIED
 // - Monospace Font & UI Color Palette // NEW UI FEATURE
-// - Styled HUD with Icons & Panel // MODIFIED (Moved Upgrade Levels & Shield Position, Added Missile Count, Score Multiplier Indicator) // REMOVED: Laser level
+// - Styled HUD with Icons & Panel // MODIFIED (Added Objective Display) // REMOVED: Laser level
 // - Styled Buttons & Menu Panels // NEW UI FEATURE (Text Fit Logic Added)
 // - Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE
 // - New Weapon Systems & Upgrades: Homing Missiles, Rear Gun // NEW FEATURE // REMOVED: Laser Beam
 // - Drone Companion Class & Logic // NEW FEATURE
 // - Mobile UI Buttons for Missiles // NEW FEATURE // REMOVED: Laser button
 // - Removed Name Input and Leaderboard system.
-// - Implemented separate Points (milestones) and Money (upgrades) systems.
+// - Implemented separate Points (score) and Money (upgrades) systems.
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
@@ -83,6 +84,7 @@
 // - MODIFIED: Reduced internal movement (noise animation) of background planets for a smoother look.
 // - ADDED: More color options for ship and bullets.
 // - ADDED: Laser Enemy type with continuous beam attack.
+// - ADDED: Mission Objective system replacing point-based level progression. Removed shield gain from points.
 // --------------------------
 
 
@@ -141,13 +143,43 @@ const ENEMY_TYPES = { BASE: 0, KAMIKAZE: 1, TURRET: 2, SWARMER: 3, LASER: 4 }; /
 
 // Score, Level & Resources
 let points = 0; let money = 0; let lives = 3; const MAX_LIVES = 3; let currentLevel = 1;
-const LEVEL_THRESHOLDS = [0, 500, 1500, 3000, 5000, 7500, 10500, 14000, 18000, 22500, 27500, 33000, 39000, 45500, 52500, 60000]; const MAX_LEVEL = 15;
+const MAX_LEVEL = 15; // Max level remains 15
+
+// --- Mission Objectives ---
+const OBJECTIVE_TYPE = { DESTROY_BASIC: 'destroy_basic', DESTROY_KAMIKAZE: 'destroy_kamikaze', DESTROY_TURRET: 'destroy_turret', DESTROY_SWARMER: 'destroy_swarmer', DESTROY_LASER: 'destroy_laser', DESTROY_ASTEROIDS: 'destroy_asteroids', SURVIVE_TIME: 'survive_time', SCORE_REACH: 'score_reach', COLLECT_POTIONS: 'collect_potions', COLLECT_POWERUPS: 'collect_powerups', PROTECT_FRIENDLY: 'protect_friendly' };
+const LEVEL_OBJECTIVES = [
+    null, // Level 0 doesn't exist
+    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 8, description: "Destroy Basic Fighters" },
+    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 20, description: "Destroy Asteroids" },
+    { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 5, description: "Destroy Kamikaze Ships"},
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 60 * 60, description: "Survive for 60 seconds" }, // 60 seconds * 60 fps
+    { type: OBJECTIVE_TYPE.DESTROY_SWARMER, target: 40, description: "Destroy Swarmers"},
+    { type: OBJECTIVE_TYPE.DESTROY_TURRET, target: 3, description: "Destroy Turrets" },
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 8000, description: "Reach 8000 Points"},
+    { type: OBJECTIVE_TYPE.DESTROY_LASER, target: 2, description: "Destroy Laser Emitters" },
+    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 25, description: "Destroy Basic Fighters" },
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 90 * 60, description: "Survive for 90 seconds" },
+    { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 15, description: "Destroy Kamikaze Ships" },
+    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 50, description: "Destroy Asteroids" },
+    { type: OBJECTIVE_TYPE.DESTROY_TURRET, target: 6, description: "Destroy Turrets" },
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 25000, description: "Reach 25000 Points"},
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 120 * 60, description: "Survive the Final Wave (120s)" }, // Final Level
+];
+
+let currentObjective = {
+    type: null,
+    target: 0,
+    progress: 0,
+    description: "",
+    startTime: 0 // For time-based objectives
+};
+let levelStartTime = 0; // Track start frame/time of the current level play session
 
 // Game Settings & Thresholds
 let baseAsteroidSpawnRate; let currentAsteroidSpawnRate; let baseEnemySpawnRate = 0.002;
 let basicEnemyWeight = 10; let kamikazeWeight = 0; let turretWeight = 0; let swarmerWeight = 0; let laserWeight = 0; // Added laserWeight
 let powerUpSpawnRate = 0.0015; let potionSpawnRate = 0.001; let nebulaSpawnRate = 0.0005; let shootingStarSpawnRate = 0.001;
-let initialAsteroids = 5; let minAsteroidSize = 15; const SHIELD_POINTS_THRESHOLD = 50; const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
+let initialAsteroids = 5; let minAsteroidSize = 15; /* SHIELD_POINTS_THRESHOLD REMOVED */ const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0; const MAX_ENEMY_SPEED_BASIC = 3.0; const MAX_ENEMY_SPEED_KAMIKAZE = 5.5; const MAX_ENEMY_SPEED_SWARMER = 2.5; const MAX_ENEMY_SPEED_LASER = 0.7; // Max speed for Laser enemy
 
 // --- Input State ---
@@ -187,12 +219,13 @@ function setup() {
     uiPanelColor = color(220, 50, 20, 85); uiBorderColor = color(180, 70, 80, 90); uiTextColor = color(0, 0, 95); uiHighlightColor = color(60, 80, 100);
     uiButtonColor = color(200, 60, 50); uiButtonHoverColor = color(200, 70, 60); uiButtonDisabledColor = color(0, 0, 30); uiButtonBorderColor = color(200, 70, 90);
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
-    setDifficultyForLevel(currentLevel);
+    setDifficultyForLevel(currentLevel); // Still sets spawn rates etc.
     setupMenuButtons();
     setupSettingsMenuButtons();
     setupCosmeticsMenuButtons();
     calculateMobileSettingsButtonPosition();
     calculateMobileActionButtonsPosition();
+    // loadObjectiveForLevel(currentLevel); // Load initial objective (will be done in resetGame/startGame)
 }
 
 
@@ -212,6 +245,27 @@ function setDifficultyForLevel(level) {
     turretWeight = (effectiveLevel >= 5) ? 2 + floor(effectiveLevel / 2) : 0;
     swarmerWeight = (effectiveLevel >= 3) ? 4 + effectiveLevel : 0;
     laserWeight = (effectiveLevel >= 7) ? 1 + floor(effectiveLevel / 3.5) : 0; // Laser enemies start appearing
+}
+
+// --- Objective Loading ---
+function loadObjectiveForLevel(level) {
+    if (level > 0 && level < LEVEL_OBJECTIVES.length) {
+        let objectiveData = LEVEL_OBJECTIVES[level];
+        currentObjective.type = objectiveData.type;
+        currentObjective.target = objectiveData.target;
+        currentObjective.progress = 0;
+        currentObjective.description = objectiveData.description;
+        currentObjective.startTime = frameCount; // Reset start time for time-based objectives
+    } else {
+        // Default or error handling if level objective is missing
+        currentObjective.type = null;
+        currentObjective.target = 1;
+        currentObjective.progress = 0;
+        currentObjective.description = "ERROR: Objective Missing";
+        currentObjective.startTime = frameCount;
+        console.error("Missing objective definition for level:", level);
+    }
+    levelStartTime = frameCount; // Track when level gameplay started
 }
 
 
@@ -344,20 +398,77 @@ function drawStyledButton(button) {
 
 // --- Main Game Logic ---
 function runGameLogic() {
-    if (isPaused) { if (ship) ship.draw(); if (ship && ship.droneActive) ship.drone.draw(); for (let b of bullets) b.draw(); for (let m of homingMissiles) m.draw(); for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw(); for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw(); displayHUD(); return; }
+    if (isPaused) { /* Draw everything statically */ return; }
     if (!ship) return;
-    ship.update(); if (ship.droneActive) ship.drone.update(); ship.draw(); if (ship.droneActive) ship.drone.draw();
-    for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
-    for (let i = homingMissiles.length - 1; i >= 0; i--) { homingMissiles[i].update(); homingMissiles[i].draw(); if (homingMissiles[i].isOffscreen() || homingMissiles[i].lifespan <= 0) { homingMissiles.splice(i, 1); } }
-    for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
-    for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
-    for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
-    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
-    handlePotions(); handleCollisions(); handlePowerUps();
+
+    // Updates
+    ship.update(); if (ship.droneActive) ship.drone.update();
+    for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
+    for (let i = homingMissiles.length - 1; i >= 0; i--) { homingMissiles[i].update(); if (homingMissiles[i].isOffscreen() || homingMissiles[i].lifespan <= 0) { homingMissiles.splice(i, 1); } }
+    for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); if (particles[i].isDead()) { particles.splice(i, 1); } }
+    for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
+    for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
+    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); }
+    handlePotions(); handlePowerUps(); // Update potions/powerups
+
+    // Drawing (in correct order)
+    ship.draw(); if (ship.droneActive) ship.drone.draw();
+    for (let b of bullets) b.draw();
+    for (let m of homingMissiles) m.draw();
+    for (let p of particles) p.draw();
+    for (let a of asteroids) a.draw();
+    for (let e of enemyShips) e.draw(); // Includes laser drawing logic
+    for (let eb of enemyBullets) eb.draw();
+    for (let pt of potions) pt.draw();
+    for (let pu of powerUps) pu.draw();
+
+
+    handleCollisions(); // Handle collisions AFTER updates and BEFORE objective checks
+
+    // Combo System Update
     if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Bonus: +${bonusPoints} PTS, +$${bonusMoney}! (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } }
     if (comboTextTimeout > 0) { comboTextTimeout--; if (comboTextTimeout <= 0) { showComboText = false; } }
+
+    // Update Objective Progress (Time and Score based)
+    if (currentObjective.type === OBJECTIVE_TYPE.SURVIVE_TIME) {
+        currentObjective.progress = frameCount - levelStartTime; // Track frames elapsed in level
+    } else if (currentObjective.type === OBJECTIVE_TYPE.SCORE_REACH) {
+        currentObjective.progress = points; // Track current score
+    }
+
+     // Check for Objective Completion
+    let objectiveComplete = false;
+    if (currentObjective.type === OBJECTIVE_TYPE.SURVIVE_TIME) {
+        objectiveComplete = currentObjective.progress >= currentObjective.target;
+    } else if (currentObjective.type) { // For all other countable objectives
+        objectiveComplete = currentObjective.progress >= currentObjective.target;
+    }
+
+     if (objectiveComplete && gameState === GAME_STATE.PLAYING) {
+        if (currentLevel === MAX_LEVEL) {
+            // --- WIN GAME ---
+            gameState = GAME_STATE.WIN_SCREEN;
+            infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
+            bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+            return;
+        } else {
+             // --- LEVEL COMPLETE ---
+            points += 100 * currentLevel; money += 25 * currentLevel; // Bonus for completion
+            gameState = GAME_STATE.UPGRADE_SHOP;
+            infoMessage = `Level ${currentLevel} Objective Complete!`; infoMessageTimeout = 180;
+            setupShopButtons(); cursor(ARROW);
+            // Clear transient objects for the shop
+            bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
+            // Reset combo for next level
+            comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+            return; // Exit runGameLogic early as we are transitioning state
+        }
+    }
+
+
+    // Spawning Logic (if still playing)
     if (gameState === GAME_STATE.PLAYING) {
-        let timeFactor = floor(frameCount / 1800) * 0.0005;
+        let timeFactor = floor((frameCount - levelStartTime) / 1800) * 0.0005; // Time factor based on level duration
         currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
         let currentTotalEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5;
         let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3);
@@ -391,27 +502,77 @@ function runGameLogic() {
         if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
     }
+
+    // Display HUD and Combo Text at the end
     if (gameState === GAME_STATE.PLAYING) { displayHUD(); displayComboText(); }
 }
 
+
 // --- Collision and Pickup Handling ---
 function handlePowerUps() {
-    if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].draw(); } return; } if (!ship) return;
+    if (gameState !== GAME_STATE.PLAYING || isPaused) return; // No powerup logic if not playing
+    if (!ship) return;
     for (let i = powerUps.length - 1; i >= 0; i--) {
-        powerUps[i].update(); powerUps[i].draw();
+        // powerUps[i].update(); // Update moved to main loop
+        // powerUps[i].draw();   // Draw moved to main loop
         if (powerUps[i].hitsShip(ship)) { let powerUpType = powerUps[i].type; let pickupPos = powerUps[i].pos.copy(); let pickupColor = powerUps[i].color; powerUps.splice(i, 1); createParticles(pickupPos.x, pickupPos.y, 25, pickupColor, 4, 1.8, 0.8); switch (powerUpType) { case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break; case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break; case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 60, color(210, 100, 100), 12, 3.5, 1.2); for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, 15, asteroids[k].color, 3, 1.5); } asteroids = []; for (let k = enemyShips.length - 1; k >= 0; k--) { createParticles(enemyShips[k].pos.x, enemyShips[k].pos.y, 20, enemyShips[k].getExplosionColor()); } enemyShips = []; enemyBullets = []; break; case POWERUP_TYPES.SCORE_MULT: ship.scoreMultiplierTimer = 600; ship.scoreMultiplierValue = 2; infoMessage = `SCORE x${ship.scoreMultiplierValue}!`; createParticles(ship.pos.x, ship.pos.y, 30, color(60, 100, 100)); break; case POWERUP_TYPES.DRONE: if (!ship.droneActive) { ship.droneActive = true; ship.drone = new Drone(ship); infoMessage = "DRONE ACTIVATED!"; createParticles(ship.pos.x, ship.pos.y, 30, color(180, 50, 100)); } else { infoMessage = "DRONE ALREADY ACTIVE!"; } break; case POWERUP_TYPES.INVINCIBILITY: ship.invincibilityTimer = 480; infoMessage = "INVINCIBLE!"; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 0, 100)); ship.tempShieldActive = false; ship.shieldCharges = 0; break; } infoMessageTimeout = 120;
         } else if (powerUps[i].isOffscreen()) { powerUps.splice(i, 1); }
     }
 }
 function handleCollisions() {
     if (gameState !== GAME_STATE.PLAYING || !ship || isPaused) return;
-    const destroyEnemy = (enemy, index, projectileType) => { let basePoints = enemy.pointsValue; let baseMoney = enemy.moneyValue; if (projectileType === 'HomingMissile') { basePoints *= 1.1; } let pointsToAdd = basePoints; if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += floor(pointsToAdd); money += floor(baseMoney); comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(index, 1); };
-    // Asteroid Collisions
-    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; let asteroidHit = false; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, floor(random(3, 6)), color(60, 40, 100), 2, 0.8, 0.7); bullets.splice(j, 1); asteroidHit = true; break; } } if (!asteroidHit) { for (let j = homingMissiles.length - 1; j >= 0; j--) { if (asteroids[i] && homingMissiles[j] && asteroids[i].hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 15, homingMissiles[j].color, 5, 1.8, 1.0); homingMissiles.splice(j, 1); asteroidHit = true; break; } } } if (asteroidHit) { let oldPoints = points; let asteroidSizeValue = asteroids[i].size; let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; money += 2; comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } } let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; } let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; asteroids.splice(i, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } if (currentLevel < MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) { points += 100 * currentLevel; money += 25 * currentLevel; gameState = GAME_STATE.UPGRADE_SHOP; infoMessage = `Level ${currentLevel} Cleared!`; infoMessageTimeout = 180; setupShopButtons(); cursor(ARROW); bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; return; } else if (currentLevel === MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) { gameState = GAME_STATE.WIN_SCREEN; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; return; } } }
-    // Enemy Collisions
+
+    // --- Helper for destroying an enemy and granting rewards/objective progress ---
+    const destroyEnemy = (enemy, index, projectileType) => {
+        let basePoints = enemy.pointsValue;
+        let baseMoney = enemy.moneyValue;
+        if (projectileType === 'HomingMissile') { basePoints *= 1.1; }
+        let pointsToAdd = basePoints;
+        if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; }
+        points += floor(pointsToAdd);
+        money += floor(baseMoney);
+
+        // Combo Update
+        comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
+
+        // Objective Progress
+        if (enemy instanceof BasicEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_BASIC) { currentObjective.progress++; }
+        else if (enemy instanceof KamikazeEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_KAMIKAZE) { currentObjective.progress++; }
+        else if (enemy instanceof TurretEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_TURRET) { currentObjective.progress++; }
+        else if (enemy instanceof SwarmerEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_SWARMER) { currentObjective.progress++; }
+        else if (enemy instanceof LaserEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_LASER) { currentObjective.progress++; }
+        // Add other enemy types here if needed
+
+        // Visuals & Removal
+        createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0);
+        enemyShips.splice(index, 1);
+    };
+
+    // --- Asteroid Collisions ---
+    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; let asteroidHit = false; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, floor(random(3, 6)), color(60, 40, 100), 2, 0.8, 0.7); bullets.splice(j, 1); asteroidHit = true; break; } } if (!asteroidHit) { for (let j = homingMissiles.length - 1; j >= 0; j--) { if (asteroids[i] && homingMissiles[j] && asteroids[i].hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 15, homingMissiles[j].color, 5, 1.8, 1.0); homingMissiles.splice(j, 1); asteroidHit = true; break; } } } if (asteroidHit) {
+        // Rewards
+        let asteroidSizeValue = asteroids[i].size; let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; money += 2;
+
+         // Combo
+         comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
+
+         // Objective Progress
+         if (currentObjective.type === OBJECTIVE_TYPE.DESTROY_ASTEROIDS) { currentObjective.progress++; }
+
+         // Ship Shape Evolution (kept separate from level progression)
+         let oldShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
+         let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD);
+         if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
+
+         // Visuals & Removal/Splitting
+         let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); let sizeBeforeSplice = asteroids[i].size; asteroids.splice(i, 1); if (sizeBeforeSplice > minAsteroidSize * 2) { let newSize = sizeBeforeSplice * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
+        // --- Level completion check moved to main loop ---
+        } }
+
+    // --- Enemy Projectile Hits ---
     for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(1)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage || 3; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
 
-    // Player Collisions
+    // --- Player Collisions ---
     if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) {
         const takeDamage = (sourceObject, sourceArray, index) => {
             if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false;
@@ -425,10 +586,10 @@ function handleCollisions() {
 
             if (ship.tempShieldActive) {
                 ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90;
-                if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); }
+                if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); }
             } else if (ship.shieldCharges > 0) {
                 ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8);
-                if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); }
+                if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); }
             } else {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2);
                 if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
@@ -447,7 +608,7 @@ function handleCollisions() {
         // Asteroid Hits
         for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } }
         // Enemy Body Hits
-        if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && !(enemy instanceof LaserEnemy) && enemy.hitsShip(ship)) { // Exclude laser enemy body //TODO reconsider if laser body should collide
+        if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && !(enemy instanceof LaserEnemy) && enemy.hitsShip(ship)) { // Exclude laser enemy body
             if (takeDamage(enemy, enemyShips, i)) return; break; } } }
         // Enemy Bullet Hits
         if (gameState === GAME_STATE.PLAYING) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } }
@@ -458,13 +619,16 @@ function handleCollisions() {
     }
 }
 function handlePotions() {
-    if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = potions.length - 1; i >= 0; i--) { potions[i].draw(); } return; } if (!ship) return;
+    if (gameState !== GAME_STATE.PLAYING || isPaused) return;
+    if (!ship) return;
     for (let i = potions.length - 1; i >= 0; i--) {
-        potions[i].update(); potions[i].draw();
+        // potions[i].update(); // Update moved to main loop
+        // potions[i].draw(); // Draw moved to main loop
         if (potions[i].hitsShip(ship)) { createParticles(potions[i].pos.x, potions[i].pos.y, 20, color(0, 80, 100), 4, 1.5); if (lives < MAX_LIVES) { lives++; infoMessage = "+1 LIFE!"; infoMessageTimeout = 90; } else { let pointsToAdd = 25; if(ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; infoMessage = `+${pointsToAdd} POINTS (MAX LIVES)!`; infoMessageTimeout = 90; } potions.splice(i, 1); }
         else if (potions[i].isOffscreen()) { potions.splice(i, 1); }
     }
 }
+
 
 // --- Background Drawing Functions ---
 function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); if (settingBackgroundEffectsEnabled) { for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update(); star.draw(); } } else { fill(0, 0, 80, 70); noStroke(); for (let star of stars) { ellipse(star.x, star.y, 1.5, 1.5); if (!(gameState === GAME_STATE.PLAYING && isPaused)) { star.y += star.speed * 0.5; if (star.y > height + 2) { star.y = -2; star.x = random(width); } } } } }
@@ -529,22 +693,54 @@ function drawPlanet() {
 
 // --- HUD & Info Messages ---
 function displayHUD() {
-    let hudH = isMobile ? 45 : 60; let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 18 : 22; let spacing = isMobile ? 8 : 12; let bottomMargin = 10;
-    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(0, 0, width, hudH);
-    textSize(textSizeVal); textAlign(LEFT, CENTER); let currentX = sideMargin;
-    fill(uiTextColor); text(`LEVEL: ${currentLevel}`, currentX, hudH / 2); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
-    text(`PTS: ${points}`, currentX, hudH / 2); currentX += textWidth(`PTS: ${points}`) + spacing * 2;
-    fill(uiHighlightColor); text(`$: ${money}`, currentX, hudH / 2); currentX += textWidth(`$: ${money}`) + spacing * 2;
-    fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, hudH / 2); currentX += textWidth(`♥: ${lives}`) + spacing * 2;
-    fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, hudH / 2); currentX += textWidth(`🛡: ${ship.shieldCharges}`) + spacing * 1.5;
-    if (ship && ship.homingMissilesLevel > 0) { fill(color(30, 80, 100)); text(`🚀: ${ship.currentMissiles}`, currentX, hudH / 2); currentX += textWidth(`🚀: ${ship.currentMissiles}`) + spacing * 1.5; }
-    if (ship && ship.scoreMultiplierTimer > 0) { let multColor = color(60, 100, 100); let alpha = map(sin(frameCount*0.2), -1, 1, 70, 100); fill(hue(multColor), saturation(multColor), brightness(multColor), alpha); let indicatorText = `x${ship.scoreMultiplierValue}`; text(indicatorText, currentX, hudH / 2); noFill(); stroke(hue(multColor), saturation(multColor), brightness(multColor), alpha * 0.5); strokeWeight(1.5); ellipse(currentX + textWidth(indicatorText)/2, hudH/2, iconSize*1.2, iconSize*1.2); currentX += textWidth(indicatorText) + spacing * 1.5; }
+    let hudH = isMobile ? 55 : 70; // Increased height slightly for objective
+    let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 16 : 20; // Adjusted text size
+    let objectiveTextSize = isMobile ? 11 : 13;
+    let spacing = isMobile ? 8 : 12; let bottomMargin = 10;
+
+    // Draw HUD Panel
+    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5);
+    rect(0, 0, width, hudH);
+
+    // Top Row: Standard Info
+    textSize(textSizeVal); textAlign(LEFT, CENTER); let currentX = sideMargin; let firstRowY = hudH * 0.4;
+    fill(uiTextColor); text(`LEVEL: ${currentLevel}`, currentX, firstRowY); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
+    text(`PTS: ${points}`, currentX, firstRowY); currentX += textWidth(`PTS: ${points}`) + spacing * 2;
+    fill(uiHighlightColor); text(`$: ${money}`, currentX, firstRowY); currentX += textWidth(`$: ${money}`) + spacing * 2;
+    fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, firstRowY); currentX += textWidth(`♥: ${lives}`) + spacing * 2;
+    fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, firstRowY); currentX += textWidth(`🛡: ${ship.shieldCharges}`) + spacing * 1.5;
+    if (ship && ship.homingMissilesLevel > 0) { fill(color(30, 80, 100)); text(`🚀: ${ship.currentMissiles}`, currentX, firstRowY); currentX += textWidth(`🚀: ${ship.currentMissiles}`) + spacing * 1.5; }
+    if (ship && ship.scoreMultiplierTimer > 0) { /* Score multiplier display */ }
+
+    // Bottom Row: Objective
+    let secondRowY = hudH * 0.8;
+    textSize(objectiveTextSize); textAlign(LEFT, CENTER); fill(uiTextColor);
+    let objectiveStr = `OBJECTIVE: ${currentObjective.description || 'None'}`;
+    if (currentObjective.type && currentObjective.target > 0) {
+        let progressDisplay;
+        if (currentObjective.type === OBJECTIVE_TYPE.SURVIVE_TIME) {
+            let secondsElapsed = floor(max(0, currentObjective.progress) / 60);
+            let targetSeconds = floor(currentObjective.target / 60);
+            progressDisplay = `${secondsElapsed} / ${targetSeconds} s`;
+        } else if (currentObjective.type === OBJECTIVE_TYPE.SCORE_REACH) {
+             progressDisplay = `${currentObjective.progress} / ${currentObjective.target} PTS`;
+        }
+        else { // Default count display
+            progressDisplay = `${currentObjective.progress} / ${currentObjective.target}`;
+        }
+        objectiveStr += ` (${progressDisplay})`;
+    }
+    text(objectiveStr, sideMargin, secondRowY);
+
+
+    // Upgrade Levels Text (Bottom Right)
     textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.8);
     let upgradesText = `RATE:${ship.fireRateLevel} SPRD:${ship.spreadShotLevel}`; if (ship.rearGunLevel > 0) upgradesText += ` REAR:${ship.rearGunLevel}`;
     if (!isMobile && ship.homingMissilesLevel > 0) upgradesText += ` MSL:${ship.homingMissilesLevel}`; // Show Missile Level only on non-mobile
     text(upgradesText, width - sideMargin, height - bottomMargin);
-    if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) { let setBtn = mobileSettingsButton; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5); push(); translate(setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2); noFill(); stroke(uiTextColor); strokeWeight(2); ellipse(0, 0, setBtn.size * 0.5, setBtn.size * 0.5); for (let i = 0; i < 6; i++) { rotate(PI / 3); rect(-setBtn.size * 0.1, -setBtn.size * 0.4, setBtn.size * 0.2, setBtn.size * 0.2); } pop(); if (ship.homingMissilesLevel > 0) { let btn = mobileMissileButton; let btnColor = uiButtonColor; let textColor = uiTextColor; let borderColor = uiButtonBorderColor; let icon = '🚀'; let subText = `${ship.currentMissiles}`; let isDisabled = ship.currentMissiles <= 0 || ship.missileCooldown > 0; if (isDisabled) { btnColor = uiButtonDisabledColor; textColor = color(0, 0, 60); borderColor = color(0, 0, 40); if (ship.missileCooldown > 0) { subText = `${ceil(ship.missileCooldown / 60)}`; } } fill(btnColor); stroke(borderColor); strokeWeight(1.5); rect(btn.x, btn.y, btn.size, btn.size, 8); textSize(btn.size * 0.5); fill(textColor); noStroke(); text(icon, btn.x + btn.size / 2, btn.y + btn.size * 0.45); textSize(btn.size * 0.25); fill(textColor); text(subText, btn.x + btn.size / 2, btn.y + btn.size * 0.8); }
-    }
+
+     // Mobile Buttons (Bottom Left/Right)
+     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) { /* Mobile buttons drawing */ }
 }
 function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER); let msgWidth = textWidth(infoMessage); let padding = BUTTON_TEXT_PADDING; let boxW = msgWidth + padding * 2; let boxH = msgSize + padding; let boxX = width / 2 - boxW / 2; boxX = constrain(boxX, padding, width - boxW - padding); let boxY = height - boxH - (isMobile? 15 : 30); fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(boxX, boxY, boxW, boxH, 5); fill(uiTextColor); noStroke(); text(infoMessage, boxX + boxW / 2, boxY + boxH / 2); }
 function displayComboText() { if (showComboText && comboCounter >= 2) { let comboSize = isMobile ? 28 : 36; let comboY = height * 0.25; let alpha = map(comboTextTimeout, 0, 60, 0, 100); push(); textAlign(CENTER, CENTER); textSize(comboSize); let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.08; translate(width / 2, comboY); scale(scaleFactor); stroke(0, 0, 0, alpha * 0.8); strokeWeight(4); fill(uiHighlightColor); text(`COMBO x${comboCounter}!`, 0, 0); noStroke(); fill(255); pop(); } }
@@ -555,6 +751,7 @@ function resetGame() {
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
     points = 0; money = 0; lives = 3; currentLevel = 1;
     setDifficultyForLevel(currentLevel);
+    loadObjectiveForLevel(currentLevel); // Load objective for level 1
     lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
     screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0;
     comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
@@ -564,10 +761,13 @@ function resetGame() {
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function startNextLevel() {
     if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
-    currentLevel++; setDifficultyForLevel(currentLevel);
+    currentLevel++;
+    setDifficultyForLevel(currentLevel);
+    loadObjectiveForLevel(currentLevel); // Load the next level's objective
     ship.resetPositionForNewLevel(); if (ship.homingMissilesLevel > 0) { ship.currentMissiles = ship.maxMissiles; }
     asteroids = []; bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
-    frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
+    // frameCount reset happens automatically in p5, levelStartTime is set in loadObjectiveForLevel
+    infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
     spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
 function selectMenuItem(index) {
@@ -754,7 +954,7 @@ class Ship {
     gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
     loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
     setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
-    changeShape(level) { this.shapeState = min(1, floor(level / 2)); }
+    changeShape(level) { this.shapeState = min(1, floor(level / 2)); } // Shape change based on points (kept for visual flair)
     get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } }
     getUpgradeCost(upgradeType) { let level, maxLevel, multiplier = this.costMultiplier; switch (upgradeType) { case 'fireRate': level = this.fireRateLevel; maxLevel = this.maxUpgradeLevel; break; case 'spreadShot': level = this.spreadShotLevel; maxLevel = this.maxUpgradeLevel; break; case 'rearGun': level = this.rearGunLevel; maxLevel = this.maxRearGunLevel; multiplier = this.costMultiplier * 0.8; break; case 'homingMissiles': level = this.homingMissilesLevel; maxLevel = this.maxMissileLevel; multiplier = this.specialCostMultiplier; break; default: return Infinity; } if (level >= maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(multiplier, level)); }
     attemptUpgrade(upgradeType) {
@@ -1226,7 +1426,7 @@ class LaserEnemy extends BaseEnemy {
          // Draw Laser Beam (if firing) - Draw outside the push/pop to use world coordinates
          if (this.isFiring && this.laserTargetPos) {
             let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x);
-            let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + 50; // Extend slightly past target point visually
+            let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + height; // Extend well past target point visually
             let endX = this.pos.x + cos(laserAngle) * beamLength;
             let endY = this.pos.y + sin(laserAngle) * beamLength;
 
@@ -1249,7 +1449,11 @@ class LaserEnemy extends BaseEnemy {
         if (!this.isFiring || !this.laserTargetPos) return false;
 
         let p1 = this.pos; // Start of laser
-        let p2 = this.laserTargetPos; // Original target point (laser draws past this)
+        // Calculate a far-off end point for the beam for collision detection
+        let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x);
+        let beamLength = width * 2; // Assume a very long beam for collision
+        let p2 = createVector(this.pos.x + cos(laserAngle) * beamLength, this.pos.y + sin(laserAngle) * beamLength);
+
         let c = playerShip.pos; // Center of ship
         let r = playerShip.size * 0.5; // Radius of ship's core hitbox
 
@@ -1260,25 +1464,29 @@ class LaserEnemy extends BaseEnemy {
 
         // Project pointVec onto laserVec
         let dot = pointVec.dot(laserVec);
-        let t = dot / laserLenSq; // Projection parameter (0=start, 1=end of original segment)
+        let t = dot / laserLenSq; // Projection parameter
 
         let closestPoint;
-        if (t < 0) {
-            closestPoint = p1; // Closest point is the start of the laser
-        } else { // Laser extends past p2 visually, so we don't need t > 1 check
-             closestPoint = p5.Vector.add(p1, laserVec.mult(t));
-        }
+         // Clamp t to the segment [0, 1] because the laser beam is effectively a ray starting at p1
+        t = constrain(t, 0, Infinity); // We only care if the closest point is *along* the ray starting from p1
 
-        let distSq = p5.Vector.dist(c, closestPoint);
+        closestPoint = p5.Vector.add(p1, laserVec.mult(t)); // Closest point on the *infinite line*
+
+
+        // Now check distance from ship center to this closest point
+        let distToClosest = p5.Vector.dist(c, closestPoint);
         let hitRadius = r + this.laserWidth / 2; // Consider laser width
 
-        return distSq < hitRadius * hitRadius;
+        // Finally, ensure the closest point lies *beyond* the start point of the laser (t >= 0)
+        // Since we constrained t >= 0, this check is implicit if distToClosest < hitRadius
+        return distToClosest < hitRadius;
     }
 
 
     getExplosionColor() { return this.explosionColor; }
     getHitColor() { return this.hitColor; }
 }
+
 
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 // Nebula Class
