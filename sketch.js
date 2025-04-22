@@ -42,7 +42,7 @@
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown). // REMOVED: Charge Shot mechanic
 // - Background gradient color changes every 20 seconds.
 // - Added brief invulnerability after losing a life.
-// - Added Touch Controls: Tap to shoot, dedicated buttons for missile/laser.
+// - Added Touch Controls: Tap/Hold non-UI area to shoot, dedicated buttons for missile/laser. // MODIFIED FOR CONTINUOUS SHOOTING
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
 // - Max shield charges reduced to 1.
 // - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
@@ -75,6 +75,7 @@
 // - MODIFIED: Spaceship drawing logic uses simplified color selection.
 // - MODIFIED: Added text fitting logic to button drawing functions.
 // - REFACTORED: Cosmetics system simplified to direct color/style selection.
+// - ADDED: Mobile continuous shooting by holding touch on screen.
 // --------------------------
 
 
@@ -138,7 +139,9 @@ let powerUpSpawnRate = 0.0015; let potionSpawnRate = 0.001; let nebulaSpawnRate 
 let initialAsteroids = 5; let minAsteroidSize = 15; const SHIELD_POINTS_THRESHOLD = 50; const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0; const MAX_ENEMY_SPEED_BASIC = 3.0; const MAX_ENEMY_SPEED_KAMIKAZE = 5.5; const MAX_ENEMY_SPEED_SWARMER = 2.5;
 
+// --- Input State ---
 let spacebarHeld = false;
+let isMobileShooting = false; // Flag for mobile continuous shooting
 
 // --- UI & Messages ---
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
@@ -174,10 +177,9 @@ function setup() {
     uiButtonColor = color(200, 60, 50); uiButtonHoverColor = color(200, 70, 60); uiButtonDisabledColor = color(0, 0, 30); uiButtonBorderColor = color(200, 70, 90);
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
     setDifficultyForLevel(currentLevel);
-    // No need to initialize unlocked cosmetics anymore
     setupMenuButtons();
     setupSettingsMenuButtons();
-    setupCosmeticsMenuButtons(); // Setup the simplified cosmetics menu
+    setupCosmeticsMenuButtons();
     calculateMobileSettingsButtonPosition();
     calculateMobileActionButtonsPosition();
 }
@@ -190,9 +192,7 @@ function spawnInitialAsteroids() { asteroids = []; for (let i = 0; i < initialAs
 function createParticles(x, y, count, particleColor, particleSize = null, speedMult = 1, lifespanMult = 1) { let densityMultiplier = 1.0; if (settingParticleDensity === 'Medium') { densityMultiplier = 0.5; } else if (settingParticleDensity === 'Low') { densityMultiplier = 0.2; } let actualCount = floor(count * densityMultiplier); if (actualCount < 1 && count > 0 && densityMultiplier > 0.01) actualCount = 1; if (actualCount <= 0) return; let baseHue = hue(particleColor); let baseSat = saturation(particleColor); let baseBri = brightness(particleColor); for (let i = 0; i < actualCount; i++) { let pColor = color( (baseHue + random(-15, 15)) % 360, baseSat * random(0.7, 1.1), baseBri * random(0.8, 1.2), 100 ); particles.push(new Particle(x, y, pColor, particleSize, speedMult, lifespanMult)); } }
 function createStarfield(numStars) { stars = []; for (let i = 0; i < numStars; i++) { stars.push(new Star()); } }
 function setDifficultyForLevel(level) { let effectiveLevel = min(level, MAX_LEVEL); let mobileFactor = isMobile ? 0.7 : 1.0; baseAsteroidSpawnRate = (0.009 + (effectiveLevel - 1) * 0.0015) * mobileFactor; currentAsteroidSpawnRate = baseAsteroidSpawnRate; baseEnemySpawnRate = (0.002 + (effectiveLevel - 1) * 0.0006) * mobileFactor; basicEnemyWeight = 10; kamikazeWeight = (effectiveLevel >= 2) ? 3 + effectiveLevel : 0; turretWeight = (effectiveLevel >= 5) ? 2 + floor(effectiveLevel / 2) : 0; swarmerWeight = (effectiveLevel >= 3) ? 4 + effectiveLevel : 0; }
-// REMOVED initializeCosmetics and checkAndUnlockCosmetics functions
 
-// MODIFIED: setupShopButtons adjusted after removing Charge Shot
 function setupShopButtons() {
     shopButtons = [];
     let buttonWidth = isMobile ? 190 : 240; let buttonHeight = isMobile ? 45 : 55; let startX = width / 2 - buttonWidth / 2; let startY = height / 2 - (isMobile ? 175 : 210); let spacing = isMobile ? 55 : 65; let nextLevelSpacing = isMobile ? 25 : 30;
@@ -205,12 +205,10 @@ function setupShopButtons() {
 }
 function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * 1.5; let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function setupSettingsMenuButtons() { settingsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < settingsItems.length; i++) { settingsMenuButtons.push({ id: settingsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
-// Setup cosmetics menu buttons (Simplified)
 function setupCosmeticsMenuButtons() { cosmeticsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < cosmeticsMenuItems.length; i++) { cosmeticsMenuButtons.push({ id: cosmeticsMenuItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; mobileLaserButton.size = buttonSize; mobileLaserButton.padding = padding; mobileLaserButton.x = width - buttonSize * 2 - padding * 2; mobileLaserButton.y = height - buttonSize - padding; }
 
-// Helper to draw text that fits in a button
 function drawButtonText(label, button, defaultSize) {
     let currentTextSize = defaultSize; textSize(currentTextSize); let tw = textWidth(label);
     while (tw > button.w - BUTTON_TEXT_PADDING && currentTextSize > 8) { currentTextSize--; textSize(currentTextSize); tw = textWidth(label); }
@@ -256,7 +254,6 @@ function displaySettingsMenu() { drawPanelBackground(width * (isMobile ? 0.85 : 
     textAlign(CENTER, CENTER); for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; let setting = settingsItems[i]; let label = setting.label; let currentValue = ''; if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; } else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; } let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedSettingsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
         fill(textCol); noStroke(); drawButtonText(fullLabel, button, menuTextSize);
     } cursor(ARROW); }
-// MODIFIED: Display simplified cosmetics menu
 function displayCosmeticsMenu() {
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7);
     fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Cosmetics", width / 2, height * 0.2);
@@ -370,14 +367,14 @@ function displayComboText() { if (showComboText && comboCounter >= 2) { let comb
 
 // --- Game State Control ---
 function resetGame() {
-    // Keep selected cosmetics, just reset game state
-    ship = new Ship(); // Create ship using current selectedCosmetics
+    ship = new Ship(); // Creates ship with currently selected cosmetics
     bullets = []; homingMissiles = []; laserBeams = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
     points = 0; money = 0; lives = 3; currentLevel = 1;
     setDifficultyForLevel(currentLevel);
     lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
     screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0;
-    comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; spacebarHeld = false;
+    comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+    spacebarHeld = false; isMobileShooting = false; // Reset input flags
     cursor(); spawnInitialAsteroids();
 }
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
@@ -393,26 +390,16 @@ function selectMenuItem(index) {
     switch (menuItems[index]) {
         case 'Start Game': startGame(); break;
         case 'Settings': previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break;
-        case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break; // Changed state
+        case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
 function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor();} selectedMenuItem = 0; break; } }
-// MODIFIED: Action for simplified cosmetics menu
 function selectCosmeticsItemAction(index) {
     let setting = cosmeticsMenuItems[index];
     if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor(); } selectedMenuItem = 0; return; }
     if (setting.type === 'cycle') {
-        if (setting.id === 'shipColor') {
-            let currentIndex = SHIP_COLORS.indexOf(selectedShipColor);
-            let nextIndex = (currentIndex + 1) % SHIP_COLORS.length;
-            selectedShipColor = SHIP_COLORS[nextIndex];
-            if (ship) { ship.setColors(); } // Apply immediately if ship exists
-        } else if (setting.id === 'bulletStyle') {
-            let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle);
-            let nextIndex = (currentIndex + 1) % BULLET_STYLES.length;
-            selectedBulletStyle = BULLET_STYLES[nextIndex];
-            // No immediate ship update needed, bullets read global state on creation
-        }
+        if (setting.id === 'shipColor') { let currentIndex = SHIP_COLORS.indexOf(selectedShipColor); let nextIndex = (currentIndex + 1) % SHIP_COLORS.length; selectedShipColor = SHIP_COLORS[nextIndex]; if (ship) { ship.setColors(); } }
+        else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; }
     }
 }
 
@@ -424,45 +411,68 @@ function mousePressed() {
     switch (gameState) {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
-        case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break; // Changed state and action
-        case GAME_STATE.PLAYING: if (!isPaused && ship) { let hitMobileUI = false; if (isMobile) { let misBtn = mobileMissileButton; let lasBtn = mobileLaserButton; if (mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2) hitMobileUI = true; if (!hitMobileUI && ship.homingMissilesLevel > 0 && mouseX > misBtn.x && mouseX < misBtn.x + misBtn.size && mouseY > misBtn.y && mouseY < misBtn.y + misBtn.size) hitMobileUI = true; if (!hitMobileUI && ship.laserBeamLevel > 0 && mouseX > lasBtn.x && mouseX < lasBtn.x + lasBtn.size && mouseY > lasBtn.y && mouseY < lasBtn.y + lasBtn.size) hitMobileUI = true; } if (!hitMobileUI) { ship.shoot(); } } break;
+        case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
+        case GAME_STATE.PLAYING: if (!isPaused && ship && !isMobile) { ship.shoot(); } break; // Non-mobile click = single shot
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
         case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
     }
 }
-function mouseReleased() { /* No action needed */ }
-function keyPressed() {
-    if (keyCode === ESCAPE) {
-        if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();} }
-        else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); }
-        else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); } // Changed state and action
+function mouseReleased() {
+     // Reset mobile shooting flag if not mobile (mouse release isn't relevant for touch)
+    if (!isMobile) {
+        // No action needed specifically for mouse release regarding shooting
     }
+}
+function keyPressed() {
+    if (keyCode === ESCAPE) { if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();} } else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); } else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); } }
     else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } }
     else if (gameState === GAME_STATE.SETTINGS_MENU) { if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; } else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); } }
-    else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } } // Changed state and action
+    else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } if (keyCode === 76) { ship.fireLaser(); return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
     else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
 }
 function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
-function touchStarted() {
-    if (touches.length === 0) return false;
-    let touchX = touches[0].x; let touchY = touches[0].y;
-    let setBtn = mobileSettingsButton; let misBtn = mobileMissileButton; let lasBtn = mobileLaserButton;
 
-    if (gameState === GAME_STATE.PLAYING && !isPaused && isMobile && ship) { if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) { isPaused = true; previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; cursor(ARROW); return false; } if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) { ship.fireMissile(); return false; } if (ship.laserBeamLevel > 0 && touchX > lasBtn.x && touchX < lasBtn.x + lasBtn.size && touchY > lasBtn.y && touchY < lasBtn.y + lasBtn.size) { ship.fireLaser(); return false; } }
-    else if (gameState === GAME_STATE.START_MENU) { for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return false; } } return false; }
-    else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return false; } } return false; }
-    else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return false; } } return false; } // Changed state and action
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; return false; }
-    else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); return false; } } return false; }
-    else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { let hitUI = false; if (isMobile) { if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) hitUI = true; if (!hitUI && ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) hitUI = true; if (!hitUI && ship.laserBeamLevel > 0 && touchX > lasBtn.x && touchX < lasBtn.x + lasBtn.size && touchY > lasBtn.y && touchY < lasBtn.y + lasBtn.size) hitUI = true; } if (!hitUI) { ship.shoot(); } return false; }
-    return false;
+// MODIFIED: touchStarted handles setting the mobile shooting flag
+function touchStarted() {
+    if (!isMobile || touches.length === 0) return false; // Only handle touch on mobile
+
+    let touchX = touches[0].x; // Use first touch for UI interaction checks
+    let touchY = touches[0].y;
+    let setBtn = mobileSettingsButton; let misBtn = mobileMissileButton; let lasBtn = mobileLaserButton;
+    let uiHit = false; // Track if any touch hits a UI element
+
+    // Check UI button hits FIRST (settings, missile, laser)
+    if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
+        if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) { isPaused = true; previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; cursor(ARROW); uiHit = true; }
+        else if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) { ship.fireMissile(); uiHit = true; }
+        else if (ship.laserBeamLevel > 0 && touchX > lasBtn.x && touchX < lasBtn.x + lasBtn.size && touchY > lasBtn.y && touchY < lasBtn.y + lasBtn.size) { ship.fireLaser(); uiHit = true; }
+    }
+
+    // Handle Menu/Other State Button Taps
+    else if (gameState === GAME_STATE.START_MENU) { for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); uiHit = true; break; } } }
+    else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); uiHit = true; break; } } }
+    else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); uiHit = true; break; } } }
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiHit = true; }
+    else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiHit = true; break; } } }
+
+    // If no UI element was hit during gameplay, start mobile shooting
+    if (gameState === GAME_STATE.PLAYING && !isPaused && !uiHit) {
+        isMobileShooting = true;
+    }
+
+    return false; // Prevent default touch actions (like scrolling)
 }
-function touchEnded() { /* No action needed */ return false; }
+// MODIFIED: touchEnded resets the mobile shooting flag
+function touchEnded() {
+    if (isMobile && touches.length === 0) { // Check if *all* touches have ended
+        isMobileShooting = false;
+    }
+    return false; // Prevent default touch actions
+}
 function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return; if (buttonId === 'nextLevel') { startNextLevel(); } else { let success = ship.attemptUpgrade(buttonId); if (success) { let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); if (buttonId === 'homingMissiles') { ship.currentMissiles = ship.maxMissiles; } } } else { let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
-function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } // Changed state
-    if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
 
 
 // ======================================================================
@@ -470,15 +480,12 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 // ======================================================================
 
 // Ship Class
-// MODIFIED: Simplified color handling based on selectedShipColor global
 class Ship {
     constructor() {
         this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
         this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975; this.maxSpeed = 9.5; this.size = 30;
-        // Color properties will be set by setColors()
         this.bodyColor = null; this.cockpitColor = null; this.wingColor = null; this.detailColor1 = null; this.detailColor2 = null; this.engineColor1 = null; this.engineColor2 = null;
         this.setColors(); // Apply colors based on global selection
-
         this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.3; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.hoverOffset = 0; this.rapidFireTimer = 0; this.tempShieldActive = false;
         this.fireRateLevel = 0; this.spreadShotLevel = 0; this.maxUpgradeLevel = 5;
         this.rearGunLevel = 0; this.maxRearGunLevel = 3; this.rearGunDelayFactor = [0, 1.5, 1.2, 1.0];
@@ -487,19 +494,10 @@ class Ship {
         this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.specialCostMultiplier = 2.5;
         this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0;
     }
-
-    // New method to set colors based on the global selection
     setColors() {
-        let colors = COLOR_DEFINITIONS[selectedShipColor] || COLOR_DEFINITIONS['Blue']; // Fallback to Blue
-        this.bodyColor = color(colors.body[0], colors.body[1], colors.body[2]);
-        this.cockpitColor = color(colors.cockpit[0], colors.cockpit[1], colors.cockpit[2]);
-        this.wingColor = color(colors.wing[0], colors.wing[1], colors.wing[2]);
-        this.detailColor1 = color(colors.detail1[0], colors.detail1[1], colors.detail1[2]);
-        this.detailColor2 = color(colors.detail2[0], colors.detail2[1], colors.detail2[2]);
-        this.engineColor1 = color(colors.engine1[0], colors.engine1[1], colors.engine1[2]);
-        this.engineColor2 = color(colors.engine2[0], colors.engine2[1], colors.engine2[2]);
+        let colors = COLOR_DEFINITIONS[selectedShipColor] || COLOR_DEFINITIONS['Blue'];
+        this.bodyColor = color(colors.body[0], colors.body[1], colors.body[2]); this.cockpitColor = color(colors.cockpit[0], colors.cockpit[1], colors.cockpit[2]); this.wingColor = color(colors.wing[0], colors.wing[1], colors.wing[2]); this.detailColor1 = color(colors.detail1[0], colors.detail1[1], colors.detail1[2]); this.detailColor2 = color(colors.detail2[0], colors.detail2[1], colors.detail2[2]); this.engineColor1 = color(colors.engine1[0], colors.engine1[1], colors.engine1[2]); this.engineColor2 = color(colors.engine2[0], colors.engine2[1], colors.engine2[2]);
     }
-
     gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
     loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
     setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
@@ -513,12 +511,27 @@ class Ship {
         if (this.droneActive && this.drone && this.drone.isExpired()) { this.droneActive = false; this.drone = null; infoMessage = "Drone Deactivated"; infoMessageTimeout = 90; createParticles(this.pos.x, this.pos.y, 15, color(180, 50, 80), 4, 1.5, 0.8); }
         if (this.laserActive) { this.laserDuration--; if (this.laserDuration <= 0) { this.laserActive = false; this.laserCooldown = this.laserCooldownTime[this.laserBeamLevel]; laserBeams = []; } }
         if (this.homingMissilesLevel > 0 && this.currentMissiles < this.maxMissiles) { this.missileRegenTimer--; if (this.missileRegenTimer <= 0) { this.currentMissiles++; this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; } } else if (this.homingMissilesLevel > 0) { this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; }
-        this.hoverOffset = sin(frameCount * 0.05) * 2; let isTouching = isMobile && touches.length > 0; let acceleration = createVector(0, 0); let applyThrustParticles = false;
-        if (isTouching) { let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos); if (direction.magSq() > (this.size * 0.5) * (this.size * 0.5)) { let targetVel = direction.copy().normalize().mult(this.maxSpeed * this.touchThrustMultiplier); this.vel.lerp(targetVel, 0.15); applyThrustParticles = this.vel.magSq() > 0.1; } else { this.vel.mult(this.friction); } }
-        else { let currentThrust = this.thrust; if (!isMobile) { currentThrust *= 1.5; } let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { acceleration.y -= currentThrust; applyThrustParticles = true;} if (movingDown) { acceleration.y += currentThrust; } if (movingLeft) { acceleration.x -= currentThrust; applyThrustParticles = true;} if (movingRight) { acceleration.x += currentThrust; applyThrustParticles = true;} this.vel.add(acceleration); this.vel.mult(this.friction); }
+        this.hoverOffset = sin(frameCount * 0.05) * 2;
+        // --- Player Input & Movement --- NO CHANGE HERE ---
+        let isTouchingInput = isMobile && touches.length > 0; // Different from isMobileShooting flag
+        let acceleration = createVector(0, 0); let applyThrustParticles = false;
+        if (isTouchingInput) { // Touch Drag Movement still uses touches array
+             let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos);
+             if (direction.magSq() > (this.size * 0.5) * (this.size * 0.5)) { let targetVel = direction.copy().normalize().mult(this.maxSpeed * this.touchThrustMultiplier); this.vel.lerp(targetVel, 0.15); applyThrustParticles = this.vel.magSq() > 0.1; }
+             else { this.vel.mult(this.friction); }
+        } else { // Keyboard Movement
+             let currentThrust = this.thrust; if (!isMobile) { currentThrust *= 1.5; } let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { acceleration.y -= currentThrust; applyThrustParticles = true;} if (movingDown) { acceleration.y += currentThrust; } if (movingLeft) { acceleration.x -= currentThrust; applyThrustParticles = true;} if (movingRight) { acceleration.x += currentThrust; applyThrustParticles = true;} this.vel.add(acceleration); this.vel.mult(this.friction);
+        }
         if (applyThrustParticles && frameCount % 3 === 0) { let thrustColor = lerpColor(this.engineColor1, this.engineColor2, random(0.3, 0.7)); createParticles(this.pos.x, this.pos.y + this.size * 0.6, 1, thrustColor, 3, 1.5, 0.5); }
         this.vel.limit(this.maxSpeed); this.pos.add(this.vel); let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin);
-        if (!isMobile && keyIsDown(32) && gameState === GAME_STATE.PLAYING && !isPaused && !this.laserActive) { this.shoot(); }
+
+        // --- Handle Auto-Fire ---
+        // MODIFIED: Added check for isMobileShooting flag
+        if (gameState === GAME_STATE.PLAYING && !isPaused && !this.laserActive) {
+            if ((!isMobile && spacebarHeld) || (isMobile && isMobileShooting)) {
+                this.shoot(); // Attempt to shoot (respects shootCooldown)
+            }
+        }
     }
     shoot() {
         if (this.shootCooldown <= 0 && !this.laserActive) {
@@ -549,18 +562,13 @@ class Ship {
 }
 
 // Projectile Classes
-// MODIFIED: Bullet uses selectedBulletStyle global directly
 class Bullet {
     constructor(x, y, angle = 0) {
         this.pos = createVector(x, y); this.speed = 17; this.size = 5.5;
-        this.style = selectedBulletStyle; // Direct assignment
-        if (this.style === 'Rainbow') {
-            this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5;
-        } else { // White
-            this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7;
-        }
-        let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed);
-        this.trail = [];
+        this.style = selectedBulletStyle; // Use global selection
+        if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; }
+        else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } // White
+        let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); this.trail = [];
     }
     update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style === 'Rainbow') { this.hue = (this.hue + 5) % 360; } }
     draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
