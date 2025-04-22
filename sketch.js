@@ -46,7 +46,7 @@
 // - Added occasional background planet, subtle galaxy, black hole effect.
 // - Increased Ship Speed (MaxSpeed unchanged, acceleration reduced)
 // - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
-// - Added screen shake on life loss. // MODIFIED (Duration ~2s)
+// - Added screen shake on life loss. // MODIFIED (Duration ~1s)
 // - Changed Title Color Order & Darkened Red
 // - Removed automatic cheapest upgrade on level up.
 // - Added simple sideways drift to enemy movement (Basic Enemy).
@@ -68,7 +68,7 @@
 // - REPLACED: Start Screen with Start Menu.
 // - ADDED: Visual Settings Options (Screen Shake, Background FX, Particle Density).
 // - ADDED: Previous Game State Tracking for Settings Menu return.
-// - MODIFIED: Screen Shake duration increased to ~2 seconds.
+// - MODIFIED: Screen Shake duration decreased to ~1 second.
 // - MODIFIED: Spaceship drawing logic uses simplified color selection.
 // - MODIFIED: Added text fitting logic to button drawing functions.
 // - REFACTORED: Cosmetics system simplified to direct color/style selection.
@@ -76,6 +76,8 @@
 // --- Modifications ---
 // - Removed Laser Upgrade.
 // - Enhanced visuals for HealthPotion and PowerUp.
+// - MODIFIED: Removed Homing Missile upgrade option from the shop on mobile devices.
+// - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
 // --------------------------
 
 
@@ -195,18 +197,30 @@ function setDifficultyForLevel(level) { let effectiveLevel = min(level, MAX_LEVE
 function setupShopButtons() {
     shopButtons = [];
     let buttonWidth = isMobile ? 190 : 240; let buttonHeight = isMobile ? 45 : 55;
-    let numButtons = 4; // Number of upgrade buttons (excluding 'Next Level')
-    let totalButtonHeight = numButtons * buttonHeight + (numButtons - 1) * (isMobile ? 10 : 15); // Adjusted spacing
+
+    // Define available upgrade button IDs
+    let availableButtonIds = ['fireRate', 'spreadShot', 'rearGun'];
+    if (!isMobile) {
+        availableButtonIds.push('homingMissiles'); // Add missiles only for non-mobile
+    }
+
+    let numButtons = availableButtonIds.length;
+    let totalButtonHeight = numButtons * buttonHeight + (numButtons - 1) * (isMobile ? 10 : 15);
     let startX = width / 2 - buttonWidth / 2;
-    let startY = height / 2 - totalButtonHeight / 2 - (isMobile ? 30 : 40); // Centered vertically
-    let spacing = buttonHeight + (isMobile ? 10 : 15); // Tighter spacing
+    let startY = height / 2 - totalButtonHeight / 2 - (isMobile ? 30 : 40);
+    let spacing = buttonHeight + (isMobile ? 10 : 15);
     let nextLevelSpacing = isMobile ? 25 : 30;
 
-    shopButtons.push({ id: 'fireRate', x: startX, y: startY, w: buttonWidth, h: buttonHeight });
-    shopButtons.push({ id: 'spreadShot', x: startX, y: startY + spacing, w: buttonWidth, h: buttonHeight });
-    shopButtons.push({ id: 'rearGun', x: startX, y: startY + spacing * 2, w: buttonWidth, h: buttonHeight });
-    shopButtons.push({ id: 'homingMissiles', x: startX, y: startY + spacing * 3, w: buttonWidth, h: buttonHeight });
-    shopButtons.push({ id: 'nextLevel', x: startX, y: startY + spacing * numButtons + nextLevelSpacing, w: buttonWidth, h: buttonHeight });
+    // Create buttons for available upgrades
+    for (let i = 0; i < numButtons; i++) {
+        let buttonId = availableButtonIds[i];
+        let buttonY = startY + i * spacing;
+        shopButtons.push({ id: buttonId, x: startX, y: buttonY, w: buttonWidth, h: buttonHeight });
+    }
+
+    // Add the 'Next Level' button below the upgrade buttons
+    let nextLevelY = startY + numButtons * spacing + nextLevelSpacing;
+    shopButtons.push({ id: 'nextLevel', x: startX, y: nextLevelY, w: buttonWidth, h: buttonHeight });
 }
 function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * 1.5; let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function setupSettingsMenuButtons() { settingsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < settingsItems.length; i++) { settingsMenuButtons.push({ id: settingsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
@@ -342,7 +356,8 @@ function handleCollisions() {
     // Enemy Collisions
     for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(1)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage || 3; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
     // Player Collisions
-    if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) { const takeDamage = (sourceObject, sourceArray, index) => { if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false; let gameOver = false; if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } } else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 120; } if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } if (sourceObject && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { let explosionColor = (sourceObject.getExplosionColor) ? sourceObject.getExplosionColor() : (sourceObject.color || color(0,0,50)); let particleCount = sourceObject.size ? floor(sourceObject.size * 1.2) : 20; if (sourceObject instanceof EnemyBullet) { particleCount = 8; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor, sourceObject.size * 0.2); if (sourceObject instanceof KamikazeEnemy) { createParticles(sourceObject.pos.x, sourceObject.pos.y, floor(sourceObject.size * 1.5), sourceObject.getExplosionColor(), sourceObject.size * 0.3, 1.5, 1.2); } sourceArray.splice(index, 1); } } return gameOver; }; for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && enemy.hitsShip(ship)) { if (takeDamage(enemy, enemyShips, i)) return; break; } } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } } }
+    if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) { const takeDamage = (sourceObject, sourceArray, index) => { if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false; let gameOver = false; if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } } else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; // Reduced duration to ~1 second (60 frames)
+                    } if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } if (sourceObject && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { let explosionColor = (sourceObject.getExplosionColor) ? sourceObject.getExplosionColor() : (sourceObject.color || color(0,0,50)); let particleCount = sourceObject.size ? floor(sourceObject.size * 1.2) : 20; if (sourceObject instanceof EnemyBullet) { particleCount = 8; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor, sourceObject.size * 0.2); if (sourceObject instanceof KamikazeEnemy) { createParticles(sourceObject.pos.x, sourceObject.pos.y, floor(sourceObject.size * 1.5), sourceObject.getExplosionColor(), sourceObject.size * 0.3, 1.5, 1.2); } sourceArray.splice(index, 1); } } return gameOver; }; for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && enemy.hitsShip(ship)) { if (takeDamage(enemy, enemyShips, i)) return; break; } } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } } }
 }
 function handlePotions() {
     if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = potions.length - 1; i >= 0; i--) { potions[i].draw(); } return; } if (!ship) return;
@@ -373,6 +388,7 @@ function displayHUD() {
     if (ship && ship.scoreMultiplierTimer > 0) { let multColor = color(60, 100, 100); let alpha = map(sin(frameCount*0.2), -1, 1, 70, 100); fill(hue(multColor), saturation(multColor), brightness(multColor), alpha); let indicatorText = `x${ship.scoreMultiplierValue}`; text(indicatorText, currentX, hudH / 2); noFill(); stroke(hue(multColor), saturation(multColor), brightness(multColor), alpha * 0.5); strokeWeight(1.5); ellipse(currentX + textWidth(indicatorText)/2, hudH/2, iconSize*1.2, iconSize*1.2); currentX += textWidth(indicatorText) + spacing * 1.5; }
     textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.8);
     let upgradesText = `RATE:${ship.fireRateLevel} SPRD:${ship.spreadShotLevel}`; if (ship.rearGunLevel > 0) upgradesText += ` REAR:${ship.rearGunLevel}`;
+    if (!isMobile && ship.homingMissilesLevel > 0) upgradesText += ` MSL:${ship.homingMissilesLevel}`; // Show Missile Level only on non-mobile
     text(upgradesText, width - sideMargin, height - bottomMargin);
     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) { let setBtn = mobileSettingsButton; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5); push(); translate(setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2); noFill(); stroke(uiTextColor); strokeWeight(2); ellipse(0, 0, setBtn.size * 0.5, setBtn.size * 0.5); for (let i = 0; i < 6; i++) { rotate(PI / 3); rect(-setBtn.size * 0.1, -setBtn.size * 0.4, setBtn.size * 0.2, setBtn.size * 0.2); } pop(); if (ship.homingMissilesLevel > 0) { let btn = mobileMissileButton; let btnColor = uiButtonColor; let textColor = uiTextColor; let borderColor = uiButtonBorderColor; let icon = '🚀'; let subText = `${ship.currentMissiles}`; let isDisabled = ship.currentMissiles <= 0 || ship.missileCooldown > 0; if (isDisabled) { btnColor = uiButtonDisabledColor; textColor = color(0, 0, 60); borderColor = color(0, 0, 40); if (ship.missileCooldown > 0) { subText = `${ceil(ship.missileCooldown / 60)}`; } } fill(btnColor); stroke(borderColor); strokeWeight(1.5); rect(btn.x, btn.y, btn.size, btn.size, 8); textSize(btn.size * 0.5); fill(textColor); noStroke(); text(icon, btn.x + btn.size / 2, btn.y + btn.size * 0.45); textSize(btn.size * 0.25); fill(textColor); text(subText, btn.x + btn.size / 2, btn.y + btn.size * 0.8); }
     }
@@ -516,7 +532,29 @@ class Ship {
     changeShape(level) { this.shapeState = min(1, floor(level / 2)); }
     get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } }
     getUpgradeCost(upgradeType) { let level, maxLevel, multiplier = this.costMultiplier; switch (upgradeType) { case 'fireRate': level = this.fireRateLevel; maxLevel = this.maxUpgradeLevel; break; case 'spreadShot': level = this.spreadShotLevel; maxLevel = this.maxUpgradeLevel; break; case 'rearGun': level = this.rearGunLevel; maxLevel = this.maxRearGunLevel; multiplier = this.costMultiplier * 0.8; break; case 'homingMissiles': level = this.homingMissilesLevel; maxLevel = this.maxMissileLevel; multiplier = this.specialCostMultiplier; break; default: return Infinity; } if (level >= maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(multiplier, level)); }
-    attemptUpgrade(upgradeType) { let cost = this.getUpgradeCost(upgradeType); if (typeof cost !== 'number' || money < cost) return false; money -= cost; switch (upgradeType) { case 'fireRate': this.fireRateLevel++; break; case 'spreadShot': this.spreadShotLevel++; break; case 'rearGun': this.rearGunLevel++; break; case 'homingMissiles': this.homingMissilesLevel++; this.maxMissiles = this.missileCapacity[this.homingMissilesLevel]; break; default: money += cost; return false; } return true; }
+    attemptUpgrade(upgradeType) {
+        // Prevent missile upgrade on mobile, even if somehow attempted
+        if (isMobile && upgradeType === 'homingMissiles') return false;
+
+        let cost = this.getUpgradeCost(upgradeType);
+        if (typeof cost !== 'number' || money < cost) return false;
+        money -= cost;
+        switch (upgradeType) {
+            case 'fireRate': this.fireRateLevel++; break;
+            case 'spreadShot': this.spreadShotLevel++; break;
+            case 'rearGun': this.rearGunLevel++; break;
+            case 'homingMissiles':
+                this.homingMissilesLevel++;
+                this.maxMissiles = this.missileCapacity[this.homingMissilesLevel];
+                // Give full missiles on first purchase
+                if (this.homingMissilesLevel === 1) {
+                    this.currentMissiles = this.maxMissiles;
+                }
+                break;
+            default: money += cost; return false; // Refund if unknown upgrade
+        }
+        return true;
+    }
     resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; this.missileCooldown = 0; this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0; }
     update() {
         if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.rapidFireTimer > 0) { this.rapidFireTimer--; } if (this.shootCooldown > 0) { this.shootCooldown--; } if (this.missileCooldown > 0) { this.missileCooldown--; }
@@ -562,7 +600,7 @@ class Ship {
             createParticles(this.pos.x + originXOffset * side, originY, 10, this.missileColor, 3, 1.8, 0.6);
         }
     }
-    fireRearGun() { if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI / 2; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle)); } } }
+    fireRearGun() { if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle)); } } }
     draw() {
         let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0; let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5);
         if (drawShip) {
@@ -585,7 +623,11 @@ class Bullet {
         this.style = selectedBulletStyle; // Use global selection
         if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; }
         else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } // White
-        let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); this.trail = [];
+        let baseAngle = -PI / 2;
+        if (angle === PI) { baseAngle = PI/2; angle=0;} // Correct angle for rear gun
+        this.vel = p5.Vector.fromAngle(baseAngle + angle);
+        this.vel.mult(this.speed);
+        this.trail = [];
     }
     update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style === 'Rainbow') { this.hue = (this.hue + 5) % 360; } }
     draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
