@@ -9,7 +9,7 @@
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
 // - Score/Power-up based Shield System (No longer from points)
 // - Selectable Ship Colors (Red, Blue, Green, Orange, Purple, Cyan, Yellow) with corresponding details // ENHANCED: More Options
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement // ADDED: Rings, Moons, Cloud Rotation, Lightning, Structures
 // - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
@@ -45,7 +45,7 @@
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
 // - Max shield charges reduced to 1.
 // - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
-// - Added occasional background planet, subtle galaxy, black hole effect.
+// - Added occasional background planet, subtle galaxy, black hole effect. // ADDED: Structures
 // - Increased Ship Speed (MaxSpeed unchanged, acceleration reduced)
 // - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
 // - Added screen shake on life loss. // MODIFIED (Duration ~1s)
@@ -88,6 +88,8 @@
 // - ADDED: Objective tracking for Potion and Power-up collection. Example objectives added.
 // - MODIFIED: Level 1 Objective target changed from 8 to 5.
 // - MODIFIED: Mobile touch now controls movement AND shooting simultaneously.
+// - ADDED: Planet details (rings, moons, cloud rotation, lightning).
+// - ADDED: Background Structure class and spawning.
 // --------------------------
 
 
@@ -96,6 +98,7 @@ let ship;
 let bullets = []; let homingMissiles = [];
 let asteroids = []; let particles = []; let stars = []; let shootingStars = [];
 let potions = []; let enemyShips = []; let enemyBullets = []; let powerUps = []; let nebulas = [];
+let backgroundStructures = []; // NEW array for structures
 
 // Game State Management
 const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, PLAYING: 3, GAME_OVER: 4, UPGRADE_SHOP: 5, WIN_SCREEN: 6 }; // Enum order matters
@@ -184,6 +187,7 @@ let basicEnemyWeight = 10; let kamikazeWeight = 0; let turretWeight = 0; let swa
 let powerUpSpawnRate = 0.005; // INCREASED (was 0.0015)
 let potionSpawnRate = 0.004; // INCREASED (was 0.001)
 let nebulaSpawnRate = 0.0005; let shootingStarSpawnRate = 0.001;
+let structureSpawnRate = 0.0002; // NEW: Rate for background structures
 let initialAsteroids = 5; let minAsteroidSize = 15; /* SHIELD_POINTS_THRESHOLD REMOVED */ const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
 const MAX_ASTEROID_SPEED = 4.0; const MAX_ENEMY_SPEED_BASIC = 3.0; const MAX_ENEMY_SPEED_KAMIKAZE = 5.5; const MAX_ENEMY_SPEED_SWARMER = 2.5; const MAX_ENEMY_SPEED_LASER = 0.7; // Max speed for Laser enemy
 
@@ -200,8 +204,17 @@ const BUTTON_TEXT_PADDING = 12;
 let currentTopColor, currentBottomColor; const BACKGROUND_CHANGE_INTERVAL = 1200; let isMobile = false;
 
 // --- Background Scenery Variables ---
-let planetVisible = false; let planetPos, planetVel, planetSize, planetBaseColor, planetDetailColor1, planetDetailColor2, planetCloudColor, planetNoiseSeed;
-let lastPlanetAppearanceTime = -Infinity; const PLANET_MIN_INTERVAL = 30000; const PLANET_MAX_INTERVAL = 60000;
+const PLANET_TYPE = { ROCKY: 0, GAS: 1, ICE: 2, LAVA: 3, RINGED: 4, STORMY: 5 };
+let planetVisible = false;
+let planetData = { // Store planet data in an object
+    pos: null, vel: null, size: 0,
+    baseColor: null, detailColor1: null, detailColor2: null, cloudColor: null,
+    noiseSeed: 0, rotation: 0, cloudRotationSpeed: 0,
+    type: PLANET_TYPE.ROCKY, hasRings: false, ringColor: null,
+    numMoons: 0, moonData: [], // Array of {dist, speed, phase, size, color}
+    lightningTimer: 0, lightningCooldown: 120, lightningDuration: 5
+};
+let lastPlanetAppearanceTime = -Infinity; const PLANET_MIN_INTERVAL = 25000; const PLANET_MAX_INTERVAL = 50000; // Slightly reduced interval
 
 // --- Screen Shake Variables ---
 let screenShakeIntensity = 0; let screenShakeDuration = 0;
@@ -331,11 +344,34 @@ function drawHexagon(x, y, r) {
 function draw() {
     // Background Updates
     if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
-    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU) { let currentTime = millis(); if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { planetVisible = true; planetSize = random(width * 0.2, width * 0.5); let edge = floor(random(4)); if (edge === 0) planetPos = createVector(random(width), -planetSize / 2); else if (edge === 1) planetPos = createVector(width + planetSize / 2, random(height)); else if (edge === 2) planetPos = createVector(random(width), height + planetSize / 2); else planetPos = createVector(-planetSize / 2, random(height)); let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8)); planetVel = p5.Vector.sub(targetPos, planetPos); planetVel.normalize(); planetVel.mult(random(0.1, 0.3)); let baseH = random(360); planetBaseColor = color(baseH, random(40, 70), random(50, 80)); planetDetailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90)); planetDetailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70)); planetCloudColor = color(0, 0, 100, 30); planetNoiseSeed = random(1000); lastPlanetAppearanceTime = currentTime; } if (planetVisible) { planetPos.add(planetVel); let buffer = planetSize * 0.6; if (planetPos.x < -buffer || planetPos.x > width + buffer || planetPos.y < -buffer || planetPos.y > height + buffer) { planetVisible = false; } } } else { planetVisible = false; }
+
+    // Spawn Planet Logic
+    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU) {
+         let currentTime = millis();
+         if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) {
+             spawnPlanet();
+             lastPlanetAppearanceTime = currentTime;
+         }
+         if (planetVisible) {
+             planetData.pos.add(planetData.vel);
+             planetData.rotation += planetData.cloudRotationSpeed * 0.01; // Slow base rotation for clouds if needed
+             if (planetData.type === PLANET_TYPE.STORMY) {
+                 planetData.lightningTimer--;
+             }
+             // Check if planet is offscreen
+             let buffer = planetData.size * (planetData.hasRings ? 1.8 : 0.8); // Larger buffer if rings
+             if (planetData.pos.x < -buffer || planetData.pos.x > width + buffer || planetData.pos.y < -buffer || planetData.pos.y > height + buffer) {
+                 planetVisible = false;
+             }
+         }
+     } else {
+         planetVisible = false; // Hide planet if background effects off or in menus
+     }
+
     if (settingBackgroundEffectsEnabled && gameState === GAME_STATE.PLAYING && !isPaused && random(1) < shootingStarSpawnRate) { shootingStars.push(new ShootingStar()); }
 
     // Drawing
-    drawBackgroundAndStars();
+    drawBackgroundAndStars(); // Draws stars, nebulas, structures, planet etc.
     push();
     if (screenShakeDuration > 0 && settingScreenShakeEnabled) { screenShakeDuration--; translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity)); } else { screenShakeDuration = 0; screenShakeIntensity = 0; }
 
@@ -414,12 +450,13 @@ function runGameLogic() {
     for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
     for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
     for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); }
-    // Update potions/powerups (moved updates here, draw below)
+    // Update potions/powerups/structures (moved updates here, draw below)
     for (let i = potions.length - 1; i >= 0; i--) { potions[i].update(); if (potions[i].isOffscreen()) { potions.splice(i,1); }}
     for (let i = powerUps.length - 1; i >= 0; i--) { powerUps[i].update(); if (powerUps[i].isOffscreen()) { powerUps.splice(i,1); }}
+    for (let i = backgroundStructures.length - 1; i >= 0; i--) { backgroundStructures[i].update(); if (backgroundStructures[i].isOffscreen()) { backgroundStructures.splice(i,1); }}
 
 
-    // Drawing (in correct order)
+    // Drawing (in correct order - background elements drawn in drawBackgroundAndStars)
     ship.draw(); if (ship.droneActive) ship.drone.draw();
     for (let b of bullets) b.draw();
     for (let m of homingMissiles) m.draw();
@@ -461,7 +498,7 @@ function runGameLogic() {
             // --- WIN GAME ---
             gameState = GAME_STATE.WIN_SCREEN;
             infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-            bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+            bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
             return;
         } else {
              // --- LEVEL COMPLETE ---
@@ -471,6 +508,8 @@ function runGameLogic() {
             setupShopButtons(); cursor(ARROW);
             // Clear transient objects for the shop
             bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
+            // Keep background structures between levels? Or clear? Let's clear them for now.
+            // backgroundStructures = [];
             // Reset combo for next level
             comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
             return; // Exit runGameLogic early as we are transitioning state
@@ -488,6 +527,7 @@ function runGameLogic() {
         let maxPotionsAllowed = 2;
         let maxPowerUpsAllowed = 2; // INCREASED (was 1)
         let maxNebulasAllowed = 3;
+        let maxStructuresAllowed = 1; // Max 1 background structure at a time
 
         // Spawn Asteroids
         if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
@@ -513,6 +553,7 @@ function runGameLogic() {
         if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
         if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
+        if (settingBackgroundEffectsEnabled && random(1) < structureSpawnRate && backgroundStructures.length < maxStructuresAllowed) { backgroundStructures.push(new BackgroundStructure()); }
     }
 
     // Display HUD and Combo Text at the end
@@ -714,61 +755,272 @@ function handlePotions() {
 
 
 // --- Background Drawing Functions ---
-function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); if (settingBackgroundEffectsEnabled) { for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update(); star.draw(); } } else { fill(0, 0, 80, 70); noStroke(); for (let star of stars) { ellipse(star.x, star.y, 1.5, 1.5); if (!(gameState === GAME_STATE.PLAYING && isPaused)) { star.y += star.speed * 0.5; if (star.y > height + 2) { star.y = -2; star.x = random(width); } } } } }
+function drawBackgroundAndStars() {
+    // Gradient Background
+    for(let y=0; y < height; y++){
+        let inter = map(y, 0, height, 0, 1);
+        let c = lerpColor(currentTopColor, currentBottomColor, inter);
+        stroke(c);
+        line(0, y, width, y);
+    }
+    noStroke();
+
+    if (settingBackgroundEffectsEnabled) {
+        // Draw deep background elements first
+        drawGalaxy();
+        drawBlackHole();
+
+        // Draw structures behind nebulas and planets
+        for (let i = backgroundStructures.length - 1; i >= 0; i--) {
+            // Update moved to main loop
+            backgroundStructures[i].draw();
+            // Offscreen check moved to main loop
+        }
+
+        // Draw Nebulas
+        for (let i = nebulas.length - 1; i >= 0; i--) {
+            if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update();
+            nebulas[i].draw();
+            if (nebulas[i].isOffscreen()) {
+                nebulas.splice(i, 1);
+            }
+        }
+
+        // Draw Planet (if visible)
+        if (planetVisible) {
+            drawPlanet();
+        }
+
+        // Draw Stars and Shooting Stars on top
+        for (let i = shootingStars.length - 1; i >= 0; i--) {
+            if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update();
+            shootingStars[i].draw();
+            if (shootingStars[i].isDone()) {
+                shootingStars.splice(i, 1);
+            }
+        }
+        for (let star of stars) {
+            if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update();
+            star.draw();
+        }
+    } else { // Simplified background if FX disabled
+        fill(0, 0, 80, 70);
+        noStroke();
+        for (let star of stars) {
+            ellipse(star.x, star.y, 1.5, 1.5);
+            if (!(gameState === GAME_STATE.PLAYING && isPaused)) {
+                star.y += star.speed * 0.5;
+                if (star.y > height + 2) {
+                    star.y = -2; star.x = random(width);
+                }
+            }
+        }
+    }
+}
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
+
+function spawnPlanet() {
+    planetVisible = true;
+    planetData.size = random(width * 0.2, width * 0.5);
+    let edge = floor(random(4));
+    if (edge === 0) planetData.pos = createVector(random(width), -planetData.size / 2);
+    else if (edge === 1) planetData.pos = createVector(width + planetData.size / 2, random(height));
+    else if (edge === 2) planetData.pos = createVector(random(width), height + planetData.size / 2);
+    else planetData.pos = createVector(-planetData.size / 2, random(height));
+
+    let targetPos = createVector(random(width * 0.2, width * 0.8), random(height * 0.2, height * 0.8));
+    planetData.vel = p5.Vector.sub(targetPos, planetData.pos);
+    planetData.vel.normalize();
+    planetData.vel.mult(random(0.1, 0.3));
+
+    let baseH = random(360);
+    planetData.noiseSeed = random(1000);
+    planetData.rotation = random(TWO_PI);
+    planetData.cloudRotationSpeed = random(-0.001, 0.001);
+
+    // Determine Planet Type and Features
+    let typeRoll = random(1);
+    if (typeRoll < 0.1) planetData.type = PLANET_TYPE.STORMY;
+    else if (typeRoll < 0.2) planetData.type = PLANET_TYPE.LAVA;
+    else if (typeRoll < 0.35) planetData.type = PLANET_TYPE.GAS;
+    else if (typeRoll < 0.5) planetData.type = PLANET_TYPE.ICE;
+    else planetData.type = PLANET_TYPE.ROCKY;
+
+    planetData.hasRings = (planetData.type === PLANET_TYPE.GAS || random() < 0.15); // Gas giants more likely to have rings
+    planetData.numMoons = (planetData.type === PLANET_TYPE.GAS || planetData.type === PLANET_TYPE.ROCKY) ? floor(random(0, 4)) : 0; // Gas/Rocky can have moons
+
+    // Assign Colors based on Type
+    switch(planetData.type) {
+        case PLANET_TYPE.GAS:
+             baseH = random(20, 50); // Oranges/Yellows/Browns
+             planetData.baseColor = color(baseH, random(60, 85), random(60, 80));
+             planetData.detailColor1 = color((baseH + random(10, 30)) % 360, random(50, 70), random(70, 90));
+             planetData.detailColor2 = color((baseH - random(10, 30) + 360) % 360, random(40, 60), random(50, 70));
+             planetData.cloudColor = color(baseH, 20, 95, 35); // Wispy light clouds
+             break;
+        case PLANET_TYPE.ICE:
+             baseH = random(180, 220); // Blues/Cyans
+             planetData.baseColor = color(baseH, random(20, 50), random(85, 95));
+             planetData.detailColor1 = color(baseH, random(30, 60), random(70, 85));
+             planetData.detailColor2 = color(0, 0, 100, 30); // White/icy details
+             planetData.cloudColor = color(0, 0, 100, 20); // Thin icy clouds
+             break;
+        case PLANET_TYPE.LAVA:
+             baseH = random(-10, 25); // Reds/Oranges
+             planetData.baseColor = color(baseH, random(80, 100), random(40, 60));
+             planetData.detailColor1 = color(baseH + random(5, 15), 100, random(80, 100)); // Bright lava flows
+             planetData.detailColor2 = color(0, 0, random(10, 30)); // Dark rock
+             planetData.cloudColor = color(20, 50, 30, 40); // Dark ash clouds
+             break;
+        case PLANET_TYPE.STORMY:
+             baseH = random(240, 280); // Dark Blues/Purples
+             planetData.baseColor = color(baseH, random(50, 70), random(30, 50));
+             planetData.detailColor1 = color(baseH + random(-10, 10), random(60, 80), random(40, 60));
+             planetData.detailColor2 = color(0, 0, 70, 50); // Grey storm clouds
+             planetData.cloudColor = color(0, 0, 80, 60); // Thick grey clouds
+             planetData.lightningTimer = 0;
+             break;
+        case PLANET_TYPE.RINGED: // Same as rocky but ensure rings
+             planetData.hasRings = true;
+             // fall through to rocky
+        case PLANET_TYPE.ROCKY:
+        default:
+             baseH = random(360); // Any color possible
+             planetData.baseColor = color(baseH, random(40, 70), random(50, 80));
+             planetData.detailColor1 = color((baseH + random(20, 50)) % 360, random(50, 70), random(60, 90));
+             planetData.detailColor2 = color((baseH + random(180, 220)) % 360, random(30, 60), random(40, 70));
+             planetData.cloudColor = color(0, 0, 100, 30); // Standard white clouds
+             break;
+    }
+
+    // Ring Color
+    if(planetData.hasRings) {
+        let ringH = hue(planetData.baseColor) + random(-30, 30);
+        planetData.ringColor = color(ringH, random(10, 30), random(60, 80), 40); // Low saturation, fairly bright, translucent
+    }
+
+    // Moon Data
+    planetData.moonData = [];
+    for(let i=0; i<planetData.numMoons; i++) {
+        planetData.moonData.push({
+            dist: planetData.size * random(0.8, 1.5),
+            speed: random(0.005, 0.015) * (random() < 0.5 ? 1 : -1),
+            phase: random(TWO_PI),
+            size: planetData.size * random(0.05, 0.15),
+            color: color(random(0,360), 0, random(50, 80)) // Greyish moons
+        });
+    }
+}
+
+
 function drawPlanet() {
     push();
-    translate(planetPos.x, planetPos.y);
-    noStroke();
-    // Base planet color
-    fill(planetBaseColor);
-    ellipse(0, 0, planetSize, planetSize);
+    translate(planetData.pos.x, planetData.pos.y);
 
-    // Detail Layers (Landmass/Features) - Reduced movement
+    // Draw Rings (behind planet)
+    if (planetData.hasRings) {
+        noFill();
+        strokeWeight(planetData.size * 0.03);
+        stroke(hue(planetData.ringColor), saturation(planetData.ringColor), brightness(planetData.ringColor), alpha(planetData.ringColor) * 0.5);
+        ellipse(0, 0, planetData.size * 1.6, planetData.size * 0.4); // Outer ring
+        strokeWeight(planetData.size * 0.05);
+         stroke(hue(planetData.ringColor), saturation(planetData.ringColor), brightness(planetData.ringColor), alpha(planetData.ringColor));
+        ellipse(0, 0, planetData.size * 1.3, planetData.size * 0.3); // Inner brighter ring
+        noStroke();
+    }
+
+     // Draw Moons (behind planet)
+     for(let moon of planetData.moonData) {
+        let angle = frameCount * moon.speed + moon.phase;
+        let moonX = cos(angle) * moon.dist;
+        let moonY = sin(angle) * moon.dist * 0.3; // Flatten orbit slightly
+        if (sin(angle) < 0) { // Only draw if "behind" the planet based on simple y-check
+            fill(moon.color);
+            ellipse(moonX, moonY, moon.size, moon.size);
+        }
+    }
+
+
+    // Draw Planet Body
+    noStroke();
+    fill(planetData.baseColor);
+    ellipse(0, 0, planetData.size, planetData.size);
+
+    // Detail Layers (Landmass/Features) - Use planet rotation
     let detailScale = 0.01;
     let detailLayers = 3;
     for (let layer = 0; layer < detailLayers; layer++) {
-        let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers);
+        let layerColor = (layer === 0) ? planetData.detailColor1 : lerpColor(planetData.detailColor2, planetData.baseColor, layer / detailLayers);
         let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40);
         fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha);
         beginShape();
         for (let angle = 0; angle < TWO_PI; angle += PI / 60) {
-            let xoff = map(cos(angle), -1, 1, 0, 3 + layer);
-            let yoff = map(sin(angle), -1, 1, 0, 3 + layer);
-            // Removed frameCount dependency here for smoother landmasses
-            let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale);
-            let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15));
-            let x = radius * cos(angle);
+            // Apply planet rotation to the noise lookup angle
+            let rotatedAngle = angle + planetData.rotation;
+            let xoff = map(cos(rotatedAngle), -1, 1, 0, 3 + layer);
+            let yoff = map(sin(rotatedAngle), -1, 1, 0, 3 + layer);
+            let noiseVal = noise(planetData.noiseSeed + xoff * detailScale, planetData.noiseSeed + 100 + yoff * detailScale);
+            let radius = planetData.size / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15));
+            let x = radius * cos(angle); // Vertex position uses original angle
             let y = radius * sin(angle);
             vertex(x, y);
         }
         endShape(CLOSE);
     }
 
-    // Cloud Layers - Reduced movement
+    // Cloud Layers - Use faster cloud rotation
     let cloudLayers = 4;
-    let cloudOffsetSpeed = 0.0005; // Drastically reduced speed for less rotation
+    let cloudBaseRotation = frameCount * planetData.cloudRotationSpeed * 50; // Faster rotation for clouds
     for (let i = 0; i < cloudLayers; i++) {
         let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25);
-        fill(0, 0, 100, cloudAlpha); // White clouds
-        // Slowed down rotation significantly
-        let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2);
-        let cloudSize = planetSize * (0.8 - i * 0.1);
-        // Removed frameCount dependency from noise for static cloud shapes
-        let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i) * PI;
-        let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i) * 0.8);
+        fill(hue(planetData.cloudColor), saturation(planetData.cloudColor), brightness(planetData.cloudColor), alpha(planetData.cloudColor) * cloudAlpha/100);
+        let cloudAngleOffset = cloudBaseRotation * (i + 1) * (i % 2 === 0 ? 1 : -1.2);
+        let cloudSize = planetData.size * (0.8 - i * 0.1);
+        let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetData.noiseSeed + 300 + i) * PI;
+        let endAngle = startAngle + PI * (0.4 + noise(planetData.noiseSeed + 400 + i) * 0.8);
+        // Use arc for cloud bands
+        noStroke();
         arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN);
-        arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); // Inner arc for thickness
     }
 
+    // Lightning for Stormy planets
+    if(planetData.type === PLANET_TYPE.STORMY) {
+        if (planetData.lightningTimer <= 0 && random() < 0.02) { // Chance to flash
+            planetData.lightningTimer = planetData.lightningDuration;
+        }
+        if (planetData.lightningTimer > 0) {
+            strokeWeight(random(1, 3));
+            stroke(0, 0, 100, 90); // Bright white
+            let startAngle = random(TWO_PI);
+            let endAngle = startAngle + random(-PI/6, PI/6);
+            let startRad = random(planetData.size * 0.3, planetData.size * 0.45);
+            let endRad = random(planetData.size * 0.4, planetData.size * 0.5);
+            line(cos(startAngle)*startRad, sin(startAngle)*startRad, cos(endAngle)*endRad, sin(endAngle)*endRad);
+            noStroke();
+        }
+    }
+
+
     // Atmosphere Glow
-    let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5);
+    let glowColor = lerpColor(planetData.baseColor, color(hue(planetData.baseColor), 10, 100), 0.5);
     noFill();
     for(let i=0; i<5; i++) {
-        strokeWeight(planetSize * 0.02 * i + 1);
+        strokeWeight(planetData.size * 0.02 * i + 1);
         stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5);
-        ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03));
+        ellipse(0, 0, planetData.size * (1.0 + i * 0.03), planetData.size * (1.0 + i * 0.03));
+    }
+    noStroke();
+
+    // Draw Moons (in front)
+    for(let moon of planetData.moonData) {
+        let angle = frameCount * moon.speed + moon.phase;
+        let moonX = cos(angle) * moon.dist;
+        let moonY = sin(angle) * moon.dist * 0.3; // Flatten orbit slightly
+         if (sin(angle) >= 0) { // Only draw if "in front" of the planet
+            fill(moon.color);
+            ellipse(moonX, moonY, moon.size, moon.size);
+        }
     }
 
     pop();
@@ -859,7 +1111,7 @@ function displayComboText() { if (showComboText && comboCounter >= 2) { let comb
 // --- Game State Control ---
 function resetGame() {
     ship = new Ship(); // Creates ship with currently selected cosmetics
-    bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
+    bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
     points = 0; money = 0; lives = 3; currentLevel = 1;
     setDifficultyForLevel(currentLevel);
     loadObjectiveForLevel(currentLevel); // Load objective for level 1
@@ -877,6 +1129,8 @@ function startNextLevel() {
     loadObjectiveForLevel(currentLevel); // Load the next level's objective
     ship.resetPositionForNewLevel(); if (ship.homingMissilesLevel > 0) { ship.currentMissiles = ship.maxMissiles; }
     asteroids = []; bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
+    // Keep background structures? Resetting them might look better.
+    backgroundStructures = [];
     // frameCount reset happens automatically in p5, levelStartTime is set in loadObjectiveForLevel
     infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
     spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
@@ -888,7 +1142,7 @@ function selectMenuItem(index) {
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
-function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; break; } }
+function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; break; } }
 function selectCosmeticsItemAction(index) {
     let setting = cosmeticsMenuItems[index];
     if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; return; }
@@ -925,7 +1179,8 @@ function mousePressed() {
                  return;
              }
              if (!isPaused && ship && !isMobile) {
-                 ship.shoot(); // Non-mobile click = single shot (Hold handled by spacebar)
+                 // Don't trigger single shot on click for desktop, rely on spacebar hold
+                 // ship.shoot();
              }
              break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
@@ -943,6 +1198,7 @@ function keyPressed() {
             isPaused = !isPaused;
             if (isPaused) {
                  cursor(ARROW); // Show cursor when paused
+                 isMobileShooting = false; // Stop shooting if paused via ESC
             } else {
                  cursor(); // Hide cursor when playing
             }
@@ -1016,6 +1272,7 @@ function touchStarted() {
                  selectedSettingsItem = 0;
                  cursor(ARROW);
                  uiButtonTapped = true;
+                 isMobileShooting = false; // Stop shooting if pausing via button
                  break; // Exit loop, settings button takes priority
             }
             // Check Missile Button
@@ -1044,7 +1301,7 @@ function touchStarted() {
         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
     }
 
-    // If no UI element was hit during gameplay, start mobile shooting
+    // If no UI element was hit during *active* gameplay, start mobile shooting/movement control
     if (gameState === GAME_STATE.PLAYING && !isPaused && !uiButtonTapped) {
         isMobileShooting = true;
     }
@@ -1055,7 +1312,7 @@ function touchStarted() {
 
 function touchEnded() {
     if (isMobile && touches.length === 0) { // Check if *all* touches have ended
-        isMobileShooting = false;
+        isMobileShooting = false; // Stop shooting when no fingers are touching
     }
     return false; // Prevent default touch actions
 }
@@ -1133,13 +1390,14 @@ class Ship {
         let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
         let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
         let keyboardMoving = movingUp || movingDown || movingLeft || movingRight;
-        let touchMoving = isMobile && touches.length > 0; // Simplified touch check
+        let touchMoving = isMobile && touches.length > 0 && isMobileShooting; // Touch controls movement ONLY when isMobileShooting is true
 
         if (touchMoving) {
-             // Mobile touch always controls movement
+             // Mobile touch always controls movement when shooting is active
              let touchPos = createVector(touches[0].x, touches[0].y); // Use first touch for movement target
              let direction = p5.Vector.sub(touchPos, this.pos);
-             if (direction.magSq() > (this.size * 0.5) * (this.size * 0.5)) { // Only move if touch is outside a small deadzone
+             // Adjust deadzone or sensitivity as needed
+             if (direction.magSq() > (this.size * 0.2) * (this.size * 0.2)) {
                  let targetVel = direction.copy().normalize().mult(this.maxSpeed * this.touchThrustMultiplier);
                  this.vel.lerp(targetVel, 0.15); // Smoother touch movement
                  applyThrustParticles = this.vel.magSq() > 0.1;
@@ -1147,7 +1405,7 @@ class Ship {
                  this.vel.mult(this.friction * 0.95); // Stronger friction if touch is near center (braking)
              }
         } else if (keyboardMoving) {
-             // Keyboard movement (only if not touching)
+             // Keyboard movement (only if not touch-moving)
              let currentThrust = this.thrust;
              if (!isMobile) { currentThrust *= 1.5; } // Boost for non-mobile
              if (movingUp) { acceleration.y -= currentThrust; applyThrustParticles = true; }
@@ -1634,3 +1892,88 @@ class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x,
 // Nebula Class
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
 
+// NEW: BackgroundStructure Class
+class BackgroundStructure {
+    constructor() {
+        this.type = random() < 0.4 ? 'Derelict' : 'Station'; // More stations
+        this.size = random(width * 0.15, width * 0.4);
+        this.rotation = random(TWO_PI);
+        this.rotationSpeed = random(-0.0005, 0.0005);
+
+        // Spawn off-screen
+        let edge = floor(random(4));
+        if (edge === 0) this.pos = createVector(random(width), -this.size); // Top
+        else if (edge === 1) this.pos = createVector(width + this.size, random(height)); // Right
+        else if (edge === 2) this.pos = createVector(random(width), height + this.size); // Bottom
+        else this.pos = createVector(-this.size, random(height)); // Left
+
+        // Very slow drift towards opposite side
+        let targetPos = createVector(width - this.pos.x, height - this.pos.y);
+        this.vel = p5.Vector.sub(targetPos, this.pos).normalize().mult(random(0.05, 0.15));
+
+        // Colors
+        if (this.type === 'Station') {
+            this.baseColor = color(0, 0, 65); // Grey
+            this.detailColor = color(0, 0, 80);
+            this.lightColor = color(180, 50, 100); // Cyan lights
+        } else { // Derelict
+            this.baseColor = color(30, 30, 40); // Brownish grey
+            this.detailColor = color(20, 40, 25); // Darker rust/brown
+            this.lightColor = color(0, 80, 60); // Dim red lights
+        }
+        this.lightTimer = floor(random(60)); // Offset light blinking
+    }
+
+    update() {
+        this.pos.add(this.vel);
+        this.rotation += this.rotationSpeed;
+        this.lightTimer = (this.lightTimer + 1) % 120; // Cycle timer for lights
+    }
+
+    draw() {
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.rotation);
+        rectMode(CENTER);
+        noStroke();
+
+        // Simple structure shapes
+        let s = this.size;
+        fill(this.baseColor);
+        if (this.type === 'Station') {
+            // Central hub
+            ellipse(0, 0, s * 0.6, s * 0.6);
+            // Arms
+            for (let i = 0; i < 4; i++) {
+                rotate(PI / 2);
+                rect(0, s * 0.5, s * 0.15, s * 0.5);
+                fill(this.detailColor);
+                rect(0, s * 0.7, s * 0.2, s * 0.1);
+                // Blinking Lights
+                if (this.lightTimer < 15 + i*5 || (this.lightTimer > 60 && this.lightTimer < 75 + i*5 )) {
+                    fill(this.lightColor);
+                    ellipse(0, s * 0.75, s * 0.05, s * 0.05);
+                }
+                 fill(this.baseColor); // Reset fill
+            }
+        } else { // Derelict
+             // Broken hull shape
+             rect(0, 0, s, s * 0.4);
+             fill(this.detailColor);
+             rect(s * 0.3, s * 0.1, s * 0.3, s * 0.25);
+             rect(-s * 0.2, -s * 0.15, s * 0.4, s * 0.1);
+             // Dim blinking light
+             if (this.lightTimer < 5) {
+                fill(this.lightColor);
+                ellipse(s * 0.4, -s * 0.1, s * 0.04, s * 0.04);
+             }
+        }
+
+        pop();
+    }
+
+    isOffscreen() {
+        let margin = this.size * 1.5; // Generous margin
+        return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin);
+    }
+}
