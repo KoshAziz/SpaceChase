@@ -1,18 +1,19 @@
 
 // --- Features ---
-// - Start Menu with Options (Start Game, Settings, Cosmetics)
+// - Start Menu with Options (Start Game, Settings, Cosmetics, Skills) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
+// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE
 // - Mobile Gameplay Settings Button (Positioned bottom-left)
 // - Level System based on Mission Objectives // NEW: Replaces point thresholds
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
-// - Score/Power-up based Shield System (No longer from points)
+// - Score/Power-up based Shield System (No longer from points) // ADDED: Passive Shield Regen from Skill Tree
 // - Selectable Ship Colors (Red, Blue, Green, Orange, Purple, Cyan, Yellow) with corresponding details // ENHANCED: More Options
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement // ADDED: Rings, Moons, Cloud Rotation, Lightning, Structures
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole, structures) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail, Rings, Moons, Cloud Rotation, Lightning)
 // - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
 // - Asteroid Splitting
-// - Player Lives (Max 3)
+// - Player Lives (Max 3 + Skill Tree Bonus) // MODIFIED
 // - Simple Explosion Particles (Asteroid destruction + Bullet impact) // ENHANCED (Variety, Count)
 // - Score-based Difficulty Increase - Uses Levels + Time (Scales to Lvl 15) // Difficulty still scales per level number
 // - Health Potions: Spawn randomly, restore 1 life on pickup (up to max). // ENHANCED (Visuals) // INCREASED SPAWN RATE // ADDED OBJECTIVE TRACKING
@@ -24,6 +25,7 @@
 //   - Laser Enemy: Charges and fires a continuous beam. // NEW ENEMY TYPE
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
+// - Background Structures (Stations/Derelicts) // NEW FEATURE
 // - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 Objective // MODIFIED
@@ -36,6 +38,7 @@
 // - Mobile UI Buttons for Missiles // NEW FEATURE // REMOVED: Laser button
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (score) and Money (upgrades) systems.
+// - Implemented persistent Tech Fragments currency for Skill Tree. // NEW FEATURE
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
@@ -46,7 +49,7 @@
 // - Max shield charges reduced to 1.
 // - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
 // - Added occasional background planet, subtle galaxy, black hole effect. // ADDED: Structures
-// - Increased Ship Speed (MaxSpeed unchanged, acceleration reduced)
+// - Increased Ship Speed (MaxSpeed modified by Skill Tree) // MODIFIED
 // - Increased Asteroid Spawn Rate Scaling & Max Asteroid Count per Level
 // - Added screen shake on life loss. // MODIFIED (Duration ~1s)
 // - Changed Title Color Order & Darkened Red
@@ -58,7 +61,7 @@
 // - REMOVED Auto-Fire Upgrade functionality entirely.
 // - ENHANCED: Added particles for shield hits and pickup collection.
 // - ENHANCED: Changed enemy bullet appearance.
-// - MODIFIED: Reduced ship thrust value.
+// - MODIFIED: Reduced ship thrust value (base).
 // - MODIFIED: Reduced black hole visual jitter ("slower" appearance).
 // - MODIFIED: Reduced size of engine thrust visual effect.
 // - MODIFIED: Adjusted UI element sizes and layout for mobile friendliness.
@@ -90,6 +93,7 @@
 // - MODIFIED: Mobile touch now controls movement AND shooting simultaneously.
 // - ADDED: Planet details (rings, moons, cloud rotation, lightning).
 // - ADDED: Background Structure class and spawning.
+// - ADDED: Skill Tree system with persistent upgrades and Tech Fragment currency.
 // --------------------------
 
 
@@ -101,13 +105,13 @@ let potions = []; let enemyShips = []; let enemyBullets = []; let powerUps = [];
 let backgroundStructures = []; // NEW array for structures
 
 // Game State Management
-const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, PLAYING: 3, GAME_OVER: 4, UPGRADE_SHOP: 5, WIN_SCREEN: 6 }; // Enum order matters
+const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7 }; // Enum order matters, added SKILL_TREE
 let gameState = GAME_STATE.START_MENU;
 let previousGameState = GAME_STATE.START_MENU;
 let isPaused = false;
 
 // --- Menu Variables ---
-let menuItems = ['Start Game', 'Settings', 'Cosmetics'];
+let menuItems = ['Start Game', 'Skills', 'Settings', 'Cosmetics']; // Added Skills
 let selectedMenuItem = 0; let startMenuButtons = [];
 
 // --- Settings Variables and Menu Items ---
@@ -136,6 +140,34 @@ const COLOR_DEFINITIONS = {
 let cosmeticsMenuItems = [ { id: 'shipColor', label: 'Ship Color', type: 'cycle', options: SHIP_COLORS }, { id: 'bulletStyle', label: 'Bullet Style', type: 'cycle', options: BULLET_STYLES }, { id: 'back', label: 'Back', type: 'action' } ];
 let selectedCosmeticsMenuItem = 0; let cosmeticsMenuButtons = [];
 
+// --- Skill Tree Variables ---
+let techFragments = 0; // Persistent currency
+let skillTreeData = { // Holds current level of each skill
+    'MAX_SPEED': 0,
+    'MAX_LIVES': 0,
+    'SHIELD_REGEN': 0,
+    'WEAPON_DAMAGE': 0,
+    'MISSILE_DAMAGE': 0,
+    'STARTING_MONEY': 0
+};
+const SKILL_DEFINITIONS = {
+    'MAX_SPEED': { label: "Engine Tuning", maxLevel: 5, costPerLevel: [3, 5, 8, 12, 18], effectPerLevel: 0.4, description: "+ Max Speed" },
+    'MAX_LIVES': { label: "Reinforced Hull", maxLevel: 3, costPerLevel: [5, 10, 20], effectPerLevel: 1, description: "+ Max Lives" },
+    'SHIELD_REGEN': { label: "Shield Capacitor", maxLevel: 4, costPerLevel: [4, 7, 11, 16], effectPerLevel: 0.0005, description: "+ Passive Shield Regen / sec" }, // Regen rate per frame
+    'WEAPON_DAMAGE': { label: "Weapon Calibration", maxLevel: 5, costPerLevel: [4, 6, 9, 13, 20], effectPerLevel: 0.15, description: "+ Base Bullet Damage" },
+    'MISSILE_DAMAGE': { label: "Explosives Expert", maxLevel: 5, costPerLevel: [5, 8, 12, 17, 25], effectPerLevel: 1, description: "+ Missile Damage" }, // Flat damage bonus per level
+    'STARTING_MONEY': { label: "Initial Funding", maxLevel: 5, costPerLevel: [2, 4, 6, 8, 10], effectPerLevel: 25, description: "+ Starting Money" }
+};
+let skillTreeButtons = [];
+let selectedSkillButton = null; // For showing description
+
+// --- Base Ship Stats (for Skill Tree modification) ---
+const BASE_MAX_SPEED = 9.5;
+const BASE_MAX_LIVES = 3;
+const BASE_BULLET_DAMAGE = 1;
+const BASE_MISSILE_DAMAGE = [0, 3, 4, 5, 6]; // Original base damage per shop level
+const BASE_STARTING_MONEY = 0;
+
 // --- Mobile UI Button Variables ---
 let mobileSettingsButton = { x: 0, y: 0, size: 0, padding: 5 };
 let mobileMissileButton = { x: 0, y: 0, size: 0, padding: 5 };
@@ -148,7 +180,10 @@ const NUM_POWERUP_TYPES = 6;
 const ENEMY_TYPES = { BASE: 0, KAMIKAZE: 1, TURRET: 2, SWARMER: 3, LASER: 4 }; // ADDED LASER
 
 // Score, Level & Resources
-let points = 0; let money = 0; let lives = 3; const MAX_LIVES = 3; let currentLevel = 1;
+let points = 0; // Score per game
+let money = 0; // Currency per game for shop
+let lives = 3; // Current lives, calculated at game start
+let currentLevel = 1;
 const MAX_LEVEL = 15; // Max level remains 15
 
 // --- Mission Objectives ---
@@ -230,6 +265,7 @@ function setup() {
     colorMode(HSB, 360, 100, 100, 100);
     let ua = navigator.userAgent;
     if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
+    loadGameData(); // Load persistent data (fragments, skills) FIRST
     createStarfield(200);
     textAlign(CENTER, CENTER);
     textFont('monospace');
@@ -241,6 +277,7 @@ function setup() {
     setupMenuButtons();
     setupSettingsMenuButtons();
     setupCosmeticsMenuButtons();
+    setupSkillTreeButtons(); // Setup skill tree buttons
     calculateMobileSettingsButtonPosition();
     calculateMobileActionButtonsPosition();
     // loadObjectiveForLevel(currentLevel); // Load initial objective (will be done in resetGame/startGame)
@@ -315,9 +352,40 @@ function setupShopButtons() {
     let nextLevelY = startY + numButtons * spacing + nextLevelSpacing;
     shopButtons.push({ id: 'nextLevel', x: startX, y: nextLevelY, w: buttonWidth, h: buttonHeight });
 }
-function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * 1.5; let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
+function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * (menuItems.length / 2.0); let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing - buttonHeight/2, w: buttonWidth, h: buttonHeight }); } }
 function setupSettingsMenuButtons() { settingsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < settingsItems.length; i++) { settingsMenuButtons.push({ id: settingsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function setupCosmeticsMenuButtons() { cosmeticsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < cosmeticsMenuItems.length; i++) { cosmeticsMenuButtons.push({ id: cosmeticsMenuItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
+function setupSkillTreeButtons() {
+    skillTreeButtons = [];
+    let buttonWidth = isMobile ? 150 : 180;
+    let buttonHeight = isMobile ? 35 : 40;
+    let cols = isMobile ? 2 : 3;
+    let rows = ceil(Object.keys(SKILL_DEFINITIONS).length / cols);
+    let gridW = cols * buttonWidth + (cols - 1) * (isMobile ? 15 : 20);
+    let gridH = rows * buttonHeight + (rows - 1) * (isMobile ? 15 : 20);
+    let startX = width / 2 - gridW / 2;
+    let startY = height * 0.3; // Adjusted start Y
+    let xSpacing = buttonWidth + (isMobile ? 15 : 20);
+    let ySpacing = buttonHeight + (isMobile ? 15 : 20);
+    let backButtonYOffset = isMobile ? 30 : 40;
+
+    let i = 0;
+    for (const skillId in SKILL_DEFINITIONS) {
+        let col = i % cols;
+        let row = floor(i / cols);
+        let btnX = startX + col * xSpacing;
+        let btnY = startY + row * ySpacing;
+        skillTreeButtons.push({ id: skillId, x: btnX, y: btnY, w: buttonWidth, h: buttonHeight });
+        i++;
+    }
+
+    // Add Back Button
+    let backButtonWidth = isMobile ? 120 : 150;
+    let backButtonHeight = isMobile ? 35 : 40;
+    let backButtonX = width / 2 - backButtonWidth / 2;
+    let backButtonY = startY + gridH + backButtonYOffset;
+    skillTreeButtons.push({ id: 'back', x: backButtonX, y: backButtonY, w: backButtonWidth, h: backButtonHeight });
+}
 function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 
@@ -337,6 +405,48 @@ function drawHexagon(x, y, r) {
     endShape(CLOSE);
 }
 
+// --- Persistence Functions ---
+function saveGameData() {
+    try {
+        let dataToSave = {
+            techFragments: techFragments,
+            skillTreeData: skillTreeData
+        };
+        localStorage.setItem('spaceChaseSaveData', JSON.stringify(dataToSave));
+        // console.log("Game data saved.");
+    } catch (e) {
+        console.error("Error saving game data to localStorage:", e);
+    }
+}
+
+function loadGameData() {
+    try {
+        let savedDataString = localStorage.getItem('spaceChaseSaveData');
+        if (savedDataString) {
+            let savedData = JSON.parse(savedDataString);
+            techFragments = savedData.techFragments || 0;
+            // Carefully merge skill tree data to handle potential new skills added later
+            if (savedData.skillTreeData) {
+                 for (const skillId in skillTreeData) { // Use default skillTreeData keys
+                     if (savedData.skillTreeData.hasOwnProperty(skillId)) {
+                         skillTreeData[skillId] = savedData.skillTreeData[skillId];
+                     }
+                 }
+            }
+            // console.log("Game data loaded:", skillTreeData, techFragments);
+        } else {
+            // console.log("No save data found, using defaults.");
+            // Initialize with defaults if no save data (redundant but safe)
+            techFragments = 0;
+             skillTreeData = { MAX_SPEED: 0, MAX_LIVES: 0, SHIELD_REGEN: 0, WEAPON_DAMAGE: 0, MISSILE_DAMAGE: 0, STARTING_MONEY: 0 };
+        }
+    } catch (e) {
+        console.error("Error loading game data from localStorage:", e);
+         techFragments = 0;
+         skillTreeData = { MAX_SPEED: 0, MAX_LIVES: 0, SHIELD_REGEN: 0, WEAPON_DAMAGE: 0, MISSILE_DAMAGE: 0, STARTING_MONEY: 0 };
+    }
+}
+
 
 // ==================
 // p5.js Draw Loop
@@ -346,7 +456,7 @@ function draw() {
     if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
 
     // Spawn Planet Logic
-    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU) {
+    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE ) { // Don't update during skill tree either
          let currentTime = millis();
          if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) {
              spawnPlanet();
@@ -369,6 +479,8 @@ function draw() {
      }
 
     if (settingBackgroundEffectsEnabled && gameState === GAME_STATE.PLAYING && !isPaused && random(1) < shootingStarSpawnRate) { shootingStars.push(new ShootingStar()); }
+     if (settingBackgroundEffectsEnabled && gameState === GAME_STATE.PLAYING && !isPaused && random(1) < structureSpawnRate && backgroundStructures.length < 1) { backgroundStructures.push(new BackgroundStructure()); }
+
 
     // Drawing
     drawBackgroundAndStars(); // Draws stars, nebulas, structures, planet etc.
@@ -376,11 +488,19 @@ function draw() {
     if (screenShakeDuration > 0 && settingScreenShakeEnabled) { screenShakeDuration--; translate(random(-screenShakeIntensity, screenShakeIntensity), random(-screenShakeIntensity, screenShakeIntensity)); } else { screenShakeDuration = 0; screenShakeIntensity = 0; }
 
     // Game State Logic & Drawing
-    switch (gameState) { case GAME_STATE.START_MENU: displayStartMenu(); break; case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break; case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break; // Changed to display new cosmetics menu
-        case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseScreen(); } break; case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break; case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break; case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break; }
+    switch (gameState) {
+         case GAME_STATE.START_MENU: displayStartMenu(); break;
+         case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break;
+         case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
+         case GAME_STATE.SKILL_TREE: displaySkillTree(); break; // NEW
+         case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseScreen(); } break;
+         case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
+         case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
+         case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break;
+     }
 
     // Overlays
-    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU) { infoMessageTimeout--; } }
+    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU || gameState === GAME_STATE.SKILL_TREE) { infoMessageTimeout--; } }
     if (levelTransitionFlash > 0) { fill(0, 0, 100, levelTransitionFlash * 10); rect(0, 0, width, height); levelTransitionFlash--; }
     pop();
 }
@@ -421,10 +541,142 @@ function displayCosmeticsMenu() {
     if (currentPalette) { push(); translate(width / 2, previewY); fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]); rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]); triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); pop(); }
     cursor(ARROW);
 }
+function displaySkillTree() {
+    drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.8));
+    fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Skill Tree", width / 2, height * 0.12);
+    textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor);
+    text(`Tech Fragments: ${techFragments}`, width / 2, height * 0.12 + (isMobile ? 50 : 65)); // Display currency
+
+    let buttonTextSize = isMobile ? 11 : 13;
+    textAlign(CENTER, CENTER);
+    selectedSkillButton = null; // Reset selected button description check
+
+    // Check hover for description display
+    for (let button of skillTreeButtons) {
+        if (button.id !== 'back' && !isMobile && mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) {
+             selectedSkillButton = button.id;
+             break;
+        }
+    }
+
+    // Draw Buttons
+    for (let button of skillTreeButtons) {
+        if (button.id === 'back') {
+            // Draw Back Button
+            let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+            let buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60);
+            let borderCol = color(90, 80, 85);
+            fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6);
+            fill(uiTextColor); noStroke(); drawButtonText("Back", button, buttonTextSize + 2);
+        } else {
+            // Draw Skill Button
+            let skillId = button.id;
+            let skillDef = SKILL_DEFINITIONS[skillId];
+            let currentLevel = skillTreeData[skillId];
+            let isMaxed = currentLevel >= skillDef.maxLevel;
+            let cost = isMaxed ? "MAX" : skillDef.costPerLevel[currentLevel];
+            let canAfford = !isMaxed && techFragments >= cost;
+
+            let label = `${skillDef.label} ${currentLevel}/${skillDef.maxLevel}`;
+            let costText = isMaxed ? "(MAX)" : `(${cost} TF)`;
+
+            let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
+            let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+
+            if (isMaxed) {
+                buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); borderCol = color(0, 0, 40);
+            } else if (!canAfford) {
+                buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); borderCol = color(0, 80, 70);
+            } else {
+                buttonCol = hover ? uiButtonHoverColor : uiButtonColor; borderCol = uiButtonBorderColor;
+            }
+
+            fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6);
+            fill(textCol); noStroke();
+            // Draw label and cost on two lines
+            textSize(buttonTextSize);
+            text(label, button.x + button.w / 2, button.y + button.h * 0.35);
+            textSize(buttonTextSize - 1);
+            text(costText, button.x + button.w / 2, button.y + button.h * 0.7);
+        }
+    }
+
+     // Draw Skill Description Tooltip (if hovering)
+     if(selectedSkillButton) {
+        let skillDef = SKILL_DEFINITIONS[selectedSkillButton];
+        let currentLevel = skillTreeData[selectedSkillButton];
+        let desc = skillDef.description;
+        let effect = "";
+        if (skillDef.effectPerLevel) {
+             if (selectedSkillButton === 'SHIELD_REGEN') {
+                effect = ` (${(skillDef.effectPerLevel * currentLevel * 60).toFixed(2)}/s)`; // Show per second
+            } else if (selectedSkillButton === 'WEAPON_DAMAGE') {
+                 effect = ` (+${(skillDef.effectPerLevel * currentLevel * 100).toFixed(0)}%)`;
+            }
+             else {
+                effect = ` (+${(skillDef.effectPerLevel * currentLevel).toFixed(1)})`;
+            }
+        }
+
+        let fullDesc = desc + effect;
+        textSize(isMobile? 12 : 14);
+        textAlign(CENTER, BOTTOM);
+        let descWidth = textWidth(fullDesc);
+        let boxWidth = descWidth + 20;
+        let boxHeight = (isMobile? 12 : 14) + 10;
+        let boxX = mouseX - boxWidth / 2; // Position near mouse
+        let boxY = mouseY - boxHeight - 10; // Position above mouse
+        boxX = constrain(boxX, 10, width - boxWidth - 10);
+        boxY = constrain(boxY, 10, height - boxHeight - 10);
+
+        fill(uiPanelColor);
+        stroke(uiBorderColor);
+        strokeWeight(1);
+        rect(boxX, boxY, boxWidth, boxHeight, 4);
+        fill(uiTextColor);
+        noStroke();
+        text(fullDesc, boxX + boxWidth / 2, boxY + boxHeight - 5);
+    }
+
+
+    cursor(ARROW);
+}
 function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap anywhere to Resume" : "Press ESC to Resume", width / 2, height / 2 + 40); } // Changed mobile pause message
 function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
-function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
-function displayWinScreen() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6); let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; } fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
+function displayGameOver() {
+    drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
+    fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
+    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75));
+
+    // Award Tech Fragments on Game Over based on score
+    let fragmentsEarned = floor(points / 500); // Example: 1 fragment per 500 points
+    if (fragmentsEarned > 0) {
+        techFragments += fragmentsEarned;
+        textSize(isMobile ? 16 : 20);
+        fill(uiHighlightColor);
+        text(`+${fragmentsEarned} Tech Fragments!`, width / 2, height / 3 + (isMobile ? 95 : 115));
+        saveGameData(); // Save immediately after awarding
+    }
+
+    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
+}
+function displayWinScreen() {
+    drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6);
+    let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; }
+    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80));
+
+    // Award Tech Fragments on Win based on score
+    let fragmentsEarned = floor(points / 300) + 10; // Example: 1 per 300 points + 10 bonus for winning
+    if (fragmentsEarned > 0) {
+        techFragments += fragmentsEarned;
+        textSize(isMobile ? 16 : 20);
+        fill(uiHighlightColor);
+        text(`+${fragmentsEarned} Tech Fragments!`, width / 2, winY + (isMobile ? 100 : 120));
+        saveGameData(); // Save immediately after awarding
+    }
+
+    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
+}
 function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2); rect(panelX, panelY, panelWidth, panelHeight, 10); }
 function drawStyledButton(button) {
     let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false;
@@ -499,20 +751,24 @@ function runGameLogic() {
             gameState = GAME_STATE.WIN_SCREEN;
             infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
             bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+             // Award fragments on win - moved to displayWinScreen
             return;
         } else {
              // --- LEVEL COMPLETE ---
-            points += 100 * currentLevel; money += 25 * currentLevel; // Bonus for completion
-            gameState = GAME_STATE.UPGRADE_SHOP;
-            infoMessage = `Level ${currentLevel} Objective Complete!`; infoMessageTimeout = 180;
-            setupShopButtons(); cursor(ARROW);
-            // Clear transient objects for the shop
-            bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
-            // Keep background structures between levels? Or clear? Let's clear them for now.
-            // backgroundStructures = [];
-            // Reset combo for next level
-            comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
-            return; // Exit runGameLogic early as we are transitioning state
+             let fragmentsEarned = 1 + floor(currentLevel / 3); // Award TF based on level
+             techFragments += fragmentsEarned;
+             points += 100 * currentLevel; money += 25 * currentLevel; // Bonus for completion
+             gameState = GAME_STATE.UPGRADE_SHOP;
+             infoMessage = `Level Complete! +${fragmentsEarned} TF`; infoMessageTimeout = 180;
+             saveGameData(); // Save after earning fragments
+             setupShopButtons(); cursor(ARROW);
+             // Clear transient objects for the shop
+             bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
+             // Keep background structures between levels? Or clear? Let's clear them for now.
+             // backgroundStructures = [];
+             // Reset combo for next level
+             comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
+             return; // Exit runGameLogic early as we are transitioning state
         }
     }
 
@@ -667,7 +923,9 @@ function handleCollisions() {
         } }
 
     // --- Enemy Projectile Hits ---
-    for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(1)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage || 3; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
+    for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { let damage = bullets[j].damage; // Get damage from bullet
+        createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(damage)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage; // Get damage from missile
+            homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
 
     // --- Player Collisions ---
     if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) {
@@ -690,7 +948,12 @@ function handleCollisions() {
             } else {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2);
                 if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
-                if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); }
+                if (lives <= 0) {
+                     gameState = GAME_STATE.GAME_OVER;
+                     infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
+                     // Award fragments on game over - moved to displayGameOver
+                     gameOver = true;
+                } else { ship.setInvulnerable(); }
 
                 // Apply laser hit cooldown
                 if (isLaserHit) { ship.laserHitCooldown = 15; } // ~1/4 second cooldown
@@ -737,7 +1000,8 @@ function handlePotions() {
                  currentObjective.progress++;
              }
 
-            if (lives < MAX_LIVES) {
+            let max_lives_current = BASE_MAX_LIVES + (skillTreeData['MAX_LIVES'] || 0); // Calculate current max lives
+            if (lives < max_lives_current) {
                 lives++;
                 infoMessage = "+1 LIFE!";
                 infoMessageTimeout = 90;
@@ -779,7 +1043,7 @@ function drawBackgroundAndStars() {
 
         // Draw Nebulas
         for (let i = nebulas.length - 1; i >= 0; i--) {
-            if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update();
+            if ((gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.UPGRADE_SHOP) && !isPaused) nebulas[i].update(); // Update only during gameplay/shop
             nebulas[i].draw();
             if (nebulas[i].isOffscreen()) {
                 nebulas.splice(i, 1);
@@ -1110,9 +1374,12 @@ function displayComboText() { if (showComboText && comboCounter >= 2) { let comb
 
 // --- Game State Control ---
 function resetGame() {
-    ship = new Ship(); // Creates ship with currently selected cosmetics
+    ship = new Ship(); // Creates ship with base stats + skill tree bonuses
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
-    points = 0; money = 0; lives = 3; currentLevel = 1;
+    points = 0;
+    money = BASE_STARTING_MONEY + skillTreeData.STARTING_MONEY * SKILL_DEFINITIONS.STARTING_MONEY.effectPerLevel; // Starting money from skill tree
+    lives = BASE_MAX_LIVES + skillTreeData.MAX_LIVES * SKILL_DEFINITIONS.MAX_LIVES.effectPerLevel; // Lives from skill tree
+    currentLevel = 1;
     setDifficultyForLevel(currentLevel);
     loadObjectiveForLevel(currentLevel); // Load objective for level 1
     lastPlanetAppearanceTime = -Infinity; planetVisible = false; infoMessage = ""; infoMessageTimeout = 0;
@@ -1124,6 +1391,13 @@ function resetGame() {
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function startNextLevel() {
     if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
+
+    // Award Tech Fragments for completing level
+    let fragmentsEarned = 1 + floor(currentLevel / 3);
+    techFragments += fragmentsEarned;
+    infoMessage = `Level Complete! +${fragmentsEarned} TF`; infoMessageTimeout = 180;
+    saveGameData(); // Save after earning fragments
+
     currentLevel++;
     setDifficultyForLevel(currentLevel);
     loadObjectiveForLevel(currentLevel); // Load the next level's objective
@@ -1132,12 +1406,13 @@ function startNextLevel() {
     // Keep background structures? Resetting them might look better.
     backgroundStructures = [];
     // frameCount reset happens automatically in p5, levelStartTime is set in loadObjectiveForLevel
-    infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
+    levelTransitionFlash = 15;
     spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
 function selectMenuItem(index) {
     switch (menuItems[index]) {
         case 'Start Game': startGame(); break;
+        case 'Skills': previousGameState = gameState; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; // Go to Skill Tree
         case 'Settings': previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break;
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
@@ -1151,6 +1426,37 @@ function selectCosmeticsItemAction(index) {
         else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; }
     }
 }
+function handleSkillTreeButtonPress(skillId) {
+    if (skillId === 'back') {
+        gameState = GAME_STATE.START_MENU; // Always return to start menu from skills
+        selectedMenuItem = 0; // Reset menu selection
+        return;
+    }
+
+    let skillDef = SKILL_DEFINITIONS[skillId];
+    let currentLevel = skillTreeData[skillId];
+
+    if (currentLevel < skillDef.maxLevel) {
+        let cost = skillDef.costPerLevel[currentLevel];
+        if (techFragments >= cost) {
+            techFragments -= cost;
+            skillTreeData[skillId]++;
+            // console.log(`Upgraded ${skillId} to level ${skillTreeData[skillId]}`);
+            saveGameData(); // Save after purchase
+             // Add particle effect on button
+             let button = skillTreeButtons.find(b => b.id === skillId);
+             if(button) {
+                 createParticles(button.x + button.w / 2, button.y + button.h / 2, 25, color(120, 70, 100), 5, 1.5, 0.7);
+             }
+        } else {
+            infoMessage = "Not enough Tech Fragments!";
+            infoMessageTimeout = 60;
+        }
+    } else {
+        infoMessage = "Skill Maxed Out!";
+        infoMessageTimeout = 60;
+    }
+}
 
 // --- Input Handling ---
 function mousePressed() {
@@ -1162,6 +1468,7 @@ function mousePressed() {
             previousGameState = GAME_STATE.PLAYING;
             gameState = GAME_STATE.SETTINGS_MENU;
             selectedSettingsItem = 0;
+            isMobileShooting = false; // Stop shooting when pausing
             cursor(ARROW);
             return; // Prevent further processing for this touch
         }
@@ -1172,6 +1479,7 @@ function mousePressed() {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
+        case GAME_STATE.SKILL_TREE: for (let button of skillTreeButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleSkillTreeButtonPress(button.id); return; } } break;
         case GAME_STATE.PLAYING:
              if (isPaused && isMobile) { // Unpause on mobile by tapping anywhere while paused
                  isPaused = false;
@@ -1214,6 +1522,9 @@ function keyPressed() {
              selectedMenuItem = 0;
              isPaused = false; // Ensure not paused
              cursor(ARROW); // Show cursor for menu
+        } else if (gameState === GAME_STATE.SKILL_TREE) {
+            // Back action for skill tree
+             handleSkillTreeButtonPress('back');
         }
     }
     // --- Other Key Presses ---
@@ -1247,6 +1558,7 @@ function keyPressed() {
             selectedMenuItem = 0;
         }
     }
+    // No keyboard navigation needed for Skill Tree currently
 }
 
 function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
@@ -1297,6 +1609,7 @@ function touchStarted() {
         else if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
+        else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
         else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
     }
@@ -1317,7 +1630,7 @@ function touchEnded() {
     return false; // Prevent default touch actions
 }
 function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return; if (buttonId === 'nextLevel') { startNextLevel(); } else { let success = ship.attemptUpgrade(buttonId); if (success) { let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); if (buttonId === 'homingMissiles') { ship.currentMissiles = ship.maxMissiles; } } } else { let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
-function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.SKILL_TREE) { setupSkillTreeButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
 
 
 // ======================================================================
@@ -1328,24 +1641,45 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 class Ship {
     constructor() {
         this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
-        this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975; this.maxSpeed = 9.5; this.size = 30;
+        this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975;
+        this.size = 30;
         this.bodyColor = null; this.cockpitColor = null; this.wingColor = null; this.detailColor1 = null; this.detailColor2 = null; this.engineColor1 = null; this.engineColor2 = null;
         this.setColors(); // Apply colors based on global selection
-        this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.3; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.hoverOffset = 0; this.rapidFireTimer = 0; this.tempShieldActive = false;
+        this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2;
+        this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.3; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.hoverOffset = 0; this.rapidFireTimer = 0; this.tempShieldActive = false;
         this.fireRateLevel = 0; this.spreadShotLevel = 0; this.maxUpgradeLevel = 5;
         this.rearGunLevel = 0; this.maxRearGunLevel = 3; this.rearGunDelayFactor = [0, 1.5, 1.2, 1.0];
-        this.homingMissilesLevel = 0; this.maxMissileLevel = 4; this.missileCapacity = [0, 2, 3, 4, 5]; this.missileDamage = [0, 3, 4, 5, 6]; this.missileRegenTime = [0, 480, 420, 360, 300]; this.maxMissiles = 0; this.currentMissiles = 0; this.missileRegenTimer = 0; this.missileCooldown = 0; this.missileColor = color(30, 90, 100);
+        this.homingMissilesLevel = 0; this.maxMissileLevel = 4; this.missileCapacity = [0, 2, 3, 4, 5];
+        this.missileRegenTime = [0, 480, 420, 360, 300]; this.maxMissiles = 0; this.currentMissiles = 0; this.missileRegenTimer = 0; this.missileCooldown = 0; this.missileColor = color(30, 90, 100);
         this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.specialCostMultiplier = 2.5;
         this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0;
-        this.laserHitCooldown = 0; // Added cooldown for laser hits
+        this.laserHitCooldown = 0;
+
+        // Apply Skill Tree Bonuses
+        this.maxSpeed = BASE_MAX_SPEED + skillTreeData.MAX_SPEED * SKILL_DEFINITIONS.MAX_SPEED.effectPerLevel;
+        this.bulletDamageMultiplier = 1 + skillTreeData.WEAPON_DAMAGE * SKILL_DEFINITIONS.WEAPON_DAMAGE.effectPerLevel;
+        this.missileDamageBonus = skillTreeData.MISSILE_DAMAGE * SKILL_DEFINITIONS.MISSILE_DAMAGE.effectPerLevel;
+        this.shieldRegenRate = skillTreeData.SHIELD_REGEN * SKILL_DEFINITIONS.SHIELD_REGEN.effectPerLevel; // Regen per frame
+        this.shieldRegenTimer = 0; // Timer for shield regen cooldown
+        this.shieldRegenDelay = 180; // Frames after last hit before regen starts
     }
     setColors() {
         let colors = COLOR_DEFINITIONS[selectedShipColor] || COLOR_DEFINITIONS['Blue'];
         this.bodyColor = color(colors.body[0], colors.body[1], colors.body[2]); this.cockpitColor = color(colors.cockpit[0], colors.cockpit[1], colors.cockpit[2]); this.wingColor = color(colors.wing[0], colors.wing[1], colors.wing[2]); this.detailColor1 = color(colors.detail1[0], colors.detail1[1], colors.detail1[2]); this.detailColor2 = color(colors.detail2[0], colors.detail2[1], colors.detail2[2]); this.engineColor1 = color(colors.engine1[0], colors.engine1[1], colors.engine1[2]); this.engineColor2 = color(colors.engine2[0], colors.engine2[1], colors.engine2[2]);
     }
-    gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
-    loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
-    setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
+    gainShields(amount) {
+        let currentCharges = this.shieldCharges;
+        this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES);
+        this.shieldRegenTimer = 0; // Reset regen timer on gain
+        return this.shieldCharges - currentCharges;
+    }
+    loseShield() {
+        if (this.shieldCharges > 0) {
+            this.shieldCharges--;
+            this.shieldRegenTimer = this.shieldRegenDelay; // Start cooldown after losing shield
+        }
+    }
+    setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; this.shieldRegenTimer = this.shieldRegenDelay; /* Start shield regen delay on taking damage */ }
     changeShape(level) { this.shapeState = min(1, floor(level / 2)); } // Shape change based on points (kept for visual flair)
     get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } }
     getUpgradeCost(upgradeType) { let level, maxLevel, multiplier = this.costMultiplier; switch (upgradeType) { case 'fireRate': level = this.fireRateLevel; maxLevel = this.maxUpgradeLevel; break; case 'spreadShot': level = this.spreadShotLevel; maxLevel = this.maxUpgradeLevel; break; case 'rearGun': level = this.rearGunLevel; maxLevel = this.maxRearGunLevel; multiplier = this.costMultiplier * 0.8; break; case 'homingMissiles': level = this.homingMissilesLevel; maxLevel = this.maxMissileLevel; multiplier = this.specialCostMultiplier; break; default: return Infinity; } if (level >= maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(multiplier, level)); }
@@ -1372,13 +1706,25 @@ class Ship {
         }
         return true;
     }
-    resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; this.missileCooldown = 0; this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0; this.laserHitCooldown = 0; }
+    resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; this.missileCooldown = 0; this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0; this.laserHitCooldown = 0; this.shieldRegenTimer = 0; }
     update() {
         if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.rapidFireTimer > 0) { this.rapidFireTimer--; } if (this.shootCooldown > 0) { this.shootCooldown--; } if (this.missileCooldown > 0) { this.missileCooldown--; } if (this.laserHitCooldown > 0) { this.laserHitCooldown--; } // Decrement laser hit cooldown
         if (this.scoreMultiplierTimer > 0) { this.scoreMultiplierTimer--; if(this.scoreMultiplierTimer <= 0) this.scoreMultiplierValue = 1;} if (this.invincibilityTimer > 0) { this.invincibilityTimer--; }
         if (this.droneActive && this.drone && this.drone.isExpired()) { this.droneActive = false; this.drone = null; infoMessage = "Drone Deactivated"; infoMessageTimeout = 90; createParticles(this.pos.x, this.pos.y, 15, color(180, 50, 80), 4, 1.5, 0.8); }
         if (this.homingMissilesLevel > 0 && this.currentMissiles < this.maxMissiles) { this.missileRegenTimer--; if (this.missileRegenTimer <= 0) { this.currentMissiles++; this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; } } else if (this.homingMissilesLevel > 0) { this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; }
         this.hoverOffset = sin(frameCount * 0.05) * 2;
+
+         // Shield Regen Logic
+         if (this.shieldRegenRate > 0 && this.shieldCharges < MAX_SHIELD_CHARGES && !this.tempShieldActive && this.invulnerableTimer <= 0 && this.invincibilityTimer <=0) {
+             if (this.shieldRegenTimer > 0) {
+                 this.shieldRegenTimer--;
+             } else {
+                 // Regen shield fractionally
+                 this.shieldCharges += this.shieldRegenRate;
+                 this.shieldCharges = min(this.shieldCharges, MAX_SHIELD_CHARGES); // Cap at max
+                  // Optionally add a visual effect for regen?
+             }
+         }
 
         // --- Player Input & Movement ---
         let acceleration = createVector(0, 0);
@@ -1442,26 +1788,48 @@ class Ship {
             if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { let offset = this.size * 0.15; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; numShots = 3; spreadAngle = PI / 20; }
             else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { let offset = this.size * 0.2; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; numShots = 3; spreadAngle = PI / 15; }
             else if (this.spreadShotLevel >= this.maxUpgradeLevel) { let offset1 = this.size * 0.25; let offset2 = this.size * 0.1; originPoints = [ createVector(this.pos.x - offset1, originY + 8), createVector(this.pos.x - offset2, originY + 3), createVector(this.pos.x, originY), createVector(this.pos.x + offset2, originY + 3), createVector(this.pos.x + offset1, originY + 8) ]; numShots = 5; spreadAngle = PI / 12; }
-            for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle)); }
-            this.fireRearGun(); let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
+
+            // Apply base damage multiplier from skills
+            let baseDmg = BASE_BULLET_DAMAGE * this.bulletDamageMultiplier;
+
+            for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle, baseDmg)); }
+            this.fireRearGun(baseDmg); let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
         }
     }
     fireMissile() {
         if (this.homingMissilesLevel > 0 && this.currentMissiles > 0 && this.missileCooldown <= 0) {
             let originY = this.pos.y + this.hoverOffset; let originXOffset = this.size * 0.4; let side = (this.currentMissiles % 2 === 0) ? -1 : 1;
-            homingMissiles.push(new HomingMissile(this.pos.x + originXOffset * side, originY, this.missileDamage[this.homingMissilesLevel], this.missileColor));
+            // Apply base damage + skill bonus
+            let missileDamage = BASE_MISSILE_DAMAGE[this.homingMissilesLevel] + this.missileDamageBonus;
+            homingMissiles.push(new HomingMissile(this.pos.x + originXOffset * side, originY, missileDamage, this.missileColor));
             this.currentMissiles--; this.missileCooldown = 20;
             createParticles(this.pos.x + originXOffset * side, originY, 10, this.missileColor, 3, 1.8, 0.6);
         }
     }
-    fireRearGun() { if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle)); } } }
+    fireRearGun(baseDmg) { // Pass base damage
+         if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle, baseDmg)); } }
+    }
     draw() {
         let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0; let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5);
         if (drawShip) {
             push(); translate(this.pos.x, this.pos.y + this.hoverOffset);
             if (this.invincibilityTimer > 0) { let invincibilityAlpha = map(sin(frameCount * 0.5), -1, 1, 40, 90); let invincibilityColor = color(0, 0, 100); fill(invincibilityColor, invincibilityAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); strokeWeight(3); stroke(invincibilityColor, invincibilityAlpha + 20); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); }
             else if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); }
-            else if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); strokeWeight(2); stroke(shieldHue, 90, 100, shieldAlpha + 35); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); }
+            else if (this.shieldCharges > 0) {
+                 // Use fractional shield value for visual representation if regen is active
+                 let shieldFraction = (this.shieldRegenRate > 0) ? this.shieldCharges : 1.0;
+                 let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90) * shieldFraction;
+                 let shieldBrightness = 100 * shieldFraction;
+                 let shieldRadius = this.shieldVisualRadius * 2.1 * shieldFraction;
+                 let shieldHue = 180;
+                 fill(shieldHue, 80, shieldBrightness, shieldAlpha);
+                 noStroke();
+                 ellipse(0, 0, shieldRadius, shieldRadius);
+                 strokeWeight(2);
+                 stroke(shieldHue, 90, shieldBrightness, shieldAlpha + 35);
+                 noFill();
+                 ellipse(0, 0, shieldRadius, shieldRadius);
+             }
             let enginePulseFactor = 1.0 + this.vel.mag() * 0.04; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke(); let engineY = this.size * 0.6; for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(this.engineColor2), saturation(this.engineColor2), engineBrightness, alpha); ellipse(0, engineY, i * 0.8, i * 1.2); } fill(hue(this.engineColor1), saturation(this.engineColor1), 100); ellipse(0, engineY, engineSize * 0.5, engineSize * 1.0);
             let s = this.size; let bodyW = s * 0.5; let wingW = s * (this.shapeState === 0 ? 1.1 : 1.3); let wingH = s * 0.8; let noseL = s * 0.8; strokeWeight(1.5); stroke(this.detailColor1); fill(this.wingColor); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -bodyW * 0.7, s * 0.6); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, bodyW * 0.7, s * 0.6); fill(hue(this.wingColor), saturation(this.wingColor), brightness(this.wingColor)*1.2); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -wingW * 0.4, s * 0.0); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, wingW * 0.4, s * 0.0); fill(this.bodyColor); quad( 0, -noseL, bodyW / 2, s * 0.1, 0, s * 0.4, -bodyW / 2, s * 0.1 ); if (this.shapeState === 1) { fill(this.wingColor); triangle(0, s*0.4, -s*0.2, s*0.7, s*0.2, s*0.7); quad(-bodyW*0.7, s*0.6, -bodyW*0.6, s*0.8, -wingW*0.4, s*0.7, -wingW/2, s*0.5); quad( bodyW*0.7, s*0.6,  bodyW*0.6, s*0.8,  wingW*0.4, s*0.7,  wingW/2, s*0.5); }
             let cockpitY = -s * 0.15; let cockpitW = s * 0.4; let cockpitH = s * 0.6; fill(this.cockpitColor); ellipse(0, cockpitY, cockpitW, cockpitH); noStroke(); fill(0, 0, 100, 50); ellipse(0, cockpitY - cockpitH * 0.1, cockpitW * 0.7, cockpitH * 0.4); strokeWeight(1); stroke(this.detailColor2); line(0, -noseL * 0.8, 0, cockpitY + cockpitH / 2); line(-bodyW / 2, s * 0.1, -wingW * 0.4, s * 0.0); line( bodyW / 2, s * 0.1, wingW * 0.4, s * 0.0); if (this.shapeState === 1) { line(-bodyW*0.3, s*0.0, -bodyW*0.4, s*0.3); line( bodyW*0.3, s*0.0,  bodyW*0.4, s*0.3); }
@@ -1472,9 +1840,10 @@ class Ship {
 
 // Projectile Classes
 class Bullet {
-    constructor(x, y, angle = 0) {
+    constructor(x, y, angle = 0, damageMultiplier = 1) { // Accept damage multiplier
         this.pos = createVector(x, y); this.speed = 17; this.size = 5.5;
         this.style = selectedBulletStyle; // Use global selection
+        this.damage = BASE_BULLET_DAMAGE * damageMultiplier; // Apply damage multiplier
 
         // Initialize color/trail properties
         this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 0;
@@ -1513,7 +1882,9 @@ class Bullet {
     draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
     isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); }
 }
-class HomingMissile { constructor(x, y, damage, color) { this.pos = createVector(x, y); this.vel = createVector(random(-1, 1), -random(4, 6)); this.acc = createVector(0, 0); this.maxSpeed = 8 + (ship?.homingMissilesLevel || 1) * 0.5; this.maxForce = 0.25 + (ship?.homingMissilesLevel || 1) * 0.05; this.size = 10; this.damage = damage; this.color = color; this.target = null; this.lifespan = 180; this.trail = []; this.trailLength = 8; } findTarget() { let closestDist = Infinity; let closestEnemy = null; for (let enemy of enemyShips) { let d = p5.Vector.dist(this.pos, enemy.pos); if (d < closestDist && d < width / 2) { closestDist = d; closestEnemy = enemy; } } this.target = closestEnemy; } seek() { if (!this.target || !enemyShips.includes(this.target)) { this.findTarget(); if (!this.target) { this.acc.mult(0); this.lifespan -= 2; return; } } let desired = p5.Vector.sub(this.target.pos, this.pos); desired.setMag(this.maxSpeed); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.maxForce); this.acc.add(steer); } update() { this.lifespan--; if (frameCount % 5 === 0 || !this.target) { this.findTarget(); } this.seek(); this.vel.add(this.acc); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); this.acc.mult(0); this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); noFill(); beginShape(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 60, 0); stroke(hue(this.color), saturation(this.color) * 0.8, brightness(this.color) * 0.9, alpha); strokeWeight(map(i, 0, this.trail.length - 1, this.size * 0.6, 1)); let relativePos = p5.Vector.sub(trailPos, this.pos); relativePos.rotate(-(this.vel.heading() + PI / 2)); vertex(relativePos.x, relativePos.y); } endShape(); fill(this.color); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.4, this.size * 0.5, this.size * 0.4, this.size * 0.5); fill(hue(this.color), saturation(this.color) * 0.7, brightness(this.color) * 0.7); rect(-this.size * 0.4, this.size * 0.2, this.size * 0.2, this.size * 0.5); rect(this.size * 0.2, this.size * 0.2, this.size * 0.2, this.size * 0.5); pop(); } isOffscreen() { let margin = this.size * 2; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } hits(target) { let d = dist(this.pos.x, this.pos.y, target.pos.x, target.pos.y); return d < this.size / 2 + target.size / 2; } }
+class HomingMissile { constructor(x, y, damage, color) { // Damage is now passed directly
+    this.pos = createVector(x, y); this.vel = createVector(random(-1, 1), -random(4, 6)); this.acc = createVector(0, 0); this.maxSpeed = 8 + (ship?.homingMissilesLevel || 1) * 0.5; this.maxForce = 0.25 + (ship?.homingMissilesLevel || 1) * 0.05; this.size = 10; this.damage = damage; // Use passed damage
+    this.color = color; this.target = null; this.lifespan = 180; this.trail = []; this.trailLength = 8; } findTarget() { let closestDist = Infinity; let closestEnemy = null; for (let enemy of enemyShips) { let d = p5.Vector.dist(this.pos, enemy.pos); if (d < closestDist && d < width / 2) { closestDist = d; closestEnemy = enemy; } } this.target = closestEnemy; } seek() { if (!this.target || !enemyShips.includes(this.target)) { this.findTarget(); if (!this.target) { this.acc.mult(0); this.lifespan -= 2; return; } } let desired = p5.Vector.sub(this.target.pos, this.pos); desired.setMag(this.maxSpeed); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.maxForce); this.acc.add(steer); } update() { this.lifespan--; if (frameCount % 5 === 0 || !this.target) { this.findTarget(); } this.seek(); this.vel.add(this.acc); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); this.acc.mult(0); this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); noFill(); beginShape(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 60, 0); stroke(hue(this.color), saturation(this.color) * 0.8, brightness(this.color) * 0.9, alpha); strokeWeight(map(i, 0, this.trail.length - 1, this.size * 0.6, 1)); let relativePos = p5.Vector.sub(trailPos, this.pos); relativePos.rotate(-(this.vel.heading() + PI / 2)); vertex(relativePos.x, relativePos.y); } endShape(); fill(this.color); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.4, this.size * 0.5, this.size * 0.4, this.size * 0.5); fill(hue(this.color), saturation(this.color) * 0.7, brightness(this.color) * 0.7); rect(-this.size * 0.4, this.size * 0.2, this.size * 0.2, this.size * 0.5); rect(this.size * 0.2, this.size * 0.2, this.size * 0.2, this.size * 0.5); pop(); } isOffscreen() { let margin = this.size * 2; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } hits(target) { let d = dist(this.pos.x, this.pos.y, target.pos.x, target.pos.y); return d < this.size / 2 + target.size / 2; } }
 
 // Asteroid Class
 class Asteroid { constructor(x, y, size, vel) { this.size = size || random(30, 85); this.pos = createVector(); let isInitialPlacement = (x !== undefined && y !== undefined); if (isInitialPlacement) { this.pos.x = x; this.pos.y = y; } else { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.7); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.7); } } if (vel) { this.vel = vel; } else { let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1; let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2; this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax)); this.speed *= (this.size > 50 ? 0.9 : 1.1); this.speed *= random(0.9, 1.1); let direction; if (isInitialPlacement) { direction = p5.Vector.random2D(); } else { let targetX = width / 2 + random(-width * 0.25, width * 0.25); let targetY = height / 2 + random(-height * 0.25, height * 0.25); direction = createVector(targetX - this.pos.x, targetY - this.pos.y); direction.normalize(); direction.rotate(random(-PI / 12, PI / 12)); } this.vel = direction; this.vel.mult(this.speed); } this.color = color(random(20, 50), random(30, 70), random(35, 65)); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.04, 0.04); this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(9, 18)); for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.45, this.size * 0.35); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); } this.craters = []; let numCraters = floor(random(2, 7)); for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.4); let craterSize = random(this.size * 0.1, this.size * 0.3); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); } } update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.06, 0.06); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); let gradSteps = 10; let bodyRadius = this.size / 2; for (let i = 0; i < gradSteps; i++) { let inter = i / gradSteps; let y = lerp(-bodyRadius, bodyRadius, inter); let h = lerp(0, bodyRadius * 2, inter); let w = sqrt(max(0, bodyRadius*bodyRadius - y*y)) * 2; let bri = lerp(mainBri * 1.4, mainBri * 0.5, inter); fill(mainHue, mainSat, bri); ellipse(0, y, w*0.95, h / gradSteps * 1.2); } beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE); let craterBaseColor = color(mainHue, mainSat * 0.8, mainBri * 0.5, 90); let craterHighlightColor = color(mainHue, mainSat * 0.6, mainBri * 1.1, 70); for (let crater of this.craters) { fill(craterBaseColor); ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.7, 1.3)); fill(craterHighlightColor); ellipse(crater.pos.x + crater.size * 0.1, crater.pos.y + crater.size * 0.1, crater.size * 0.6, crater.size * 0.6 * random(0.7, 1.3)); } strokeWeight(0.5); stroke(mainHue, mainSat * 0.9, mainBri * 0.8, 25); let numLines = 5; for (let i = 0; i < numLines; i++) { let yLine = map(i, 0, numLines -1, -bodyRadius * 0.7, bodyRadius * 0.7); let xLine = sqrt(max(0, bodyRadius*bodyRadius - yLine*yLine)) * 0.7; line(-xLine, yLine, xLine, yLine); } pop(); } hits(projectile) { let d = dist(this.pos.x, this.pos.y, projectile.pos.x, projectile.pos.y); return d < this.size / 2 + projectile.size / 2; } hitsShip(ship) { let targetX = ship.pos.x; let targetY = ship.pos.y; let targetRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); let d = dist(this.pos.x, this.pos.y, targetX, targetY); return d < this.size / 2 * 0.9 + targetRadius; } }
@@ -1683,7 +2054,7 @@ class PowerUp {
     isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); }
 }
 // Drone Class
-class Drone { constructor(playerShip) { this.ship = playerShip; this.offset = createVector(this.ship.size * 1.8, 0); this.pos = p5.Vector.add(this.ship.pos, this.offset); this.vel = createVector(); this.size = 15; this.color = color(180, 60, 95); this.wingColor = color(180, 40, 70); this.shootCooldown = 0; this.shootDelay = 35; this.lifespan = 900; this.rotation = 0; this.targetAngle = 0; this.lerpFactor = 0.1; } update() { this.lifespan--; let targetPos = p5.Vector.add(this.ship.pos, this.offset.copy().rotate(this.rotation)); this.pos.lerp(targetPos, this.lerpFactor); this.rotation += 0.02; this.shootCooldown--; if (this.shootCooldown <= 0 && !isPaused && gameState === GAME_STATE.PLAYING) { this.shoot(); this.shootCooldown = this.shootDelay; } } shoot() { bullets.push(new Bullet(this.pos.x, this.pos.y, 0)); createParticles(this.pos.x, this.pos.y, 2, this.color, 2, 1.2, 0.4); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation * 2); let s = this.size; fill(this.color); stroke(0, 0, 20); strokeWeight(1); ellipse(0, 0, s, s * 1.2); fill(this.wingColor); triangle(-s * 0.4, -s * 0.2, -s * 1.1, -s * 0.5, -s * 0.8, s * 0.4); triangle(s * 0.4, -s * 0.2, s * 1.1, -s * 0.5, s * 0.8, s * 0.4); fill(0, 0, 100); ellipse(0, -s * 0.3, s * 0.3, s * 0.3); pop(); } isExpired() { return this.lifespan <= 0; } }
+class Drone { constructor(playerShip) { this.ship = playerShip; this.offset = createVector(this.ship.size * 1.8, 0); this.pos = p5.Vector.add(this.ship.pos, this.offset); this.vel = createVector(); this.size = 15; this.color = color(180, 60, 95); this.wingColor = color(180, 40, 70); this.shootCooldown = 0; this.shootDelay = 35; this.lifespan = 900; this.rotation = 0; this.targetAngle = 0; this.lerpFactor = 0.1; } update() { this.lifespan--; let targetPos = p5.Vector.add(this.ship.pos, this.offset.copy().rotate(this.rotation)); this.pos.lerp(targetPos, this.lerpFactor); this.rotation += 0.02; this.shootCooldown--; if (this.shootCooldown <= 0 && !isPaused && gameState === GAME_STATE.PLAYING) { this.shoot(); this.shootCooldown = this.shootDelay; } } shoot() { bullets.push(new Bullet(this.pos.x, this.pos.y, 0, this.ship.bulletDamageMultiplier)); createParticles(this.pos.x, this.pos.y, 2, this.color, 2, 1.2, 0.4); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation * 2); let s = this.size; fill(this.color); stroke(0, 0, 20); strokeWeight(1); ellipse(0, 0, s, s * 1.2); fill(this.wingColor); triangle(-s * 0.4, -s * 0.2, -s * 1.1, -s * 0.5, -s * 0.8, s * 0.4); triangle(s * 0.4, -s * 0.2, s * 1.1, -s * 0.5, s * 0.8, s * 0.4); fill(0, 0, 100); ellipse(0, -s * 0.3, s * 0.3, s * 0.3); pop(); } isExpired() { return this.lifespan <= 0; } }
 
 // Enemy Classes
 class BaseEnemy { constructor(x, y, size, health, pointsValue, moneyValue) { this.pos = createVector(x, y); this.vel = createVector(); this.size = size; this.health = health; this.maxHealth = health; this.pointsValue = pointsValue; this.moneyValue = moneyValue; this.hitColor = color(0, 0, 80); this.explosionColor = color(30, 80, 90); } update() { this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); fill(300, 80, 50); rectMode(CENTER); rect(0, 0, this.size, this.size); pop(); } hits(projectile) { let d = dist(this.pos.x, this.pos.y, projectile.pos.x, projectile.pos.y); return d < this.size / 2 + projectile.size / 2; } hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); let targetRadius; if (playerShip.invincibilityTimer > 0) targetRadius = playerShip.shieldVisualRadius * 1.2; else if (playerShip.tempShieldActive) targetRadius = playerShip.shieldVisualRadius * 1.1; else if (playerShip.shieldCharges > 0) targetRadius = playerShip.shieldVisualRadius; else targetRadius = playerShip.size * 0.5; return d < this.size * 0.45 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } takeDamage(amount) { this.health -= amount; return this.health <= 0; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } _setDefaultSpawnPosition() { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.6); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.6); } } }
@@ -1921,7 +2292,7 @@ class BackgroundStructure {
             this.detailColor = color(20, 40, 25); // Darker rust/brown
             this.lightColor = color(0, 80, 60); // Dim red lights
         }
-        this.lightTimer = floor(random(60)); // Offset light blinking
+        this.lightTimer = floor(random(120)); // Offset light blinking cycle
     }
 
     update() {
@@ -1945,16 +2316,18 @@ class BackgroundStructure {
             ellipse(0, 0, s * 0.6, s * 0.6);
             // Arms
             for (let i = 0; i < 4; i++) {
-                rotate(PI / 2);
-                rect(0, s * 0.5, s * 0.15, s * 0.5);
+                push(); // Isolate rotation for each arm
+                rotate(PI / 2 * i);
+                rect(0, s * 0.5, s * 0.15, s * 0.5); // Main arm
                 fill(this.detailColor);
-                rect(0, s * 0.7, s * 0.2, s * 0.1);
+                rect(0, s * 0.7, s * 0.2, s * 0.1); // End piece
                 // Blinking Lights
-                if (this.lightTimer < 15 + i*5 || (this.lightTimer > 60 && this.lightTimer < 75 + i*5 )) {
+                let lightOn = (this.lightTimer > 30 * i && this.lightTimer < 30 * i + 15); // Staggered blink
+                 if (lightOn) {
                     fill(this.lightColor);
                     ellipse(0, s * 0.75, s * 0.05, s * 0.05);
-                }
-                 fill(this.baseColor); // Reset fill
+                 }
+                pop(); // Restore rotation
             }
         } else { // Derelict
              // Broken hull shape
@@ -1963,7 +2336,7 @@ class BackgroundStructure {
              rect(s * 0.3, s * 0.1, s * 0.3, s * 0.25);
              rect(-s * 0.2, -s * 0.15, s * 0.4, s * 0.1);
              // Dim blinking light
-             if (this.lightTimer < 5) {
+             if (this.lightTimer < 5 || (this.lightTimer > 60 && this.lightTimer < 65) ) { // Slow blink
                 fill(this.lightColor);
                 ellipse(s * 0.4, -s * 0.1, s * 0.04, s * 0.04);
              }
