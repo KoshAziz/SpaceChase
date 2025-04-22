@@ -1,10 +1,10 @@
 // --- Features ---
-// - Start Menu with Options (Start Game, Settings, Cosmetics, Skills) // ADDED: Skills Menu
+// - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
-// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE
+// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // INCREASED COSTS
 // - Mobile Gameplay Settings Button (Positioned bottom-left)
-// - Level System based on Mission Objectives // NEW: Replaces point thresholds
+// - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
 // - Score/Power-up based Shield System (No longer from points) // ADDED: Passive Shield Regen from Skill Tree
@@ -25,7 +25,7 @@
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
 // - Background Structures (Stations/Derelicts) // NEW FEATURE
-// - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay.
+// - Pause Functionality (Press ESC during gameplay to Pause/Unpause, Tap Pause Button to access Skills/Settings) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay. Pause Menu added.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 Objective // MODIFIED
 // - Monospace Font & UI Color Palette // NEW UI FEATURE
@@ -94,6 +94,9 @@
 // - ADDED: Background Structure class and spawning.
 // - ADDED: Skill Tree system with persistent upgrades and Tech Fragment currency.
 // - MODIFIED: Background gradient color now transitions smoothly.
+// - MODIFIED: Level 3 objective changed to Score Reach. Level 5 Swarmer target reduced.
+// - MODIFIED: Skill Tree costs increased significantly.
+// - MODIFIED: Pause menu now includes Skills and Settings buttons. Skill Tree accessible from Pause.
 // --------------------------
 
 
@@ -107,7 +110,8 @@ let backgroundStructures = []; // NEW array for structures
 // Game State Management
 const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7 }; // Enum order matters, added SKILL_TREE
 let gameState = GAME_STATE.START_MENU;
-let previousGameState = GAME_STATE.START_MENU;
+let previousGameState = GAME_STATE.START_MENU; // Tracks where Settings/Cosmetics should return to
+let skillTreeReturnState = GAME_STATE.START_MENU; // Tracks where Skill Tree should return to (Start Menu or Pause)
 let isPaused = false;
 
 // --- Menu Variables ---
@@ -150,16 +154,22 @@ let skillTreeData = { // Holds current level of each skill
     'MISSILE_DAMAGE': 0,
     'STARTING_MONEY': 0
 };
-const SKILL_DEFINITIONS = {
-    'MAX_SPEED': { label: "Engine Tuning", maxLevel: 5, costPerLevel: [3, 5, 8, 12, 18], effectPerLevel: 0.4, description: "+ Max Speed" },
-    'MAX_LIVES': { label: "Reinforced Hull", maxLevel: 3, costPerLevel: [5, 10, 20], effectPerLevel: 1, description: "+ Max Lives" },
-    'SHIELD_REGEN': { label: "Shield Capacitor", maxLevel: 4, costPerLevel: [4, 7, 11, 16], effectPerLevel: 0.0005, description: "+ Passive Shield Regen / sec" }, // Regen rate per frame
-    'WEAPON_DAMAGE': { label: "Weapon Calibration", maxLevel: 5, costPerLevel: [4, 6, 9, 13, 20], effectPerLevel: 0.15, description: "+ Base Bullet Damage" },
-    'MISSILE_DAMAGE': { label: "Explosives Expert", maxLevel: 5, costPerLevel: [5, 8, 12, 17, 25], effectPerLevel: 1, description: "+ Missile Damage" }, // Flat damage bonus per level
-    'STARTING_MONEY': { label: "Initial Funding", maxLevel: 5, costPerLevel: [2, 4, 6, 8, 10], effectPerLevel: 25, description: "+ Starting Money" }
+const SKILL_DEFINITIONS = { // INCREASED COSTS
+    'MAX_SPEED': { label: "Engine Tuning", maxLevel: 5, costPerLevel: [10, 20, 35, 55, 80], effectPerLevel: 0.4, description: "+ Max Speed" },
+    'MAX_LIVES': { label: "Reinforced Hull", maxLevel: 3, costPerLevel: [15, 30, 50], effectPerLevel: 1, description: "+ Max Lives" },
+    'SHIELD_REGEN': { label: "Shield Capacitor", maxLevel: 4, costPerLevel: [12, 25, 40, 60], effectPerLevel: 0.0005, description: "+ Passive Shield Regen / sec" }, // Regen rate per frame
+    'WEAPON_DAMAGE': { label: "Weapon Calibration", maxLevel: 5, costPerLevel: [12, 22, 35, 50, 75], effectPerLevel: 0.15, description: "+ Base Bullet Damage" },
+    'MISSILE_DAMAGE': { label: "Explosives Expert", maxLevel: 5, costPerLevel: [15, 28, 45, 65, 90], effectPerLevel: 1, description: "+ Missile Damage" }, // Flat damage bonus per level
+    'STARTING_MONEY': { label: "Initial Funding", maxLevel: 5, costPerLevel: [5, 10, 15, 20, 30], effectPerLevel: 25, description: "+ Starting Money" }
 };
 let skillTreeButtons = [];
 let selectedSkillButton = null; // For showing description
+
+// --- Pause Menu Variables ---
+let pauseMenuItems = ['Resume', 'Skills', 'Settings', 'Main Menu'];
+let pauseMenuButtons = [];
+let selectedPauseMenuItem = 0;
+
 
 // --- Base Ship Stats (for Skill Tree modification) ---
 const BASE_MAX_SPEED = 9.5;
@@ -192,9 +202,9 @@ const LEVEL_OBJECTIVES = [
     null, // Level 0 doesn't exist
     { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 5, description: "Destroy Basic Fighters" }, // MODIFIED: Target changed from 8 to 5
     { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 20, description: "Destroy Asteroids" },
-    { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 5, description: "Destroy Kamikaze Ships"},
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 4000, description: "Reach 4000 Points"}, // MODIFIED: Level 3 objective
     { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 60 * 60, description: "Survive for 60 seconds" }, // 60 seconds * 60 fps
-    { type: OBJECTIVE_TYPE.DESTROY_SWARMER, target: 40, description: "Destroy Swarmers"},
+    { type: OBJECTIVE_TYPE.DESTROY_SWARMER, target: 15, description: "Destroy Swarmers"}, // MODIFIED: Target reduced from 40
     { type: OBJECTIVE_TYPE.COLLECT_POWERUPS, target: 3, description: "Collect Power-Ups" }, // EXAMPLE
     { type: OBJECTIVE_TYPE.SCORE_REACH, target: 8000, description: "Reach 8000 Points"},
     { type: OBJECTIVE_TYPE.DESTROY_LASER, target: 2, description: "Destroy Laser Emitters" },
@@ -296,6 +306,7 @@ function setup() {
     setupSettingsMenuButtons();
     setupCosmeticsMenuButtons();
     setupSkillTreeButtons(); // Setup skill tree buttons
+    setupPauseMenuButtons(); // Setup pause menu buttons
     calculateMobileSettingsButtonPosition();
     calculateMobileActionButtonsPosition();
     // loadObjectiveForLevel(currentLevel); // Load initial objective (will be done in resetGame/startGame)
@@ -404,6 +415,24 @@ function setupSkillTreeButtons() {
     let backButtonY = startY + gridH + backButtonYOffset;
     skillTreeButtons.push({ id: 'back', x: backButtonX, y: backButtonY, w: backButtonWidth, h: backButtonHeight });
 }
+function setupPauseMenuButtons() {
+    pauseMenuButtons = [];
+    let buttonWidth = isMobile ? 160 : 200;
+    let buttonHeight = isMobile ? 38 : 45;
+    let startY = height / 2 - buttonHeight * (pauseMenuItems.length / 2.0);
+    let spacing = buttonHeight + (isMobile ? 15 : 20);
+
+    for (let i = 0; i < pauseMenuItems.length; i++) {
+        pauseMenuButtons.push({
+            id: pauseMenuItems[i],
+            index: i,
+            x: width / 2 - buttonWidth / 2,
+            y: startY + i * spacing - buttonHeight / 2,
+            w: buttonWidth,
+            h: buttonHeight
+        });
+    }
+}
 function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 
@@ -494,9 +523,6 @@ function draw() {
 
         if (transitionProgress >= 1.0) {
             isTransitioning = false;
-            // Optional: Snap to exact target color to avoid floating point issues
-            // currentTopColor = targetTopColor;
-            // currentBottomColor = targetBottomColor;
         }
     }
     // --- End Background Color Transition Logic ---
@@ -540,7 +566,7 @@ function draw() {
          case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break;
          case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
          case GAME_STATE.SKILL_TREE: displaySkillTree(); break; // NEW
-         case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseScreen(); } break;
+         case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseMenu(); } break; // Show pause menu when paused
          case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
          case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
          case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break;
@@ -688,7 +714,45 @@ function displaySkillTree() {
 
     cursor(ARROW);
 }
-function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap anywhere to Resume" : "Press ESC to Resume", width / 2, height / 2 + 40); } // Changed mobile pause message
+function displayPauseMenu() {
+    drawPanelBackground(width * 0.5, height * 0.6); // Adjust size as needed
+    fill(uiTextColor);
+    textSize(isMobile ? 48 : 56);
+    textAlign(CENTER, CENTER);
+    text("PAUSED", width / 2, height * 0.3);
+
+    let menuTextSize = isMobile ? 20 : 24;
+    textAlign(CENTER, CENTER);
+    for (let i = 0; i < pauseMenuButtons.length; i++) {
+        let button = pauseMenuButtons[i];
+        let label = button.id;
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        let selected = (i === selectedPauseMenuItem); // Use keyboard selection highlight
+        let buttonCol = uiButtonColor;
+        let textCol = uiTextColor;
+        let borderCol = uiButtonBorderColor;
+
+        if (label === 'Main Menu') { // Different color for Main Menu button
+             buttonCol = color(0, 70, 60); borderCol = color(0, 80, 85);
+             if (selected || hover) { buttonCol = color(0, 75, 70); }
+        } else if (selected || hover) {
+             buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100);
+        }
+
+
+        fill(buttonCol);
+        stroke(borderCol);
+        strokeWeight(selected ? 2.5 : 1.5);
+        rect(button.x, button.y, button.w, button.h, 8);
+        noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+
+
+        fill(textCol);
+        noStroke();
+        drawButtonText(label, button, menuTextSize);
+    }
+    cursor(ARROW);
+}
 function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() {
     drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
@@ -738,7 +802,7 @@ function drawStyledButton(button) {
 
 // --- Main Game Logic ---
 function runGameLogic() {
-    if (isPaused) { /* Draw everything statically */ return; }
+    if (isPaused) { /* Only draw, no updates */ return; }
     if (!ship) return;
 
     // Updates
@@ -1478,12 +1542,17 @@ function startNextLevel() {
 function selectMenuItem(index) {
     switch (menuItems[index]) {
         case 'Start Game': startGame(); break;
-        case 'Skills': previousGameState = gameState; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; // Go to Skill Tree
+        case 'Skills':
+            previousGameState = GAME_STATE.START_MENU; // Remember we came from start menu
+            skillTreeReturnState = GAME_STATE.START_MENU; // Set return state
+            gameState = GAME_STATE.SKILL_TREE;
+            setupSkillTreeButtons();
+            break;
         case 'Settings': previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break;
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
-function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; break; } }
+function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } } // Setup pause menu buttons on return
 function selectCosmeticsItemAction(index) {
     let setting = cosmeticsMenuItems[index];
     if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; return; }
@@ -1494,8 +1563,17 @@ function selectCosmeticsItemAction(index) {
 }
 function handleSkillTreeButtonPress(skillId) {
     if (skillId === 'back') {
-        gameState = GAME_STATE.START_MENU; // Always return to start menu from skills
-        selectedMenuItem = 0; // Reset menu selection
+        gameState = skillTreeReturnState; // Return to where we came from
+        if (gameState === GAME_STATE.PLAYING) {
+             // If returning to pause menu, re-setup pause buttons and stay paused
+             setupPauseMenuButtons();
+             isPaused = true;
+             cursor(ARROW);
+        } else {
+             // Returning to Start Menu
+            selectedMenuItem = 0; // Reset menu selection
+             cursor(ARROW);
+        }
         return;
     }
 
@@ -1523,6 +1601,34 @@ function handleSkillTreeButtonPress(skillId) {
         infoMessageTimeout = 60;
     }
 }
+function handlePauseMenuSelection(index) {
+     let selection = pauseMenuItems[index];
+     switch(selection) {
+         case 'Resume':
+             isPaused = false;
+             cursor();
+             break;
+         case 'Skills':
+             skillTreeReturnState = GAME_STATE.PLAYING; // Set return to paused gameplay
+             previousGameState = GAME_STATE.PLAYING; // Technically redundant here, but safe
+             gameState = GAME_STATE.SKILL_TREE;
+             setupSkillTreeButtons();
+             // isPaused remains true
+             break;
+         case 'Settings':
+             previousGameState = GAME_STATE.PLAYING; // Remember we were playing (and paused)
+             gameState = GAME_STATE.SETTINGS_MENU;
+             selectedSettingsItem = 0;
+             // isPaused remains true
+             break;
+         case 'Main Menu':
+             isPaused = false;
+             gameState = GAME_STATE.START_MENU;
+             selectedMenuItem = 0;
+             cursor(ARROW);
+             break;
+     }
+}
 
 // --- Input Handling ---
 function mousePressed() {
@@ -1531,9 +1637,8 @@ function mousePressed() {
         let btn = mobileSettingsButton;
         if (mouseX > btn.x && mouseX < btn.x + btn.size && mouseY > btn.y && mouseY < btn.y + btn.size) {
             isPaused = true;
-            previousGameState = GAME_STATE.PLAYING;
-            gameState = GAME_STATE.SETTINGS_MENU;
-            selectedSettingsItem = 0;
+            selectedPauseMenuItem = 0; // Default selection
+            setupPauseMenuButtons();
             isMobileShooting = false; // Stop shooting when pausing
             cursor(ARROW);
             return; // Prevent further processing for this touch
@@ -1547,14 +1652,22 @@ function mousePressed() {
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
         case GAME_STATE.SKILL_TREE: for (let button of skillTreeButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleSkillTreeButtonPress(button.id); return; } } break;
         case GAME_STATE.PLAYING:
-             if (isPaused && isMobile) { // Unpause on mobile by tapping anywhere while paused
-                 isPaused = false;
-                 cursor(); // Hide cursor
-                 return;
-             }
-             if (!isPaused && ship && !isMobile) {
-                 // Don't trigger single shot on click for desktop, rely on spacebar hold
-                 // ship.shoot();
+             if (isPaused) { // Handle pause menu clicks
+                 for (let i = 0; i < pauseMenuButtons.length; i++) {
+                     let button = pauseMenuButtons[i];
+                     if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) {
+                         selectedPauseMenuItem = i;
+                         handlePauseMenuSelection(i);
+                         return;
+                     }
+                 }
+                 // If mobile and clicked outside buttons while paused, resume (optional)
+                 // if (isMobile) {
+                 //    isPaused = false;
+                 //    cursor();
+                 // }
+             } else if (!isPaused && ship && !isMobile) {
+                 // Desktop shooting handled by spacebar hold
              }
              break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
@@ -1571,6 +1684,8 @@ function keyPressed() {
             // Toggle pause state
             isPaused = !isPaused;
             if (isPaused) {
+                 selectedPauseMenuItem = 0; // Reset pause selection
+                 setupPauseMenuButtons();
                  cursor(ARROW); // Show cursor when paused
                  isMobileShooting = false; // Stop shooting if paused via ESC
             } else {
@@ -1599,6 +1714,11 @@ function keyPressed() {
         else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; }
         else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); }
     }
+     else if (gameState === GAME_STATE.PLAYING && isPaused) { // Pause Menu Navigation
+         if (keyCode === UP_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem - 1 + pauseMenuItems.length) % pauseMenuItems.length; }
+         else if (keyCode === DOWN_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem + 1) % pauseMenuItems.length; }
+         else if (keyCode === ENTER || keyCode === RETURN) { handlePauseMenuSelection(selectedPauseMenuItem); }
+     }
     else if (gameState === GAME_STATE.SETTINGS_MENU) {
         if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; }
         else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; }
@@ -1632,7 +1752,7 @@ function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
 function touchStarted() {
     if (!isMobile || touches.length === 0) return false; // Only handle touch on mobile
 
-    let uiButtonTapped = false; // Track if a specific UI button (Settings, Missile) was tapped
+    let uiButtonTapped = false; // Track if a specific UI button (Settings, Missile, Pause Menu items) was tapped
 
     // Iterate through touches to check for UI button taps first
     for (let i = 0; i < touches.length; i++) {
@@ -1642,12 +1762,11 @@ function touchStarted() {
         let misBtn = mobileMissileButton;
 
         if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
-            // Check Settings Button
+            // Check Settings Button -> Pause the game
             if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size && touchY > setBtn.y && touchY < setBtn.y + setBtn.size) {
                  isPaused = true;
-                 previousGameState = GAME_STATE.PLAYING;
-                 gameState = GAME_STATE.SETTINGS_MENU;
-                 selectedSettingsItem = 0;
+                 selectedPauseMenuItem = 0; // Reset pause selection
+                 setupPauseMenuButtons();
                  cursor(ARROW);
                  uiButtonTapped = true;
                  isMobileShooting = false; // Stop shooting if pausing via button
@@ -1660,25 +1779,33 @@ function touchStarted() {
                 // Don't break, allow touch to also control movement/shooting if desired,
                 // but mark that a button was hit so we don't trigger default actions below.
             }
+        } else if (gameState === GAME_STATE.PLAYING && isPaused) {
+             // Handle Pause Menu taps
+             for (let j = 0; j < pauseMenuButtons.length; j++) {
+                 let button = pauseMenuButtons[j];
+                 if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) {
+                     selectedPauseMenuItem = j;
+                     handlePauseMenuSelection(j);
+                     uiButtonTapped = true;
+                     break; // Exit button loop for this touch
+                 }
+             }
+             if (uiButtonTapped) break; // Exit touch loop if a pause button was hit
         }
     }
 
-    // Handle Menu/Other State Button Taps (only need to check first touch)
+    // Handle Menu/Other State Button Taps (only need to check first touch if not in gameplay)
     let touchX = touches[0].x;
     let touchY = touches[0].y;
-    if (!uiButtonTapped) { // Only process these if a gameplay button wasn't tapped
-        if (gameState === GAME_STATE.PLAYING && isPaused) {
-             isPaused = false; // Unpause by tapping anywhere
-             cursor();
-             uiButtonTapped = true; // Consumed the tap
-        }
-        else if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
-        else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
-        else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
-        else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
-        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
-        else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
-    }
+     if (!uiButtonTapped && !(gameState === GAME_STATE.PLAYING)) { // Only process these if a gameplay button wasn't tapped AND not in gameplay
+         if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
+         else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
+         else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
+         else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
+         else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
+         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
+     }
+
 
     // If no UI element was hit during *active* gameplay, start mobile shooting/movement control
     if (gameState === GAME_STATE.PLAYING && !isPaused && !uiButtonTapped) {
@@ -1696,7 +1823,7 @@ function touchEnded() {
     return false; // Prevent default touch actions
 }
 function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return; if (buttonId === 'nextLevel') { startNextLevel(); } else { let success = ship.attemptUpgrade(buttonId); if (success) { let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); if (buttonId === 'homingMissiles') { ship.currentMissiles = ship.maxMissiles; } } } else { let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
-function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.SKILL_TREE) { setupSkillTreeButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.SKILL_TREE) { setupSkillTreeButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } if(gameState === GAME_STATE.PLAYING && isPaused) {setupPauseMenuButtons();} calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
 
 
 // ======================================================================
