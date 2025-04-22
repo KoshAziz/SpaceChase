@@ -2,7 +2,7 @@
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
-// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // INCREASED COSTS // MODIFIED: Resets on Game Over
+// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // **REDUCED COSTS** // MODIFIED: Resets on Game Over
 // - Mobile Gameplay Settings Button (Positioned top-left within HUD) // MODIFIED: Position fixed
 // - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
@@ -134,13 +134,13 @@ let skillTreeData = { // Holds current level of each skill - RESETS ON GAME OVER
     'MISSILE_DAMAGE': 0,
     'STARTING_MONEY': 0
 };
-const SKILL_DEFINITIONS = { // INCREASED COSTS
-    'MAX_SPEED': { label: "Engine Tuning", maxLevel: 5, costPerLevel: [10, 20, 35, 55, 80], effectPerLevel: 0.4, description: "+ Max Speed" },
-    'MAX_LIVES': { label: "Reinforced Hull", maxLevel: 3, costPerLevel: [15, 30, 50], effectPerLevel: 1, description: "+ Max Lives" },
-    'SHIELD_REGEN': { label: "Shield Capacitor", maxLevel: 4, costPerLevel: [12, 25, 40, 60], effectPerLevel: 0.0005, description: "+ Passive Shield Regen / sec" }, // Regen rate per frame
-    'WEAPON_DAMAGE': { label: "Weapon Calibration", maxLevel: 5, costPerLevel: [12, 22, 35, 50, 75], effectPerLevel: 0.15, description: "+ Base Bullet Damage" },
-    'MISSILE_DAMAGE': { label: "Explosives Expert", maxLevel: 5, costPerLevel: [15, 28, 45, 65, 90], effectPerLevel: 1, description: "+ Missile Damage" }, // Flat damage bonus per level
-    'STARTING_MONEY': { label: "Initial Funding", maxLevel: 5, costPerLevel: [5, 10, 15, 20, 30], effectPerLevel: 25, description: "+ Starting Money" }
+const SKILL_DEFINITIONS = { // REDUCED COSTS
+    'MAX_SPEED': { label: "Engine Tuning", maxLevel: 5, costPerLevel: [8, 15, 28, 45, 65], effectPerLevel: 0.4, description: "+ Max Speed" },
+    'MAX_LIVES': { label: "Reinforced Hull", maxLevel: 3, costPerLevel: [12, 25, 40], effectPerLevel: 1, description: "+ Max Lives" },
+    'SHIELD_REGEN': { label: "Shield Capacitor", maxLevel: 4, costPerLevel: [10, 20, 32, 50], effectPerLevel: 0.0005, description: "+ Passive Shield Regen / sec" }, // Regen rate per frame
+    'WEAPON_DAMAGE': { label: "Weapon Calibration", maxLevel: 5, costPerLevel: [10, 18, 28, 40, 60], effectPerLevel: 0.15, description: "+ Base Bullet Damage" },
+    'MISSILE_DAMAGE': { label: "Explosives Expert", maxLevel: 5, costPerLevel: [12, 22, 35, 50, 70], effectPerLevel: 1, description: "+ Missile Damage" }, // Flat damage bonus per level
+    'STARTING_MONEY': { label: "Initial Funding", maxLevel: 5, costPerLevel: [4, 8, 12, 16, 25], effectPerLevel: 25, description: "+ Starting Money" }
 };
 let skillTreeButtons = [];
 let selectedSkillButton = null; // For showing description
