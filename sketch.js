@@ -1,9 +1,10 @@
+
 // --- Features ---
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
 // - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // INCREASED COSTS // MODIFIED: Resets on Game Over
-// - Mobile Gameplay Settings Button (Positioned bottom-left)
+// - Mobile Gameplay Settings Button (Positioned top-left within HUD) // MODIFIED: Position fixed
 // - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
@@ -159,8 +160,8 @@ const BASE_MISSILE_DAMAGE = [0, 3, 4, 5, 6]; // Original base damage per shop le
 const BASE_STARTING_MONEY = 0;
 
 // --- Mobile UI Button Variables ---
-let mobileSettingsButton = { x: 0, y: 0, size: 0, padding: 5 };
-let mobileMissileButton = { x: 0, y: 0, size: 0, padding: 5 };
+let mobileSettingsButton = { x: 0, y: 0, size: 0, padding: 5 }; // Position now calculated in drawHUD
+let mobileMissileButton = { x: 0, y: 0, size: 0, padding: 5 }; // Position calculated in calculateMobileActionButtonsPosition
 
 // Power-Up Types
 const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, EMP_BURST: 2, SCORE_MULT: 3, DRONE: 4, INVINCIBILITY: 5 };
@@ -302,7 +303,7 @@ function setup() {
     setupCosmeticsMenuButtons();
     setupSkillTreeButtons(); // Setup skill tree buttons
     setupPauseMenuButtons(); // Setup pause menu buttons
-    calculateMobileSettingsButtonPosition();
+    // calculateMobileSettingsButtonPosition(); // Position now calculated in drawHUD
     calculateMobileActionButtonsPosition();
     // loadObjectiveForLevel(currentLevel); // Load initial objective (will be done in resetGame/startGame)
 }
@@ -428,7 +429,12 @@ function setupPauseMenuButtons() {
         });
     }
 }
-function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
+// function calculateMobileSettingsButtonPosition() { // REMOVED - calculated directly in drawHUD
+//     mobileSettingsButton.size = isMobile ? 35 : 45;
+//     mobileSettingsButton.padding = 10;
+//     mobileSettingsButton.x = mobileSettingsButton.padding;
+//     mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding;
+// }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 
 // Enhanced Text Drawing with Shadow
@@ -1548,11 +1554,42 @@ function displayHUD() {
     stroke(0, 0, 0, 25); line(1, hudH - 1, width - 1, hudH - 1); line(width - 1, 1, width - 1, hudH - 1);
     noStroke();
 
-    // Top Row: Standard Info (Centered vertically better)
-    textAlign(LEFT, CENTER); let currentX = sideMargin; let firstRowY = hudH * 0.35;
+    // --- Mobile Buttons (Calculate positions here, within HUD) ---
+    if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) {
+        // Settings Button Calculation & Drawing (Top Left)
+        mobileSettingsButton.size = isMobile ? 35 : 45; // Size based on mobile/desktop
+        mobileSettingsButton.padding = 8; // Padding from edge of HUD
+        mobileSettingsButton.x = mobileSettingsButton.padding;
+        mobileSettingsButton.y = hudH / 2 - mobileSettingsButton.size / 2; // Vertically center in HUD
+
+        let setBtn = mobileSettingsButton;
+        fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5);
+        drawShadowedText('⚙️', setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2, setBtn.size * 0.6, uiTextColor, uiTextShadowColor);
+
+        // Missile Button (Keep at Bottom Right) - Recalculate each frame for resilience
+        calculateMobileActionButtonsPosition();
+        if (ship.homingMissilesLevel > 0) {
+            let misBtn = mobileMissileButton;
+            fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(misBtn.x, misBtn.y, misBtn.size, misBtn.size, 5);
+            // Draw icon and count separately for better control
+            textAlign(CENTER, CENTER);
+            drawShadowedText('🚀', misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.45, misBtn.size * 0.5, uiTextColor, uiTextShadowColor); // Icon higher
+            drawShadowedText(ship.currentMissiles, misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.78, misBtn.size * 0.3, uiTextColor, uiTextShadowColor); // Count lower
+        }
+    }
+
+    // --- Top Row: Standard Info (Centered vertically better) ---
+    textAlign(LEFT, CENTER);
+    // Adjust starting X if mobile settings button is present
+    let currentX = isMobile ? mobileSettingsButton.x + mobileSettingsButton.size + spacing : sideMargin;
+    let firstRowY = hudH * 0.35;
 
     // Helper to draw HUD text with icon and shadow
     const drawHudItem = (icon, value, valueColor) => {
+        // Ensure enough space before drawing next item, especially on mobile
+        if (currentX + textWidth(icon) + spacing*0.3 + textWidth(value) + spacing*0.5 > width - sideMargin) {
+            return; // Prevent drawing off-screen
+        }
         drawShadowedText(icon, currentX, firstRowY, textSizeVal, uiTextColor, uiTextShadowColor);
         currentX += textWidth(icon) + spacing * 0.3; // Space between icon and value
         drawShadowedText(value, currentX, firstRowY, textSizeVal, valueColor, uiTextShadowColor);
@@ -1572,11 +1609,14 @@ function displayHUD() {
     drawHudItem('🛡', shieldText, color(180, 70, 100));
 
     if (ship && ship.homingMissilesLevel > 0) {
-        drawHudItem('🚀', `${ship.currentMissiles}`, color(30, 80, 100));
+        // Only show missile count if NOT on mobile (button shows it)
+        if (!isMobile) {
+            drawHudItem('🚀', `${ship.currentMissiles}`, color(30, 80, 100));
+        }
     }
     // Optional: Add other statuses like Rapid Fire Timer, Score Multiplier Timer etc.
 
-    // Bottom Row: Objective Progress Bar & Text
+    // --- Bottom Row: Objective Progress Bar & Text ---
     let secondRowY = hudH * 0.75; // Position text above the bar
     let barY = hudH - progressBarHeight - progressBarYOffset;
     let barWidth = width - sideMargin * 2;
@@ -1620,25 +1660,10 @@ function displayHUD() {
     let upgradesText = `RATE:${ship.fireRateLevel} SPRD:${ship.spreadShotLevel}`;
     if (ship.rearGunLevel > 0) upgradesText += ` REAR:${ship.rearGunLevel}`;
     if (!isMobile && ship.homingMissilesLevel > 0) upgradesText += ` MSL:${ship.homingMissilesLevel}`;
-    drawShadowedText(upgradesText, width - sideMargin, height - bottomMargin, textSizeVal * 0.8, uiTextColor, uiTextShadowColor);
+    // Avoid overlapping missile button on mobile
+    let upgradesY = isMobile ? mobileMissileButton.y - mobileMissileButton.padding : height - bottomMargin;
+    drawShadowedText(upgradesText, width - sideMargin, upgradesY, textSizeVal * 0.8, uiTextColor, uiTextShadowColor);
 
-     // Mobile Buttons (Enhanced Style)
-     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) {
-        // Settings Button
-        let setBtn = mobileSettingsButton;
-        fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5);
-        drawShadowedText('⚙️', setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2, setBtn.size * 0.6, uiTextColor, uiTextShadowColor);
-
-        // Missile Button
-        if (ship.homingMissilesLevel > 0) {
-            let misBtn = mobileMissileButton;
-            fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(misBtn.x, misBtn.y, misBtn.size, misBtn.size, 5);
-            // Draw icon and count separately for better control
-            textAlign(CENTER, CENTER);
-            drawShadowedText('🚀', misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.45, misBtn.size * 0.5, uiTextColor, uiTextShadowColor); // Icon higher
-            drawShadowedText(ship.currentMissiles, misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.78, misBtn.size * 0.3, uiTextColor, uiTextShadowColor); // Count lower
-        }
-     }
 }
 
 function displayInfoMessage() {
@@ -1819,10 +1844,10 @@ function handlePauseMenuSelection(index) {
 
 // --- Input Handling ---
 function mousePressed() {
-    // Mobile Settings Button Check (only if mobile and playing)
+    // Mobile Settings Button Check (only if mobile and playing and not paused)
     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused) {
-        let btn = mobileSettingsButton;
-        if (mouseX > btn.x && mouseX < btn.x + btn.size && mouseY > btn.y && mouseY < btn.y + btn.size) {
+        let setBtn = mobileSettingsButton; // Use the values calculated in displayHUD
+        if (mouseX > setBtn.x && mouseX < setBtn.x + setBtn.size && mouseY > setBtn.y && mouseY < setBtn.y + setBtn.size) {
             isPaused = true;
             selectedPauseMenuItem = 0; // Default selection
             setupPauseMenuButtons();
@@ -1945,8 +1970,9 @@ function touchStarted() {
     for (let i = 0; i < touches.length; i++) {
         let touchX = touches[i].x;
         let touchY = touches[i].y;
-        let setBtn = mobileSettingsButton;
-        let misBtn = mobileMissileButton;
+        // Use the dynamically calculated/stored button positions
+        let setBtn = mobileSettingsButton; // Positions calculated in drawHUD
+        let misBtn = mobileMissileButton; // Positions calculated in calculateMobileActionButtonsPosition
 
         if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
             // Check Settings Button -> Pause the game
@@ -2010,7 +2036,8 @@ function touchEnded() {
     return false; // Prevent default touch actions
 }
 function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return; if (buttonId === 'nextLevel') { startNextLevel(); } else { let success = ship.attemptUpgrade(buttonId); if (success) { let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); if (buttonId === 'homingMissiles') { ship.currentMissiles = ship.maxMissiles; } } } else { let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
-function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.SKILL_TREE) { setupSkillTreeButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } if(gameState === GAME_STATE.PLAYING && isPaused) {setupPauseMenuButtons();} calculateMobileSettingsButtonPosition(); calculateMobileActionButtonsPosition(); }
+function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfield(200); if (gameState === GAME_STATE.START_MENU) { setupMenuButtons(); } if (gameState === GAME_STATE.SETTINGS_MENU) { setupSettingsMenuButtons(); } if (gameState === GAME_STATE.COSMETICS_MENU) { setupCosmeticsMenuButtons(); } if (gameState === GAME_STATE.SKILL_TREE) { setupSkillTreeButtons(); } if (gameState === GAME_STATE.UPGRADE_SHOP) { setupShopButtons(); } if(gameState === GAME_STATE.PLAYING && isPaused) {setupPauseMenuButtons();} // calculateMobileSettingsButtonPosition(); // REMOVED - calculated in drawHUD
+ calculateMobileActionButtonsPosition(); }
 
 
 // ======================================================================
