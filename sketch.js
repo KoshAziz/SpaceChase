@@ -9,7 +9,7 @@
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
 // - Selectable Ship Colors (Red, Blue, Green) with corresponding details
-// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail)
+// - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement
 // - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
@@ -80,6 +80,7 @@
 // - MODIFIED: Removed Homing Missile upgrade option from the shop on mobile devices.
 // - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
 // - MODIFIED: Pressing ESC during active gameplay or in the Upgrade Shop returns to the Start Menu. Pressing ESC while paused resumes gameplay. Pressing ESC in Settings/Cosmetics menus acts as 'Back'.
+// - MODIFIED: Reduced internal movement (noise animation) of background planets for a smoother look.
 // --------------------------
 
 
@@ -358,7 +359,7 @@ function handleCollisions() {
     // Enemy Collisions
     for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(1)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage || 3; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
     // Player Collisions
-    if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) { const takeDamage = (sourceObject, sourceArray, index) => { if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false; let gameOver = false; if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } } else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; // Reduced duration to ~1 second (60 frames)
+    if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) { const takeDamage = (sourceObject, sourceArray, index) => { if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false; let gameOver = false; if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } } else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; // Duration ~1 second (60 frames)
                     } if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } if (sourceObject && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { let explosionColor = (sourceObject.getExplosionColor) ? sourceObject.getExplosionColor() : (sourceObject.color || color(0,0,50)); let particleCount = sourceObject.size ? floor(sourceObject.size * 1.2) : 20; if (sourceObject instanceof EnemyBullet) { particleCount = 8; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor, sourceObject.size * 0.2); if (sourceObject instanceof KamikazeEnemy) { createParticles(sourceObject.pos.x, sourceObject.pos.y, floor(sourceObject.size * 1.5), sourceObject.getExplosionColor(), sourceObject.size * 0.3, 1.5, 1.2); } sourceArray.splice(index, 1); } } return gameOver; }; for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && enemy.hitsShip(ship)) { if (takeDamage(enemy, enemyShips, i)) return; break; } } } if (gameState === GAME_STATE.PLAYING) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } } }
 }
 function handlePotions() {
@@ -374,7 +375,62 @@ function handlePotions() {
 function drawBackgroundAndStars() { for(let y=0; y < height; y++){ let inter = map(y, 0, height, 0, 1); let c = lerpColor(currentTopColor, currentBottomColor, inter); stroke(c); line(0, y, width, y); } noStroke(); if (settingBackgroundEffectsEnabled) { for (let i = nebulas.length - 1; i >= 0; i--) { if (gameState === GAME_STATE.PLAYING && !isPaused) nebulas[i].update(); nebulas[i].draw(); if (nebulas[i].isOffscreen()) { nebulas.splice(i, 1); } } drawBlackHole(); drawGalaxy(); if (planetVisible) { drawPlanet(); } for (let i = shootingStars.length - 1; i >= 0; i--) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update(); shootingStars[i].draw(); if (shootingStars[i].isDone()) { shootingStars.splice(i, 1); } } for (let star of stars) { if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update(); star.draw(); } } else { fill(0, 0, 80, 70); noStroke(); for (let star of stars) { ellipse(star.x, star.y, 1.5, 1.5); if (!(gameState === GAME_STATE.PLAYING && isPaused)) { star.y += star.speed * 0.5; if (star.y > height + 2) { star.y = -2; star.x = random(width); } } } } }
 function drawBlackHole() { push(); let bhX = width * 0.8; let bhY = height * 0.2; let bhSize = width * 0.05; fill(0); noStroke(); ellipse(bhX, bhY, bhSize * 1.1, bhSize * 1.1); let ringCount = 7; let maxRingSize = bhSize * 3.5; let minRingSize = bhSize * 1.2; noFill(); let slowVariation = sin(frameCount * 0.01); for (let i = 0; i < ringCount; i++) { let sizeFactor = lerp(0.95, 1.05, (sin(frameCount * 0.02 + i * 0.5) + 1) / 2); let size = lerp(minRingSize, maxRingSize, i / (ringCount - 1)) * sizeFactor; let hue = lerp(0, 60, i / (ringCount - 1)) + sin(frameCount * 0.03 + i) * 5; let alpha = map(i, 0, ringCount - 1, 50, 3); let sw = map(i, 0, ringCount - 1, 1.5, 5); strokeWeight(sw); stroke(hue, 90, 90, alpha); ellipse(bhX, bhY, size, size); } pop(); }
 function drawGalaxy() { push(); let centerX = width / 2; let centerY = height / 2; let baseHue1 = 270; let baseHue2 = 200; let alphaVal = 2.5; let angle = frameCount * 0.0003; translate(centerX, centerY); rotate(angle); translate(-centerX, -centerY); noStroke(); fill(baseHue1, 50, 60, alphaVal); ellipse(centerX - width * 0.1, centerY - height * 0.1, width * 1.3, height * 0.35); fill(baseHue2, 60, 70, alphaVal); ellipse(centerX + width * 0.15, centerY + height * 0.05, width * 1.2, height * 0.45); fill((baseHue1 + baseHue2) / 2, 55, 65, alphaVal * 0.9); ellipse(centerX, centerY, width * 1.0, height * 0.55); pop(); }
-function drawPlanet() { push(); translate(planetPos.x, planetPos.y); noStroke(); fill(planetBaseColor); ellipse(0, 0, planetSize, planetSize); let detailScale = 0.01; let detailLayers = 3; for (let layer = 0; layer < detailLayers; layer++) { let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers); let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40); fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha); beginShape(); for (let angle = 0; angle < TWO_PI; angle += PI / 60) { let xoff = map(cos(angle), -1, 1, 0, 3 + layer); let yoff = map(sin(angle), -1, 1, 0, 3 + layer); let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale, frameCount * 0.001 * (layer + 1)); let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15)); let x = radius * cos(angle); let y = radius * sin(angle); vertex(x, y); } endShape(CLOSE); } let cloudLayers = 4; let cloudOffsetSpeed = 0.005; for (let i = 0; i < cloudLayers; i++) { let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25); fill(0, 0, 100, cloudAlpha); let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2); let cloudSize = planetSize * (0.8 - i * 0.1); let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i, frameCount * 0.002) * PI; let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i, frameCount * 0.0025) * 0.8); arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN); arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); } let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5); noFill(); for(let i=0; i<5; i++) { strokeWeight(planetSize * 0.02 * i + 1); stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5); ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03)); } pop(); }
+function drawPlanet() {
+    push();
+    translate(planetPos.x, planetPos.y);
+    noStroke();
+    // Base planet color
+    fill(planetBaseColor);
+    ellipse(0, 0, planetSize, planetSize);
+
+    // Detail Layers (Landmass/Features) - Reduced movement
+    let detailScale = 0.01;
+    let detailLayers = 3;
+    for (let layer = 0; layer < detailLayers; layer++) {
+        let layerColor = (layer === 0) ? planetDetailColor1 : lerpColor(planetDetailColor2, planetBaseColor, layer / detailLayers);
+        let layerAlpha = map(layer, 0, detailLayers - 1, 80, 40);
+        fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha);
+        beginShape();
+        for (let angle = 0; angle < TWO_PI; angle += PI / 60) {
+            let xoff = map(cos(angle), -1, 1, 0, 3 + layer);
+            let yoff = map(sin(angle), -1, 1, 0, 3 + layer);
+            // Removed frameCount dependency here for smoother landmasses
+            let noiseVal = noise(planetNoiseSeed + xoff * detailScale, planetNoiseSeed + 100 + yoff * detailScale);
+            let radius = planetSize / 2 * (0.9 - layer * 0.1) * (1 + map(noiseVal, 0, 1, -0.15, 0.15));
+            let x = radius * cos(angle);
+            let y = radius * sin(angle);
+            vertex(x, y);
+        }
+        endShape(CLOSE);
+    }
+
+    // Cloud Layers - Reduced movement
+    let cloudLayers = 4;
+    let cloudOffsetSpeed = 0.0005; // Drastically reduced speed for less rotation
+    for (let i = 0; i < cloudLayers; i++) {
+        let cloudAlpha = map(i, 0, cloudLayers - 1, 60, 25);
+        fill(0, 0, 100, cloudAlpha); // White clouds
+        // Slowed down rotation significantly
+        let cloudAngleOffset = frameCount * cloudOffsetSpeed * (i + 1) * (i % 2 === 0 ? 1 : -1.2);
+        let cloudSize = planetSize * (0.8 - i * 0.1);
+        // Removed frameCount dependency from noise for static cloud shapes
+        let startAngle = cloudAngleOffset + i * PI / 5 + noise(planetNoiseSeed + 300 + i) * PI;
+        let endAngle = startAngle + PI * (0.4 + noise(planetNoiseSeed + 400 + i) * 0.8);
+        arc(0, 0, cloudSize, cloudSize, startAngle, endAngle, OPEN);
+        arc(0, 0, cloudSize * 0.95, cloudSize * 0.95, startAngle + PI*0.1, endAngle + PI*0.1, OPEN); // Inner arc for thickness
+    }
+
+    // Atmosphere Glow
+    let glowColor = lerpColor(planetBaseColor, color(hue(planetBaseColor), 10, 100), 0.5);
+    noFill();
+    for(let i=0; i<5; i++) {
+        strokeWeight(planetSize * 0.02 * i + 1);
+        stroke(hue(glowColor), saturation(glowColor), brightness(glowColor), 15 - i*2.5);
+        ellipse(0, 0, planetSize * (1.0 + i * 0.03), planetSize * (1.0 + i * 0.03));
+    }
+
+    pop();
+}
 
 // --- HUD & Info Messages ---
 function displayHUD() {
@@ -478,7 +534,6 @@ function keyPressed() {
                 selectedMenuItem = 0;
                 isPaused = false; // Ensure not paused
                 cursor(ARROW); // Show cursor for menu
-                // NOTE: This effectively ends the current game run.
             }
         } else if (gameState === GAME_STATE.SETTINGS_MENU) {
             // Execute the 'Back' action for settings
@@ -492,9 +547,7 @@ function keyPressed() {
              selectedMenuItem = 0;
              isPaused = false; // Ensure not paused
              cursor(ARROW); // Show cursor for menu
-             // NOTE: This effectively ends the current game run.
         }
-        // Escape does nothing in START_MENU, GAME_OVER, WIN_SCREEN from keyboard
     }
     // --- Other Key Presses ---
      else if (gameState === GAME_STATE.START_MENU) {
@@ -503,29 +556,23 @@ function keyPressed() {
         else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); }
     }
     else if (gameState === GAME_STATE.SETTINGS_MENU) {
-        // Handle UP/DOWN/ENTER for settings menu selection (excluding ESC handled above)
         if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; }
         else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; }
         else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); }
     }
     else if (gameState === GAME_STATE.COSMETICS_MENU) {
-         // Handle UP/DOWN/ENTER for cosmetics menu selection (excluding ESC handled above)
         if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; }
         else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; }
         else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); }
     }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
-        // Handle gameplay keys (excluding ESC handled above)
-        if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } // Prevent default spacebar behavior
-        if (keyCode === 77) { ship.fireMissile(); return false; } // 'M' for Missile
-        // WASD/Arrow keys are checked directly in ship.update using keyIsDown()
+        if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; }
+        if (keyCode === 77) { ship.fireMissile(); return false; }
     }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) {
-        // Handle ENTER for shop (excluding ESC handled above)
         if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); }
     }
     else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
-        // Handle Enter/Return for Game Over / Win screens
         if (keyCode === ENTER || keyCode === RETURN) {
             previousGameState = gameState;
             gameState = GAME_STATE.START_MENU;
