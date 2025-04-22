@@ -1,3 +1,4 @@
+
 // --- Features ---
 // - Start Menu with Options (Start Game, Settings, Cosmetics)
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
@@ -22,7 +23,7 @@
 //   - Swarmer Enemy: Small, appears in groups, simple movement. // MODIFIED: Appearance more 'evil'
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals)
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
-// - Pause Functionality (Press ESC during gameplay) // ENHANCED (UI Style)
+// - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC from active gameplay returns to Menu.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 // ENHANCED (UI Style)
 // - Monospace Font & UI Color Palette // NEW UI FEATURE
@@ -78,6 +79,7 @@
 // - Enhanced visuals for HealthPotion and PowerUp.
 // - MODIFIED: Removed Homing Missile upgrade option from the shop on mobile devices.
 // - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
+// - MODIFIED: Pressing ESC during active gameplay or in the Upgrade Shop returns to the Start Menu. Pressing ESC while paused resumes gameplay. Pressing ESC in Settings/Cosmetics menus acts as 'Back'.
 // --------------------------
 
 
@@ -424,10 +426,10 @@ function selectMenuItem(index) {
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
-function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor();} selectedMenuItem = 0; break; } }
+function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; break; } }
 function selectCosmeticsItemAction(index) {
     let setting = cosmeticsMenuItems[index];
-    if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor(); } selectedMenuItem = 0; return; }
+    if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { /* Remain paused */ cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { /* If returning to active play */ cursor(); } selectedMenuItem = 0; return; }
     if (setting.type === 'cycle') {
         if (setting.id === 'shipColor') { let currentIndex = SHIP_COLORS.indexOf(selectedShipColor); let nextIndex = (currentIndex + 1) % SHIP_COLORS.length; selectedShipColor = SHIP_COLORS[nextIndex]; if (ship) { ship.setColors(); } }
         else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; }
@@ -437,7 +439,15 @@ function selectCosmeticsItemAction(index) {
 // --- Input Handling ---
 function mousePressed() {
     let btn = mobileSettingsButton;
-    if (gameState === GAME_STATE.PLAYING && !isPaused && isMobile && mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2) { isPaused = true; previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; cursor(ARROW); return; }
+    if (gameState === GAME_STATE.PLAYING && !isPaused && isMobile && mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2) {
+        // Mobile settings button TAPPED while playing: Go to settings, remember we were playing (and not paused)
+        isPaused = true; // Pause the game visually while in settings
+        previousGameState = GAME_STATE.PLAYING; // Store that we came from playing state
+        gameState = GAME_STATE.SETTINGS_MENU;
+        selectedSettingsItem = 0;
+        cursor(ARROW);
+        return;
+    }
 
     switch (gameState) {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
@@ -454,15 +464,76 @@ function mouseReleased() {
         // No action needed specifically for mouse release regarding shooting
     }
 }
+
 function keyPressed() {
-    if (keyCode === ESCAPE) { if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();} } else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); } else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); } }
-    else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } }
-    else if (gameState === GAME_STATE.SETTINGS_MENU) { if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; } else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); } }
-    else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } }
-    else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } }
-    else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
+    if (keyCode === ESCAPE) {
+        if (gameState === GAME_STATE.PLAYING) {
+            if (isPaused) {
+                // Unpause the game if ESC pressed while paused
+                isPaused = false;
+                cursor(); // Hide cursor for gameplay
+            } else {
+                // Go directly to the main menu from active gameplay
+                gameState = GAME_STATE.START_MENU;
+                selectedMenuItem = 0;
+                isPaused = false; // Ensure not paused
+                cursor(ARROW); // Show cursor for menu
+                // NOTE: This effectively ends the current game run.
+            }
+        } else if (gameState === GAME_STATE.SETTINGS_MENU) {
+            // Execute the 'Back' action for settings
+            selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back'));
+        } else if (gameState === GAME_STATE.COSMETICS_MENU) {
+            // Execute the 'Back' action for cosmetics
+            selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back'));
+        } else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+             // Go directly to the main menu from the shop
+             gameState = GAME_STATE.START_MENU;
+             selectedMenuItem = 0;
+             isPaused = false; // Ensure not paused
+             cursor(ARROW); // Show cursor for menu
+             // NOTE: This effectively ends the current game run.
+        }
+        // Escape does nothing in START_MENU, GAME_OVER, WIN_SCREEN from keyboard
+    }
+    // --- Other Key Presses ---
+     else if (gameState === GAME_STATE.START_MENU) {
+        if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; }
+        else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; }
+        else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); }
+    }
+    else if (gameState === GAME_STATE.SETTINGS_MENU) {
+        // Handle UP/DOWN/ENTER for settings menu selection (excluding ESC handled above)
+        if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; }
+        else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; }
+        else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); }
+    }
+    else if (gameState === GAME_STATE.COSMETICS_MENU) {
+         // Handle UP/DOWN/ENTER for cosmetics menu selection (excluding ESC handled above)
+        if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; }
+        else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; }
+        else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); }
+    }
+    else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
+        // Handle gameplay keys (excluding ESC handled above)
+        if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } // Prevent default spacebar behavior
+        if (keyCode === 77) { ship.fireMissile(); return false; } // 'M' for Missile
+        // WASD/Arrow keys are checked directly in ship.update using keyIsDown()
+    }
+    else if (gameState === GAME_STATE.UPGRADE_SHOP) {
+        // Handle ENTER for shop (excluding ESC handled above)
+        if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); }
+    }
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) {
+        // Handle Enter/Return for Game Over / Win screens
+        if (keyCode === ENTER || keyCode === RETURN) {
+            previousGameState = gameState;
+            gameState = GAME_STATE.START_MENU;
+            selectedMenuItem = 0;
+        }
+    }
 }
+
 function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
 
 function touchStarted() {
@@ -475,8 +546,19 @@ function touchStarted() {
 
     // Check UI button hits FIRST (settings, missile)
     if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
-        if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) { isPaused = true; previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; cursor(ARROW); uiHit = true; }
-        else if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) { ship.fireMissile(); uiHit = true; }
+        if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) {
+             // Mobile settings button TAPPED while playing: Go to settings, remember we were playing (and not paused)
+             isPaused = true; // Pause the game visually while in settings
+             previousGameState = GAME_STATE.PLAYING; // Store that we came from playing state
+             gameState = GAME_STATE.SETTINGS_MENU;
+             selectedSettingsItem = 0;
+             cursor(ARROW); // Show cursor for menu interaction
+             uiHit = true; // Mark that UI was hit
+        }
+        else if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) {
+            ship.fireMissile();
+            uiHit = true; // Mark that UI was hit
+        }
     }
 
     // Handle Menu/Other State Button Taps
@@ -624,7 +706,8 @@ class Bullet {
         if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; }
         else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } // White
         let baseAngle = -PI / 2;
-        if (angle === PI) { baseAngle = PI/2; angle=0;} // Correct angle for rear gun
+        // Special case for rear gun angle (passed as PI)
+        if (angle === PI) { baseAngle = PI/2; angle=0;}
         this.vel = p5.Vector.fromAngle(baseAngle + angle);
         this.vel.mult(this.speed);
         this.trail = [];
