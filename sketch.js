@@ -24,7 +24,7 @@
 //   - Laser Enemy: Charges and fires a continuous beam. // NEW ENEMY TYPE
 // - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety)
-// - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC from active gameplay returns to Menu.
+// - Pause Functionality (Press ESC during gameplay to Pause/Unpause) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 Objective // MODIFIED
 // - Monospace Font & UI Color Palette // NEW UI FEATURE
@@ -41,7 +41,7 @@
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
 // - Background gradient color changes every 20 seconds.
 // - Added brief invulnerability after losing a life.
-// - Added Touch Controls: Tap/Hold non-UI area to shoot, dedicated button for missile. // MODIFIED FOR CONTINUOUS SHOOTING // REMOVED: Laser button
+// - MODIFIED: Touch Controls: Tap/Hold *anywhere* on screen (non-UI button) to move towards touch AND shoot continuously.
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
 // - Max shield charges reduced to 1.
 // - Asteroids visuals enhanced (shading, craters, rotation, NO OUTLINE). // FURTHER ENHANCED
@@ -74,13 +74,12 @@
 // - MODIFIED: Spaceship drawing logic uses simplified color selection.
 // - MODIFIED: Added text fitting logic to button drawing functions.
 // - REFACTORED: Cosmetics system simplified to direct color/style selection.
-// - ADDED: Mobile continuous shooting by holding touch on screen.
 // --- Modifications ---
 // - Removed Laser Upgrade.
 // - Enhanced visuals for HealthPotion and PowerUp.
 // - MODIFIED: Removed Homing Missile upgrade option from the shop on mobile devices.
 // - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
-// - MODIFIED: Pressing ESC during active gameplay or in the Upgrade Shop returns to the Start Menu. Pressing ESC while paused resumes gameplay. Pressing ESC in Settings/Cosmetics menus acts as 'Back'.
+// - MODIFIED: Pressing ESC during active gameplay pauses/resumes. ESC in Shop/Menus acts as Back or returns to Start Menu.
 // - MODIFIED: Reduced internal movement (noise animation) of background planets for a smoother look.
 // - ADDED: More color options for ship and bullets.
 // - ADDED: Laser Enemy type with continuous beam attack.
@@ -88,6 +87,7 @@
 // - INCREASED: Potion and Power-up spawn rates and max power-ups allowed.
 // - ADDED: Objective tracking for Potion and Power-up collection. Example objectives added.
 // - MODIFIED: Level 1 Objective target changed from 8 to 5.
+// - MODIFIED: Mobile touch now controls movement AND shooting simultaneously.
 // --------------------------
 
 
@@ -385,7 +385,7 @@ function displayCosmeticsMenu() {
     if (currentPalette) { push(); translate(width / 2, previewY); fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]); rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]); triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); pop(); }
     cursor(ARROW);
 }
-function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap Settings Button (⚙️) to Resume/Adjust" : "Press ESC to Resume", width / 2, height / 2 + 40); }
+function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap anywhere to Resume" : "Press ESC to Resume", width / 2, height / 2 + 40); } // Changed mobile pause message
 function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
 function displayWinScreen() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6); let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; } fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
@@ -900,46 +900,51 @@ function selectCosmeticsItemAction(index) {
 
 // --- Input Handling ---
 function mousePressed() {
-    let btn = mobileSettingsButton;
-    if (gameState === GAME_STATE.PLAYING && !isPaused && isMobile && mouseX > btn.x && mouseX < btn.x + btn.size && mouseY > btn.y && mouseY < btn.y + btn.size) { // Use btn.size directly for hit area
-        // Mobile settings button TAPPED while playing: Go to settings, remember we were playing (and not paused)
-        isPaused = true; // Pause the game visually while in settings
-        previousGameState = GAME_STATE.PLAYING; // Store that we came from playing state
-        gameState = GAME_STATE.SETTINGS_MENU;
-        selectedSettingsItem = 0;
-        cursor(ARROW);
-        return;
+    // Mobile Settings Button Check (only if mobile and playing)
+    if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused) {
+        let btn = mobileSettingsButton;
+        if (mouseX > btn.x && mouseX < btn.x + btn.size && mouseY > btn.y && mouseY < btn.y + btn.size) {
+            isPaused = true;
+            previousGameState = GAME_STATE.PLAYING;
+            gameState = GAME_STATE.SETTINGS_MENU;
+            selectedSettingsItem = 0;
+            cursor(ARROW);
+            return; // Prevent further processing for this touch
+        }
     }
 
+    // Handle other game states or non-mobile clicks
     switch (gameState) {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
-        case GAME_STATE.PLAYING: if (!isPaused && ship && !isMobile) { ship.shoot(); } break; // Non-mobile click = single shot
+        case GAME_STATE.PLAYING:
+             if (isPaused && isMobile) { // Unpause on mobile by tapping anywhere while paused
+                 isPaused = false;
+                 cursor(); // Hide cursor
+                 return;
+             }
+             if (!isPaused && ship && !isMobile) {
+                 ship.shoot(); // Non-mobile click = single shot (Hold handled by spacebar)
+             }
+             break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
         case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
     }
 }
 function mouseReleased() {
-     // Reset mobile shooting flag if not mobile (mouse release isn't relevant for touch)
-    if (!isMobile) {
-        // No action needed specifically for mouse release regarding shooting
-    }
+     // No action needed on mouse release for current logic
 }
 
 function keyPressed() {
     if (keyCode === ESCAPE) {
         if (gameState === GAME_STATE.PLAYING) {
+            // Toggle pause state
+            isPaused = !isPaused;
             if (isPaused) {
-                // Unpause the game if ESC pressed while paused
-                isPaused = false;
-                cursor(); // Hide cursor for gameplay
+                 cursor(ARROW); // Show cursor when paused
             } else {
-                // Go directly to the main menu from active gameplay
-                gameState = GAME_STATE.START_MENU;
-                selectedMenuItem = 0;
-                isPaused = false; // Ensure not paused
-                cursor(ARROW); // Show cursor for menu
+                 cursor(); // Hide cursor when playing
             }
         } else if (gameState === GAME_STATE.SETTINGS_MENU) {
             // Execute the 'Back' action for settings
@@ -993,15 +998,15 @@ function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
 function touchStarted() {
     if (!isMobile || touches.length === 0) return false; // Only handle touch on mobile
 
-    let uiHit = false; // Track if any touch hits a UI element
+    let uiButtonTapped = false; // Track if a specific UI button (Settings, Missile) was tapped
 
-    // Iterate through all current touches
+    // Iterate through touches to check for UI button taps first
     for (let i = 0; i < touches.length; i++) {
         let touchX = touches[i].x;
         let touchY = touches[i].y;
-        let setBtn = mobileSettingsButton; let misBtn = mobileMissileButton;
+        let setBtn = mobileSettingsButton;
+        let misBtn = mobileMissileButton;
 
-        // Check UI button hits FIRST (settings, missile)
         if (gameState === GAME_STATE.PLAYING && !isPaused && ship) {
             // Check Settings Button
             if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size && touchY > setBtn.y && touchY < setBtn.y + setBtn.size) {
@@ -1010,31 +1015,37 @@ function touchStarted() {
                  gameState = GAME_STATE.SETTINGS_MENU;
                  selectedSettingsItem = 0;
                  cursor(ARROW);
-                 uiHit = true; // Mark that UI was hit by this touch
-                 break; // One UI hit is enough, stop checking touches for UI
+                 uiButtonTapped = true;
+                 break; // Exit loop, settings button takes priority
             }
             // Check Missile Button
             else if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) {
                 ship.fireMissile();
-                uiHit = true; // Mark that UI was hit by this touch
-                // Don't break here, allow other touches to potentially trigger shooting
+                uiButtonTapped = true;
+                // Don't break, allow touch to also control movement/shooting if desired,
+                // but mark that a button was hit so we don't trigger default actions below.
             }
         }
-        // Handle Menu/Other State Button Taps (only need to check first touch for menus)
-        else if (i === 0) { // Only check the first touch for menu interactions
-             if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiHit = true; break; } } }
-             else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiHit = true; break; } } }
-             else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiHit = true; break; } } }
-             else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiHit = true; }
-             else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiHit = true; break; } } }
+    }
+
+    // Handle Menu/Other State Button Taps (only need to check first touch)
+    let touchX = touches[0].x;
+    let touchY = touches[0].y;
+    if (!uiButtonTapped) { // Only process these if a gameplay button wasn't tapped
+        if (gameState === GAME_STATE.PLAYING && isPaused) {
+             isPaused = false; // Unpause by tapping anywhere
+             cursor();
+             uiButtonTapped = true; // Consumed the tap
         }
+        else if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
+        else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
+        else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
+        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
+        else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
+    }
 
-        // If this touch hit UI, break from checking other touches for UI
-        if (uiHit && i===0 && gameState !== GAME_STATE.PLAYING) break;
-    } // End touch iteration
-
-    // If *no touch* hit a UI element during gameplay, start mobile shooting
-    if (gameState === GAME_STATE.PLAYING && !isPaused && !uiHit) {
+    // If no UI element was hit during gameplay, start mobile shooting
+    if (gameState === GAME_STATE.PLAYING && !isPaused && !uiButtonTapped) {
         isMobileShooting = true;
     }
 
@@ -1111,30 +1122,32 @@ class Ship {
         if (this.droneActive && this.drone && this.drone.isExpired()) { this.droneActive = false; this.drone = null; infoMessage = "Drone Deactivated"; infoMessageTimeout = 90; createParticles(this.pos.x, this.pos.y, 15, color(180, 50, 80), 4, 1.5, 0.8); }
         if (this.homingMissilesLevel > 0 && this.currentMissiles < this.maxMissiles) { this.missileRegenTimer--; if (this.missileRegenTimer <= 0) { this.currentMissiles++; this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; } } else if (this.homingMissilesLevel > 0) { this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; }
         this.hoverOffset = sin(frameCount * 0.05) * 2;
-        // --- Player Input & Movement ---
-        let isTouchingInput = isMobile && touches.length > 0 && !isMobileShooting; // Check if touch is for movement, not shooting
-        let acceleration = createVector(0, 0); let applyThrustParticles = false;
 
-        // Determine if movement input is active (keyboard OR touch for movement)
+        // --- Player Input & Movement ---
+        let acceleration = createVector(0, 0);
+        let applyThrustParticles = false;
+
+        // Determine if movement input is active (keyboard OR touch)
         let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87);
         let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83);
         let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65);
         let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68);
         let keyboardMoving = movingUp || movingDown || movingLeft || movingRight;
+        let touchMoving = isMobile && touches.length > 0; // Simplified touch check
 
-        if (isMobile && !isMobileShooting && touches.length > 0) {
-             // Touch-based movement (if not shooting)
-             let touchPos = createVector(touches[0].x, touches[0].y);
+        if (touchMoving) {
+             // Mobile touch always controls movement
+             let touchPos = createVector(touches[0].x, touches[0].y); // Use first touch for movement target
              let direction = p5.Vector.sub(touchPos, this.pos);
              if (direction.magSq() > (this.size * 0.5) * (this.size * 0.5)) { // Only move if touch is outside a small deadzone
                  let targetVel = direction.copy().normalize().mult(this.maxSpeed * this.touchThrustMultiplier);
                  this.vel.lerp(targetVel, 0.15); // Smoother touch movement
                  applyThrustParticles = this.vel.magSq() > 0.1;
              } else {
-                 this.vel.mult(this.friction); // Slow down if touch is near center
+                 this.vel.mult(this.friction * 0.95); // Stronger friction if touch is near center (braking)
              }
         } else if (keyboardMoving) {
-             // Keyboard movement
+             // Keyboard movement (only if not touching)
              let currentThrust = this.thrust;
              if (!isMobile) { currentThrust *= 1.5; } // Boost for non-mobile
              if (movingUp) { acceleration.y -= currentThrust; applyThrustParticles = true; }
@@ -1149,7 +1162,8 @@ class Ship {
              if (this.vel.magSq() < 0.01) this.vel.set(0, 0); // Stop completely if slow enough
         }
 
-        if (applyThrustParticles && frameCount % 3 === 0 && (keyboardMoving || (isMobile && !isMobileShooting && touches.length > 0))) { // Only add thrust particles if actively moving
+        // Thrust particles based on actual movement or keyboard input
+        if (applyThrustParticles && frameCount % 3 === 0) {
             let thrustColor = lerpColor(this.engineColor1, this.engineColor2, random(0.3, 0.7));
             createParticles(this.pos.x, this.pos.y + this.size * 0.6, 1, thrustColor, 3, 1.5, 0.5);
         }
@@ -1158,6 +1172,7 @@ class Ship {
 
         // --- Handle Auto-Fire ---
         if (gameState === GAME_STATE.PLAYING && !isPaused) {
+            // Shoot if spacebar held OR if mobile shooting flag is true (set by touchStarted)
             if ((!isMobile && spacebarHeld) || (isMobile && isMobileShooting)) {
                 this.shoot();
             }
@@ -1618,3 +1633,4 @@ class LaserEnemy extends BaseEnemy {
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 // Nebula Class
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
+
