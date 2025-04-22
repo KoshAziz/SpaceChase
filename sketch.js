@@ -1,4 +1,3 @@
-
 // --- Features ---
 // - Start Menu with Options (Start Game, Settings, Cosmetics, Skills) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
@@ -42,7 +41,7 @@
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
-// - Background gradient color changes every 20 seconds.
+// - MODIFIED: Background gradient color changes smoothly over time.
 // - Added brief invulnerability after losing a life.
 // - MODIFIED: Touch Controls: Tap/Hold *anywhere* on screen (non-UI button) to move towards touch AND shoot continuously.
 // - Mobile Adjustments: Lower base asteroid spawn rate. // ENHANCED (UI Scaling/Layout)
@@ -94,6 +93,7 @@
 // - ADDED: Planet details (rings, moons, cloud rotation, lightning).
 // - ADDED: Background Structure class and spawning.
 // - ADDED: Skill Tree system with persistent upgrades and Tech Fragment currency.
+// - MODIFIED: Background gradient color now transitions smoothly.
 // --------------------------
 
 
@@ -236,7 +236,15 @@ let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, u
 const BUTTON_TEXT_PADDING = 12;
 
 // --- Background ---
-let currentTopColor, currentBottomColor; const BACKGROUND_CHANGE_INTERVAL = 1200; let isMobile = false;
+let currentTopColor, currentBottomColor;
+let targetTopColor, targetBottomColor;
+let previousTopColor, previousBottomColor;
+let isTransitioning = false;
+let transitionProgress = 0;
+const TRANSITION_DURATION = 90; // Frames for color transition (1.5 seconds at 60fps)
+const BACKGROUND_CHANGE_INTERVAL = 1200; // Frames between triggering new color changes (20 seconds)
+let isMobile = false;
+
 
 // --- Background Scenery Variables ---
 const PLANET_TYPE = { ROCKY: 0, GAS: 1, ICE: 2, LAVA: 3, RINGED: 4, STORMY: 5 };
@@ -272,7 +280,17 @@ function setup() {
 
     uiPanelColor = color(220, 50, 20, 85); uiBorderColor = color(180, 70, 80, 90); uiTextColor = color(0, 0, 95); uiHighlightColor = color(60, 80, 100);
     uiButtonColor = color(200, 60, 50); uiButtonHoverColor = color(200, 70, 60); uiButtonDisabledColor = color(0, 0, 30); uiButtonBorderColor = color(200, 70, 90);
+
+    // Initialize background colors
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
+    previousTopColor = currentTopColor; // Initialize previous colors
+    previousBottomColor = currentBottomColor;
+    targetTopColor = currentTopColor;   // Initial target is the same
+    targetBottomColor = currentBottomColor;
+    isTransitioning = false;
+    transitionProgress = 0;
+
+
     setDifficultyForLevel(currentLevel); // Still sets spawn rates etc.
     setupMenuButtons();
     setupSettingsMenuButtons();
@@ -452,8 +470,37 @@ function loadGameData() {
 // p5.js Draw Loop
 // ==================
 function draw() {
-    // Background Updates
-    if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0) { let topH = random(180, 300); let bottomH = (topH + random(20, 60)) % 360; currentTopColor = color(topH, random(70, 90), random(10, 20)); currentBottomColor = color(bottomH, random(60, 85), random(25, 40)); }
+    // --- Background Color Transition Logic ---
+    if (frameCount > 0 && frameCount % BACKGROUND_CHANGE_INTERVAL === 0 && !isTransitioning) {
+        // Time to start a new transition
+        previousTopColor = currentTopColor;
+        previousBottomColor = currentBottomColor;
+
+        let topH = random(180, 300);
+        let bottomH = (topH + random(20, 60)) % 360;
+        targetTopColor = color(topH, random(70, 90), random(10, 20));
+        targetBottomColor = color(bottomH, random(60, 85), random(25, 40));
+
+        isTransitioning = true;
+        transitionProgress = 0;
+    }
+
+    if (isTransitioning) {
+        transitionProgress += 1.0 / TRANSITION_DURATION;
+        transitionProgress = min(transitionProgress, 1.0); // Clamp
+
+        currentTopColor = lerpColor(previousTopColor, targetTopColor, transitionProgress);
+        currentBottomColor = lerpColor(previousBottomColor, targetBottomColor, transitionProgress);
+
+        if (transitionProgress >= 1.0) {
+            isTransitioning = false;
+            // Optional: Snap to exact target color to avoid floating point issues
+            // currentTopColor = targetTopColor;
+            // currentBottomColor = targetBottomColor;
+        }
+    }
+    // --- End Background Color Transition Logic ---
+
 
     // Spawn Planet Logic
     if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE ) { // Don't update during skill tree either
@@ -609,7 +656,7 @@ function displaySkillTree() {
         let effect = "";
         if (skillDef.effectPerLevel) {
              if (selectedSkillButton === 'SHIELD_REGEN') {
-                effect = ` (${(skillDef.effectPerLevel * currentLevel * 60).toFixed(2)}/s)`; // Show per second
+                effect = ` (+${(skillDef.effectPerLevel * currentLevel * 60).toFixed(2)}/s)`; // Show per second
             } else if (selectedSkillButton === 'WEAPON_DAMAGE') {
                  effect = ` (+${(skillDef.effectPerLevel * currentLevel * 100).toFixed(0)}%)`;
             }
@@ -651,11 +698,11 @@ function displayGameOver() {
     // Award Tech Fragments on Game Over based on score
     let fragmentsEarned = floor(points / 500); // Example: 1 fragment per 500 points
     if (fragmentsEarned > 0) {
-        techFragments += fragmentsEarned;
+        // Note: fragments are awarded *before* this screen potentially shows
         textSize(isMobile ? 16 : 20);
         fill(uiHighlightColor);
         text(`+${fragmentsEarned} Tech Fragments!`, width / 2, height / 3 + (isMobile ? 95 : 115));
-        saveGameData(); // Save immediately after awarding
+        // saveGameData(); // Save already happened when state changed
     }
 
     textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
@@ -668,11 +715,11 @@ function displayWinScreen() {
     // Award Tech Fragments on Win based on score
     let fragmentsEarned = floor(points / 300) + 10; // Example: 1 per 300 points + 10 bonus for winning
     if (fragmentsEarned > 0) {
-        techFragments += fragmentsEarned;
+        // Note: fragments are awarded *before* this screen potentially shows
         textSize(isMobile ? 16 : 20);
         fill(uiHighlightColor);
         text(`+${fragmentsEarned} Tech Fragments!`, width / 2, winY + (isMobile ? 100 : 120));
-        saveGameData(); // Save immediately after awarding
+        // saveGameData(); // Save already happened when state changed
     }
 
     textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
@@ -748,10 +795,12 @@ function runGameLogic() {
      if (objectiveComplete && gameState === GAME_STATE.PLAYING) {
         if (currentLevel === MAX_LEVEL) {
             // --- WIN GAME ---
-            gameState = GAME_STATE.WIN_SCREEN;
-            infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-            bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
-             // Award fragments on win - moved to displayWinScreen
+            let fragmentsEarned = floor(points / 300) + 10; // Award fragments on win
+             if (fragmentsEarned > 0) techFragments += fragmentsEarned;
+             gameState = GAME_STATE.WIN_SCREEN;
+             saveGameData(); // Save after awarding fragments
+             infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
+             bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
             return;
         } else {
              // --- LEVEL COMPLETE ---
@@ -939,19 +988,30 @@ function handleCollisions() {
             let gameOver = false;
             if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; }
 
+            // Reset shield regen timer on any hit
+            ship.shieldRegenTimer = ship.shieldRegenDelay;
+
             if (ship.tempShieldActive) {
                 ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90;
                 if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); }
-            } else if (ship.shieldCharges > 0) {
-                ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8);
-                if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); }
+            } else if (ship.shieldCharges >= 1) { // Check if fully charged or more
+                 ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8);
+                 if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); }
+            } else if (ship.shieldCharges > 0) { // Handle fractional shield charge from regen
+                 ship.shieldCharges = 0; // Deplete fractional charge
+                 createParticles(ship.pos.x, ship.pos.y, 20, color(180, 60, 80), 3, 1.5); // Smaller effect
+                 if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 3, color(180,60,80)); sourceArray.splice(index, 1); }
             } else {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2);
                 if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
                 if (lives <= 0) {
+                     // Award fragments on game over
+                     let fragmentsEarned = floor(points / 500);
+                     if (fragmentsEarned > 0) techFragments += fragmentsEarned;
+                     saveGameData(); // Save before changing state
+
                      gameState = GAME_STATE.GAME_OVER;
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-                     // Award fragments on game over - moved to displayGameOver
                      gameOver = true;
                 } else { ship.setInvulnerable(); }
 
@@ -1043,7 +1103,7 @@ function drawBackgroundAndStars() {
 
         // Draw Nebulas
         for (let i = nebulas.length - 1; i >= 0; i--) {
-            if ((gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.UPGRADE_SHOP) && !isPaused) nebulas[i].update(); // Update only during gameplay/shop
+            if ((gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) && !isPaused) nebulas[i].update(); // Update only during gameplay/shop/end screens
             nebulas[i].draw();
             if (nebulas[i].isOffscreen()) {
                 nebulas.splice(i, 1);
@@ -1057,14 +1117,14 @@ function drawBackgroundAndStars() {
 
         // Draw Stars and Shooting Stars on top
         for (let i = shootingStars.length - 1; i >= 0; i--) {
-            if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update();
+             if (!(gameState === GAME_STATE.PLAYING && isPaused)) shootingStars[i].update(); // Update unless paused in gameplay
             shootingStars[i].draw();
             if (shootingStars[i].isDone()) {
                 shootingStars.splice(i, 1);
             }
         }
         for (let star of stars) {
-            if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update();
+             if (!(gameState === GAME_STATE.PLAYING && isPaused)) star.update(); // Update unless paused in gameplay
             star.draw();
         }
     } else { // Simplified background if FX disabled
@@ -1307,7 +1367,16 @@ function displayHUD() {
     text(`PTS: ${points}`, currentX, firstRowY); currentX += textWidth(`PTS: ${points}`) + spacing * 2;
     fill(uiHighlightColor); text(`$: ${money}`, currentX, firstRowY); currentX += textWidth(`$: ${money}`) + spacing * 2;
     fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, firstRowY); currentX += textWidth(`♥: ${lives}`) + spacing * 2;
-    fill(color(180, 70, 100)); text(`🛡: ${ship.shieldCharges}`, currentX, firstRowY); currentX += textWidth(`🛡: ${ship.shieldCharges}`) + spacing * 1.5;
+    // Display shield charge (potentially fractional due to regen)
+    fill(color(180, 70, 100));
+    let shieldText = `🛡: ${floor(ship.shieldCharges)}`; // Show whole charges
+    if(ship.shieldRegenRate > 0 && ship.shieldCharges > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
+        shieldText += ` (${(ship.shieldCharges * 100).toFixed(0)}%)`; // Show percentage if regenerating
+    }
+    text(shieldText, currentX, firstRowY);
+    currentX += textWidth(shieldText) + spacing * 1.5;
+
+
     if (ship && ship.homingMissilesLevel > 0) { fill(color(30, 80, 100)); text(`🚀: ${ship.currentMissiles}`, currentX, firstRowY); currentX += textWidth(`🚀: ${ship.currentMissiles}`) + spacing * 1.5; }
     if (ship && ship.scoreMultiplierTimer > 0) { /* Score multiplier display */ }
 
@@ -1392,11 +1461,7 @@ function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function startNextLevel() {
     if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
 
-    // Award Tech Fragments for completing level
-    let fragmentsEarned = 1 + floor(currentLevel / 3);
-    techFragments += fragmentsEarned;
-    infoMessage = `Level Complete! +${fragmentsEarned} TF`; infoMessageTimeout = 180;
-    saveGameData(); // Save after earning fragments
+    // Award Tech Fragments handled when objective met in runGameLogic
 
     currentLevel++;
     setDifficultyForLevel(currentLevel);
@@ -1406,6 +1471,7 @@ function startNextLevel() {
     // Keep background structures? Resetting them might look better.
     backgroundStructures = [];
     // frameCount reset happens automatically in p5, levelStartTime is set in loadObjectiveForLevel
+    // Info message now set when completing the level
     levelTransitionFlash = 15;
     spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
@@ -1675,7 +1741,7 @@ class Ship {
     }
     loseShield() {
         if (this.shieldCharges > 0) {
-            this.shieldCharges--;
+            this.shieldCharges = 0; // Fully deplete shield on hit, even fractional
             this.shieldRegenTimer = this.shieldRegenDelay; // Start cooldown after losing shield
         }
     }
@@ -1722,9 +1788,14 @@ class Ship {
                  // Regen shield fractionally
                  this.shieldCharges += this.shieldRegenRate;
                  this.shieldCharges = min(this.shieldCharges, MAX_SHIELD_CHARGES); // Cap at max
-                  // Optionally add a visual effect for regen?
              }
+         } else if (this.shieldRegenTimer > 0 && (this.tempShieldActive || this.invulnerableTimer > 0 || this.invincibilityTimer > 0)) {
+            // Keep shield regen timer paused if temp shield/invincibility active
+             this.shieldRegenTimer = this.shieldRegenDelay;
+         } else if (this.shieldRegenTimer > 0) {
+             this.shieldRegenTimer--; // Countdown normally if no protective effects active
          }
+
 
         // --- Player Input & Movement ---
         let acceleration = createVector(0, 0);
@@ -1790,10 +1861,10 @@ class Ship {
             else if (this.spreadShotLevel >= this.maxUpgradeLevel) { let offset1 = this.size * 0.25; let offset2 = this.size * 0.1; originPoints = [ createVector(this.pos.x - offset1, originY + 8), createVector(this.pos.x - offset2, originY + 3), createVector(this.pos.x, originY), createVector(this.pos.x + offset2, originY + 3), createVector(this.pos.x + offset1, originY + 8) ]; numShots = 5; spreadAngle = PI / 12; }
 
             // Apply base damage multiplier from skills
-            let baseDmg = BASE_BULLET_DAMAGE * this.bulletDamageMultiplier;
+            let dmgMult = this.bulletDamageMultiplier;
 
-            for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle, baseDmg)); }
-            this.fireRearGun(baseDmg); let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
+            for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle, dmgMult)); }
+            this.fireRearGun(dmgMult); let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
         }
     }
     fireMissile() {
@@ -1806,8 +1877,8 @@ class Ship {
             createParticles(this.pos.x + originXOffset * side, originY, 10, this.missileColor, 3, 1.8, 0.6);
         }
     }
-    fireRearGun(baseDmg) { // Pass base damage
-         if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle, baseDmg)); } }
+    fireRearGun(dmgMult) { // Pass base damage multiplier
+         if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle, dmgMult)); } }
     }
     draw() {
         let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0; let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5);
@@ -1817,7 +1888,7 @@ class Ship {
             else if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); }
             else if (this.shieldCharges > 0) {
                  // Use fractional shield value for visual representation if regen is active
-                 let shieldFraction = (this.shieldRegenRate > 0) ? this.shieldCharges : 1.0;
+                 let shieldFraction = min(1, this.shieldCharges / MAX_SHIELD_CHARGES); // Fraction of max shield charge
                  let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90) * shieldFraction;
                  let shieldBrightness = 100 * shieldFraction;
                  let shieldRadius = this.shieldVisualRadius * 2.1 * shieldFraction;
