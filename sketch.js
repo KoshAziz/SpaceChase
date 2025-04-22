@@ -28,13 +28,13 @@
 // - Pause Functionality (Press ESC during gameplay to Pause/Unpause, Tap Pause Button to access Skills/Settings) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay. Pause Menu added.
 // - Upgrade Shop Screen between levels (Levels 1-14) // ENHANCED (UI Style)
 // - Win Screen after completing Level 15 Objective // MODIFIED
-// - Monospace Font & UI Color Palette // NEW UI FEATURE
-// - Styled HUD with Icons & Panel // MODIFIED (Added Objective Display) // REMOVED: Laser level
-// - Styled Buttons & Menu Panels // NEW UI FEATURE (Text Fit Logic Added)
-// - Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE
+// - Monospace Font & UI Color Palette // NEW UI FEATURE (ENHANCED)
+// - Styled HUD with Icons & Panel // MODIFIED (Added Objective Display, Enhanced Style) // REMOVED: Laser level
+// - Styled Buttons & Menu Panels // ENHANCED (UI Style, Text Fit Logic Added)
+// - Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE (Enhanced Visuals)
 // - New Weapon Systems & Upgrades: Homing Missiles, Rear Gun // NEW FEATURE // REMOVED: Laser Beam
 // - Drone Companion Class & Logic // NEW FEATURE
-// - Mobile UI Buttons for Missiles // NEW FEATURE // REMOVED: Laser button
+// - Mobile UI Buttons for Missiles // NEW FEATURE (Enhanced Style) // REMOVED: Laser button
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (score) and Money (upgrades) systems.
 // - Implemented persistent Tech Fragments currency for Skill Tree. // NEW FEATURE
@@ -76,27 +76,7 @@
 // - MODIFIED: Spaceship drawing logic uses simplified color selection.
 // - MODIFIED: Added text fitting logic to button drawing functions.
 // - REFACTORED: Cosmetics system simplified to direct color/style selection.
-// --- Modifications ---
-// - Removed Laser Upgrade.
-// - Enhanced visuals for HealthPotion and PowerUp.
-// - MODIFIED: Removed Homing Missile upgrade option from the shop on mobile devices.
-// - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
-// - MODIFIED: Pressing ESC during active gameplay pauses/resumes. ESC in Shop/Menus acts as Back or returns to Start Menu.
-// - MODIFIED: Reduced internal movement (noise animation) of background planets for a smoother look.
-// - ADDED: More color options for ship and bullets.
-// - ADDED: Laser Enemy type with continuous beam attack.
-// - ADDED: Mission Objective system replacing point-based level progression. Removed shield gain from points.
-// - INCREASED: Potion and Power-up spawn rates and max power-ups allowed.
-// - ADDED: Objective tracking for Potion and Power-up collection. Example objectives added.
-// - MODIFIED: Level 1 Objective target changed from 8 to 5.
-// - MODIFIED: Mobile touch now controls movement AND shooting simultaneously.
-// - ADDED: Planet details (rings, moons, cloud rotation, lightning).
-// - ADDED: Background Structure class and spawning.
-// - ADDED: Skill Tree system with persistent upgrades and Tech Fragment currency.
-// - MODIFIED: Background gradient color now transitions smoothly.
-// - MODIFIED: Level 3 objective changed to Score Reach. Level 5 Swarmer target reduced.
-// - MODIFIED: Skill Tree costs increased significantly.
-// - MODIFIED: Pause menu now includes Skills and Settings buttons. Skill Tree accessible from Pause.
+// - UI Enhancement: Refined color palette, button styles, panel appearance, text shadows, HUD layout for improved aesthetics and readability.
 // --------------------------
 
 
@@ -242,7 +222,8 @@ let isMobileShooting = false; // Flag for mobile continuous shooting
 
 // --- UI & Messages ---
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
-let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, uiButtonHoverColor, uiButtonDisabledColor, uiButtonBorderColor;
+// UI Colors (Refined Palette)
+let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, uiButtonHoverColor, uiButtonDisabledColor, uiButtonBorderColor, uiTextShadowColor, uiSpecialButtonColor, uiSpecialButtonHoverColor, uiSpecialButtonBorderColor, uiProgressBarColor, uiProgressBarBgColor;
 const BUTTON_TEXT_PADDING = 12;
 
 // --- Background ---
@@ -288,8 +269,21 @@ function setup() {
     textAlign(CENTER, CENTER);
     textFont('monospace');
 
-    uiPanelColor = color(220, 50, 20, 85); uiBorderColor = color(180, 70, 80, 90); uiTextColor = color(0, 0, 95); uiHighlightColor = color(60, 80, 100);
-    uiButtonColor = color(200, 60, 50); uiButtonHoverColor = color(200, 70, 60); uiButtonDisabledColor = color(0, 0, 30); uiButtonBorderColor = color(200, 70, 90);
+    // Refined UI Color Palette
+    uiPanelColor = color(225, 65, 18, 92);              // Darker, slightly desaturated blue-grey panel
+    uiBorderColor = color(190, 85, 95, 95);             // Bright cyan border
+    uiTextColor = color(0, 0, 95);                      // White text
+    uiHighlightColor = color(60, 90, 100);              // Bright yellow highlight
+    uiButtonColor = color(210, 70, 60);                 // Standard button blue
+    uiButtonHoverColor = color(205, 85, 75);            // Brighter blue on hover
+    uiButtonDisabledColor = color(220, 20, 35, 85);     // Very desaturated, darker blue-grey disabled
+    uiButtonBorderColor = color(200, 90, 85);           // Standard button border cyan
+    uiTextShadowColor = color(0, 0, 5, 50);             // Subtle dark shadow
+    uiSpecialButtonColor = color(120, 65, 65);          // Greenish for 'Next Level' / 'Back'
+    uiSpecialButtonHoverColor = color(115, 75, 75);     // Brighter green hover
+    uiSpecialButtonBorderColor = color(110, 85, 90);    // Green border
+    uiProgressBarColor = color(120, 80, 80);            // Green progress bar fill
+    uiProgressBarBgColor = color(0, 0, 30, 80);         // Dark background for progress bar
 
     // Initialize background colors
     currentTopColor = color(260, 80, 10); currentBottomColor = color(240, 70, 25);
@@ -436,11 +430,26 @@ function setupPauseMenuButtons() {
 function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 
-function drawButtonText(label, button, defaultSize) {
+// Enhanced Text Drawing with Shadow
+function drawShadowedText(label, x, y, size, textColor, shadowColor) {
+    textSize(size);
+    fill(shadowColor);
+    text(label, x + 1, y + 1); // Draw shadow slightly offset
+    fill(textColor);
+    text(label, x, y); // Draw main text
+}
+
+function drawButtonText(label, button, defaultSize, textColor = uiTextColor, shadowColor = uiTextShadowColor) {
     let currentTextSize = defaultSize; textSize(currentTextSize); let tw = textWidth(label);
     while (tw > button.w - BUTTON_TEXT_PADDING && currentTextSize > 8) { currentTextSize--; textSize(currentTextSize); tw = textWidth(label); }
+    // Draw shadow first
+    fill(shadowColor);
+    text(label, button.x + button.w / 2 + 1, button.y + button.h / 2 + 1);
+    // Draw text
+    fill(textColor);
     text(label, button.x + button.w / 2, button.y + button.h / 2);
 }
+
 
 // Helper function to draw a hexagon centered at (x, y) with radius r
 function drawHexagon(x, y, r) {
@@ -581,34 +590,64 @@ function draw() {
 
 // --- Screen Display Functions ---
 function displayStartMenu() {
+    // Title remains the same
     let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX;
     let titleY = height / 4; // Raised position
-    for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; }
+    for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); drawShadowedText(char, currentX + charWidth / 2, titleY + yOffset, titleSize, color((frameCount * 4 + i * 25) % 360, 95, 100), color(0, 0, 0, 50)); currentX += charWidth; } // Used shadowed text for title
+
+    // Draw Buttons
     let menuTextSize = isMobile ? 24 : 30; // Default size
-    textAlign(CENTER, CENTER); for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; let label = button.id; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedMenuItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
-        fill(textCol); noStroke(); drawButtonText(label, button, menuTextSize);
-    } cursor(ARROW); }
-function displaySettingsMenu() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Settings", width / 2, height * 0.2);
+    textAlign(CENTER, CENTER);
+    for (let i = 0; i < startMenuButtons.length; i++) {
+        let button = startMenuButtons[i];
+        let label = button.id;
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        let selected = (i === selectedMenuItem);
+        drawStyledUiButton(button, label, menuTextSize, hover, selected, false); // Use the new button drawing function
+    }
+    cursor(ARROW);
+}
+function displaySettingsMenu() {
+    drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7);
+    drawShadowedText("Settings", width / 2, height * 0.2, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
+
     let menuTextSize = isMobile ? 18 : 22; // Default size
-    textAlign(CENTER, CENTER); for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; let setting = settingsItems[i]; let label = setting.label; let currentValue = ''; if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; } else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; } let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedSettingsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
-        fill(textCol); noStroke(); drawButtonText(fullLabel, button, menuTextSize);
-    } cursor(ARROW); }
+    textAlign(CENTER, CENTER);
+    for (let i = 0; i < settingsMenuButtons.length; i++) {
+        let button = settingsMenuButtons[i];
+        let setting = settingsItems[i];
+        let label = setting.label;
+        let currentValue = '';
+        if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; }
+        else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; }
+        let fullLabel = label + currentValue;
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        let selected = (i === selectedSettingsItem);
+        let isSpecial = (setting.id === 'back');
+        drawStyledUiButton(button, fullLabel, menuTextSize, hover, selected, isSpecial);
+    }
+    cursor(ARROW);
+}
 function displayCosmeticsMenu() {
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7);
-    fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Cosmetics", width / 2, height * 0.2);
+    drawShadowedText("Cosmetics", width / 2, height * 0.2, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
+
     let menuTextSize = isMobile ? 18 : 22; // Default size
     textAlign(CENTER, CENTER);
     for (let i = 0; i < cosmeticsMenuButtons.length; i++) {
-        let button = cosmeticsMenuButtons[i]; let setting = cosmeticsMenuItems[i]; let label = setting.label; let currentValue = '';
+        let button = cosmeticsMenuButtons[i];
+        let setting = cosmeticsMenuItems[i];
+        let label = setting.label;
+        let currentValue = '';
         if (setting.id === 'shipColor') { currentValue = `: ${selectedShipColor}`; }
         else if (setting.id === 'bulletStyle') { currentValue = `: ${selectedBulletStyle}`; }
         let fullLabel = label + currentValue;
-        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedCosmeticsMenuItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
-        if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } }
-        fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
-        fill(textCol); noStroke(); drawButtonText(fullLabel, button, menuTextSize);
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+        let selected = (i === selectedCosmeticsMenuItem);
+        let isSpecial = (setting.id === 'back');
+        drawStyledUiButton(button, fullLabel, menuTextSize, hover, selected, isSpecial);
     }
-    // Tiny Ship Preview
+    // Tiny Ship Preview (remains simple)
     let previewY = height * 0.2 + (isMobile ? 60 : 80); let previewSize = isMobile ? 40 : 50;
     let currentPalette = COLOR_DEFINITIONS[selectedShipColor];
     if (currentPalette) { push(); translate(width / 2, previewY); fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]); rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]); triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); pop(); }
@@ -616,9 +655,11 @@ function displayCosmeticsMenu() {
 }
 function displaySkillTree() {
     drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.8));
-    fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Skill Tree", width / 2, height * 0.12);
-    textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor);
-    text(`Tech Fragments: ${techFragments}`, width / 2, height * 0.12 + (isMobile ? 50 : 65)); // Display currency
+    drawShadowedText("Skill Tree", width / 2, height * 0.12, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
+    // Tech Fragment Display (Enhanced)
+    textAlign(CENTER, TOP);
+    let tfTextSize = isMobile ? 20 : 26;
+    drawShadowedText(`Tech Fragments: ${techFragments}`, width / 2, height * 0.12 + (isMobile ? 50 : 65), tfTextSize, uiHighlightColor, uiTextShadowColor);
 
     let buttonTextSize = isMobile ? 11 : 13;
     textAlign(CENTER, CENTER);
@@ -634,13 +675,10 @@ function displaySkillTree() {
 
     // Draw Buttons
     for (let button of skillTreeButtons) {
+        let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+
         if (button.id === 'back') {
-            // Draw Back Button
-            let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
-            let buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60);
-            let borderCol = color(90, 80, 85);
-            fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6);
-            fill(uiTextColor); noStroke(); drawButtonText("Back", button, buttonTextSize + 2);
+            drawStyledUiButton(button, "Back", buttonTextSize + 2, hover, false, true); // Use styled button (special type)
         } else {
             // Draw Skill Button
             let skillId = button.id;
@@ -652,29 +690,18 @@ function displaySkillTree() {
 
             let label = `${skillDef.label} ${currentLevel}/${skillDef.maxLevel}`;
             let costText = isMaxed ? "(MAX)" : `(${cost} TF)`;
+            let fullLabel = label + "\n" + costText; // Combine label and cost for the button function
 
-            let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
-            let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+            let isDisabled = isMaxed || (!isMaxed && !canAfford);
+            let textColor = uiTextColor;
+            if(isMaxed) textColor = color(0,0,60);
+            else if (!canAfford) textColor = color(0,0,85);
 
-            if (isMaxed) {
-                buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); borderCol = color(0, 0, 40);
-            } else if (!canAfford) {
-                buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); borderCol = color(0, 80, 70);
-            } else {
-                buttonCol = hover ? uiButtonHoverColor : uiButtonColor; borderCol = uiButtonBorderColor;
-            }
-
-            fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6);
-            fill(textCol); noStroke();
-            // Draw label and cost on two lines
-            textSize(buttonTextSize);
-            text(label, button.x + button.w / 2, button.y + button.h * 0.35);
-            textSize(buttonTextSize - 1);
-            text(costText, button.x + button.w / 2, button.y + button.h * 0.7);
+            drawStyledUiButton(button, fullLabel, buttonTextSize, hover, false, false, isDisabled, textColor); // Use the new button func
         }
     }
 
-     // Draw Skill Description Tooltip (if hovering)
+     // Draw Skill Description Tooltip (Enhanced Background)
      if(selectedSkillButton) {
         let skillDef = SKILL_DEFINITIONS[selectedSkillButton];
         let currentLevel = skillTreeData[selectedSkillButton];
@@ -692,34 +719,32 @@ function displaySkillTree() {
         }
 
         let fullDesc = desc + effect;
-        textSize(isMobile? 12 : 14);
+        let tooltipTextSize = isMobile? 12 : 14;
+        textSize(tooltipTextSize);
         textAlign(CENTER, BOTTOM);
         let descWidth = textWidth(fullDesc);
         let boxWidth = descWidth + 20;
-        let boxHeight = (isMobile? 12 : 14) + 10;
+        let boxHeight = tooltipTextSize + 10;
         let boxX = mouseX - boxWidth / 2; // Position near mouse
         let boxY = mouseY - boxHeight - 10; // Position above mouse
         boxX = constrain(boxX, 10, width - boxWidth - 10);
         boxY = constrain(boxY, 10, height - boxHeight - 10);
 
+        // Draw panel for tooltip
         fill(uiPanelColor);
         stroke(uiBorderColor);
-        strokeWeight(1);
-        rect(boxX, boxY, boxWidth, boxHeight, 4);
-        fill(uiTextColor);
+        strokeWeight(1.5);
+        rect(boxX, boxY, boxWidth, boxHeight, 5); // Use panel color and border
+
+        // Draw text with shadow
         noStroke();
-        text(fullDesc, boxX + boxWidth / 2, boxY + boxHeight - 5);
+        drawShadowedText(fullDesc, boxX + boxWidth / 2, boxY + boxHeight - 5, tooltipTextSize, uiTextColor, uiTextShadowColor);
     }
-
-
     cursor(ARROW);
 }
 function displayPauseMenu() {
     drawPanelBackground(width * 0.5, height * 0.6); // Adjust size as needed
-    fill(uiTextColor);
-    textSize(isMobile ? 48 : 56);
-    textAlign(CENTER, CENTER);
-    text("PAUSED", width / 2, height * 0.3);
+    drawShadowedText("PAUSED", width / 2, height * 0.3, isMobile ? 48 : 56, uiTextColor, uiTextShadowColor);
 
     let menuTextSize = isMobile ? 20 : 24;
     textAlign(CENTER, CENTER);
@@ -728,75 +753,157 @@ function displayPauseMenu() {
         let label = button.id;
         let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
         let selected = (i === selectedPauseMenuItem); // Use keyboard selection highlight
-        let buttonCol = uiButtonColor;
-        let textCol = uiTextColor;
-        let borderCol = uiButtonBorderColor;
-
-        if (label === 'Main Menu') { // Different color for Main Menu button
-             buttonCol = color(0, 70, 60); borderCol = color(0, 80, 85);
-             if (selected || hover) { buttonCol = color(0, 75, 70); }
-        } else if (selected || hover) {
-             buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100);
-        }
-
-
-        fill(buttonCol);
-        stroke(borderCol);
-        strokeWeight(selected ? 2.5 : 1.5);
-        rect(button.x, button.y, button.w, button.h, 8);
-        noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
-
-
-        fill(textCol);
-        noStroke();
-        drawButtonText(label, button, menuTextSize);
+        let isSpecial = (label === 'Main Menu'); // Different color for Main Menu button
+        drawStyledUiButton(button, label, menuTextSize, hover, selected, isSpecial);
     }
     cursor(ARROW);
 }
-function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
+function displayUpgradeShop() {
+    drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85));
+    drawShadowedText(`Level ${currentLevel} Complete!`, width / 2, height * 0.1, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
+    drawShadowedText("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65), isMobile ? 26 : 32, uiTextColor, uiTextShadowColor);
+    drawShadowedText(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115), isMobile ? 20 : 26, uiHighlightColor, uiTextShadowColor);
+
+    textAlign(CENTER, CENTER);
+    for (let button of shopButtons) {
+        drawUpgradeShopButton(button); // Use specific function for shop button formatting
+    }
+}
 function displayGameOver() {
     drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
-    fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3);
-    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75));
+    drawShadowedText("GAME OVER", width / 2, height / 3, isMobile ? 52 : 68, color(0, 80, 100), uiTextShadowColor);
+    drawShadowedText("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
 
     // Award Tech Fragments on Game Over based on score
     let fragmentsEarned = floor(points / 500); // Example: 1 fragment per 500 points
     if (fragmentsEarned > 0) {
-        // Note: fragments are awarded *before* this screen potentially shows
-        textSize(isMobile ? 16 : 20);
-        fill(uiHighlightColor);
-        text(`+${fragmentsEarned} Tech Fragments!`, width / 2, height / 3 + (isMobile ? 95 : 115));
-        // saveGameData(); // Save already happened when state changed
+        drawShadowedText(`+${fragmentsEarned} Tech Fragments!`, width / 2, height / 3 + (isMobile ? 95 : 115), isMobile ? 16 : 20, uiHighlightColor, uiTextShadowColor);
     }
 
-    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
+    textAlign(CENTER, CENTER);
+    let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu";
+    let pulse = map(sin(frameCount * 0.1), -1, 1, 85, 100);
+    drawShadowedText(restartInstruction, width / 2, height * 0.7, isMobile ? 18 : 22, color(0, 0, pulse), uiTextShadowColor);
+    cursor(ARROW);
 }
 function displayWinScreen() {
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6);
-    let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; }
-    fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80));
+    // Rainbow Win Text
+    let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; drawShadowedText(char, currentWinX + charWidth / 2, winY, winTextSize, color(h, 95, 100), uiTextShadowColor); currentWinX += charWidth; }
+
+    drawShadowedText("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
 
     // Award Tech Fragments on Win based on score
     let fragmentsEarned = floor(points / 300) + 10; // Example: 1 per 300 points + 10 bonus for winning
     if (fragmentsEarned > 0) {
-        // Note: fragments are awarded *before* this screen potentially shows
-        textSize(isMobile ? 16 : 20);
-        fill(uiHighlightColor);
-        text(`+${fragmentsEarned} Tech Fragments!`, width / 2, winY + (isMobile ? 100 : 120));
-        // saveGameData(); // Save already happened when state changed
+        drawShadowedText(`+${fragmentsEarned} Tech Fragments!`, width / 2, winY + (isMobile ? 100 : 120), isMobile ? 16 : 20, uiHighlightColor, uiTextShadowColor);
     }
 
-    textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW);
+    textAlign(CENTER, CENTER);
+    let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu";
+    let pulse = map(sin(frameCount * 0.1), -1, 1, 85, 100);
+    drawShadowedText(restartInstruction, width / 2, height * 0.7, isMobile ? 18 : 22, color(0, 0, pulse), uiTextShadowColor);
+    cursor(ARROW);
 }
-function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2); rect(panelX, panelY, panelWidth, panelHeight, 10); }
-function drawStyledButton(button) {
+
+// Enhanced Panel Background Drawing
+function drawPanelBackground(panelWidth, panelHeight) {
+    let panelX = width / 2 - panelWidth / 2;
+    let panelY = height / 2 - panelHeight / 2;
+    // Outer border
+    fill(uiPanelColor);
+    stroke(uiBorderColor);
+    strokeWeight(2.5); // Slightly thicker main border
+    rect(panelX, panelY, panelWidth, panelHeight, 10);
+    // Inner subtle border/highlight
+    noFill();
+    strokeWeight(1);
+    stroke(0, 0, 100, 15); // Subtle white highlight inside top/left
+    line(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + 2);
+    line(panelX + 2, panelY + 2, panelX + 2, panelY + panelHeight - 2);
+    stroke(0, 0, 0, 25); // Subtle dark shadow inside bottom/right
+    line(panelX + 2, panelY + panelHeight - 2, panelX + panelWidth - 2, panelY + panelHeight - 2);
+    line(panelX + panelWidth - 2, panelY + 2, panelX + panelWidth - 2, panelY + panelHeight - 2);
+    noStroke();
+}
+
+// Enhanced Generic UI Button Drawing Function
+function drawStyledUiButton(button, label, defaultTextSize, hover, selected, isSpecial = false, isDisabled = false, customTextColor = null) {
+    let buttonCol, borderCol, textCol;
+    let shadowCol = uiTextShadowColor;
+    let cornerRadius = 8;
+    let baseStrokeWeight = 1.5;
+    let hoverStrokeWeight = 2.5;
+
+    // Determine colors based on state
+    if (isDisabled) {
+        buttonCol = uiButtonDisabledColor;
+        borderCol = color(hue(uiButtonDisabledColor), saturation(uiButtonDisabledColor) * 0.8, brightness(uiButtonDisabledColor) * 0.8);
+        textCol = customTextColor || color(0, 0, 60);
+        shadowCol = color(0, 0, 10, 30);
+    } else if (isSpecial) {
+        buttonCol = hover || selected ? uiSpecialButtonHoverColor : uiSpecialButtonColor;
+        borderCol = hover || selected ? color(hue(uiSpecialButtonHoverColor), saturation(uiSpecialButtonHoverColor)*1.1, brightness(uiSpecialButtonHoverColor)*1.1) : uiSpecialButtonBorderColor;
+        textCol = customTextColor || uiTextColor;
+    } else {
+        buttonCol = hover || selected ? uiButtonHoverColor : uiButtonColor;
+        borderCol = hover || selected ? color(hue(uiButtonHoverColor), saturation(uiButtonHoverColor)*1.1, brightness(uiButtonHoverColor)*1.1) : uiButtonBorderColor;
+        textCol = customTextColor || uiTextColor;
+    }
+
+    // Draw Button Body
+    fill(buttonCol);
+    stroke(borderCol);
+    strokeWeight(selected || hover ? hoverStrokeWeight : baseStrokeWeight);
+    rect(button.x, button.y, button.w, button.h, cornerRadius);
+
+    // Subtle Inner Bevel/Highlight (Optional, adds polish)
+    noFill();
+    strokeWeight(1);
+    // Top/Left highlight
+    stroke(0, 0, 100, isDisabled ? 5 : 20);
+    line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2);
+    line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2);
+    // Bottom/Right shadow
+    stroke(0, 0, 0, isDisabled ? 15 : 35);
+    line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2);
+    line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+    noStroke();
+
+    // Draw Text (uses helper for fitting and shadow)
+    drawButtonText(label, button, defaultTextSize, textCol, shadowCol);
+}
+
+
+// Specific function for Upgrade Shop buttons to handle complex label formatting
+function drawUpgradeShopButton(button) {
     let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false;
-    switch (button.id) { case 'fireRate': cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break; case 'spreadShot': cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break; case 'rearGun': cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break; case 'homingMissiles': cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break; case 'nextLevel': label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break; }
-    let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
-    if (button.id !== 'nextLevel') { if (isMaxed) { buttonCol = uiButtonDisabledColor; textCol = color(0, 0, 60); label += " (MAX)"; borderCol = color(0, 0, 40); } else if (!canAfford) { buttonCol = color(0, 75, 50, 80); textCol = color(0, 0, 85); label += ` ($${cost})`; borderCol = color(0, 80, 70); } else { buttonCol = hover ? uiButtonHoverColor : uiButtonColor; label += ` ($${cost})`; borderCol = uiButtonBorderColor; } } else { buttonCol = hover ? color(90, 75, 70) : color(90, 70, 60); borderCol = color(90, 80, 85); }
-    fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+    let baseTextColor = uiTextColor;
+
+    switch (button.id) {
+        case 'fireRate': cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'spreadShot': cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'rearGun': cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'homingMissiles': cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'nextLevel': label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break;
+    }
+
+    let fullLabel = label;
+    if (button.id !== 'nextLevel') {
+        if (isMaxed) { fullLabel += "\n(MAX)"; }
+        else { fullLabel += `\n($${cost})`; }
+    }
+
+    let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+    let isDisabled = (isUpgradeButton && (isMaxed || !canAfford));
+    let isSpecial = (button.id === 'nextLevel');
     let defaultTextSize = isUpgradeButton ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17);
-    fill(textCol); noStroke(); textAlign(CENTER, CENTER); drawButtonText(label, button, defaultTextSize);
+
+    // Adjust text color for disabled state
+    if (isMaxed) baseTextColor = color(0, 0, 60);
+    else if (!canAfford) baseTextColor = color(0, 0, 85);
+
+    drawStyledUiButton(button, fullLabel, defaultTextSize, hover, false, isSpecial, isDisabled, baseTextColor);
 }
 
 
@@ -1416,94 +1523,164 @@ function drawPlanet() {
 
 // --- HUD & Info Messages ---
 function displayHUD() {
-    let hudH = isMobile ? 55 : 70; // Increased height slightly for objective
-    let topMargin = 5; let sideMargin = 10; let iconSize = isMobile ? 16 : 20; let textSizeVal = isMobile ? 16 : 20; // Adjusted text size
-    let objectiveTextSize = isMobile ? 11 : 13;
-    let spacing = isMobile ? 8 : 12; let bottomMargin = 10;
+    let hudH = isMobile ? 65 : 80; // Increased height for objective bar
+    let topMargin = 5; let sideMargin = 15; let iconSize = isMobile ? 18 : 22; let textSizeVal = isMobile ? 17 : 21;
+    let objectiveTextSize = isMobile ? 12 : 14;
+    let spacing = isMobile ? 10 : 15; let bottomMargin = 10;
+    let progressBarHeight = isMobile ? 6 : 8;
+    let progressBarYOffset = isMobile ? 2 : 3;
 
-    // Draw HUD Panel
-    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5);
+    // Draw HUD Panel Background
+    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2.0);
     rect(0, 0, width, hudH);
+    // Add inner highlight/shadow lines for depth
+    strokeWeight(1);
+    stroke(0, 0, 100, 15); line(1, 1, width - 1, 1); line(1, 1, 1, hudH - 1);
+    stroke(0, 0, 0, 25); line(1, hudH - 1, width - 1, hudH - 1); line(width - 1, 1, width - 1, hudH - 1);
+    noStroke();
 
-    // Top Row: Standard Info
-    textSize(textSizeVal); textAlign(LEFT, CENTER); let currentX = sideMargin; let firstRowY = hudH * 0.4;
-    fill(uiTextColor); text(`LEVEL: ${currentLevel}`, currentX, firstRowY); currentX += textWidth(`LEVEL: ${currentLevel}`) + spacing * 2;
-    text(`PTS: ${points}`, currentX, firstRowY); currentX += textWidth(`PTS: ${points}`) + spacing * 2;
-    fill(uiHighlightColor); text(`$: ${money}`, currentX, firstRowY); currentX += textWidth(`$: ${money}`) + spacing * 2;
-    fill(color(0, 80, 100)); text(`♥: ${lives}`, currentX, firstRowY); currentX += textWidth(`♥: ${lives}`) + spacing * 2;
-    // Display shield charge (potentially fractional due to regen)
-    fill(color(180, 70, 100));
-    let shieldText = `🛡: ${floor(ship.shieldCharges)}`; // Show whole charges
-    if(ship.shieldRegenRate > 0 && ship.shieldCharges > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
-        shieldText += ` (${(ship.shieldCharges * 100).toFixed(0)}%)`; // Show percentage if regenerating
+    // Top Row: Standard Info (Centered vertically better)
+    textAlign(LEFT, CENTER); let currentX = sideMargin; let firstRowY = hudH * 0.35;
+
+    // Helper to draw HUD text with icon and shadow
+    const drawHudItem = (icon, value, valueColor) => {
+        drawShadowedText(icon, currentX, firstRowY, textSizeVal, uiTextColor, uiTextShadowColor);
+        currentX += textWidth(icon) + spacing * 0.3; // Space between icon and value
+        drawShadowedText(value, currentX, firstRowY, textSizeVal, valueColor, uiTextShadowColor);
+        currentX += textWidth(value) + spacing * 1.5; // Space after item
+    };
+
+    drawHudItem('LV', `${currentLevel}`, uiTextColor);
+    drawHudItem('P', `${points}`, uiTextColor);
+    drawHudItem('$', `${money}`, uiHighlightColor);
+    drawHudItem('♥', `${lives}`, color(0, 80, 100));
+
+    // Shield Text (including fractional display)
+    let shieldText = `${floor(ship.shieldCharges)}`;
+    if (ship.shieldRegenRate > 0 && ship.shieldCharges > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) {
+        shieldText += ` (${(ship.shieldCharges * 100).toFixed(0)}%)`;
     }
-    text(shieldText, currentX, firstRowY);
-    currentX += textWidth(shieldText) + spacing * 1.5;
+    drawHudItem('🛡', shieldText, color(180, 70, 100));
 
+    if (ship && ship.homingMissilesLevel > 0) {
+        drawHudItem('🚀', `${ship.currentMissiles}`, color(30, 80, 100));
+    }
+    // Optional: Add other statuses like Rapid Fire Timer, Score Multiplier Timer etc.
 
-    if (ship && ship.homingMissilesLevel > 0) { fill(color(30, 80, 100)); text(`🚀: ${ship.currentMissiles}`, currentX, firstRowY); currentX += textWidth(`🚀: ${ship.currentMissiles}`) + spacing * 1.5; }
-    if (ship && ship.scoreMultiplierTimer > 0) { /* Score multiplier display */ }
+    // Bottom Row: Objective Progress Bar & Text
+    let secondRowY = hudH * 0.75; // Position text above the bar
+    let barY = hudH - progressBarHeight - progressBarYOffset;
+    let barWidth = width - sideMargin * 2;
 
-    // Bottom Row: Objective
-    let secondRowY = hudH * 0.8;
-    textSize(objectiveTextSize); textAlign(LEFT, CENTER); fill(uiTextColor);
-    let objectiveStr = `OBJECTIVE: ${currentObjective.description || 'None'}`;
+    // Draw Progress Bar Background
+    fill(uiProgressBarBgColor);
+    noStroke();
+    rect(sideMargin, barY, barWidth, progressBarHeight, progressBarHeight / 2);
+
+    // Draw Progress Bar Fill
+    let progressRatio = 0;
+    if (currentObjective.target > 0 && currentObjective.type) {
+        progressRatio = constrain(currentObjective.progress / currentObjective.target, 0, 1);
+    }
+    if (progressRatio > 0) {
+        fill(uiProgressBarColor);
+        rect(sideMargin, barY, barWidth * progressRatio, progressBarHeight, progressBarHeight / 2);
+    }
+
+    // Draw Objective Text (Above Bar)
+    textAlign(CENTER, BOTTOM); // Align text to the bottom, centered horizontally
+    let objectiveStr = `${currentObjective.description || 'No Objective'}`;
     if (currentObjective.type && currentObjective.target > 0) {
         let progressDisplay;
         if (currentObjective.type === OBJECTIVE_TYPE.SURVIVE_TIME) {
             let secondsElapsed = floor(max(0, currentObjective.progress) / 60);
             let targetSeconds = floor(currentObjective.target / 60);
-            progressDisplay = `${secondsElapsed} / ${targetSeconds} s`;
+            progressDisplay = `${secondsElapsed} / ${targetSeconds}s`;
         } else if (currentObjective.type === OBJECTIVE_TYPE.SCORE_REACH) {
-             progressDisplay = `${currentObjective.progress} / ${currentObjective.target} PTS`;
-        }
-        else { // Default count display (using floor for fractional progress like EMP kills)
+             progressDisplay = `${currentObjective.progress} / ${currentObjective.target} Pts`;
+        } else {
             progressDisplay = `${floor(currentObjective.progress)} / ${currentObjective.target}`;
         }
         objectiveStr += ` (${progressDisplay})`;
     }
-    text(objectiveStr, sideMargin, secondRowY);
+    drawShadowedText(objectiveStr, width / 2, secondRowY, objectiveTextSize, uiTextColor, uiTextShadowColor);
 
 
-    // Upgrade Levels Text (Bottom Right)
-    textAlign(RIGHT, BOTTOM); fill(uiTextColor); textSize(textSizeVal * 0.8);
-    let upgradesText = `RATE:${ship.fireRateLevel} SPRD:${ship.spreadShotLevel}`; if (ship.rearGunLevel > 0) upgradesText += ` REAR:${ship.rearGunLevel}`;
-    if (!isMobile && ship.homingMissilesLevel > 0) upgradesText += ` MSL:${ship.homingMissilesLevel}`; // Show Missile Level only on non-mobile
-    text(upgradesText, width - sideMargin, height - bottomMargin);
+    // Upgrade Levels Text (Bottom Right - improved readability)
+    textAlign(RIGHT, BOTTOM);
+    let upgradesText = `RATE:${ship.fireRateLevel} SPRD:${ship.spreadShotLevel}`;
+    if (ship.rearGunLevel > 0) upgradesText += ` REAR:${ship.rearGunLevel}`;
+    if (!isMobile && ship.homingMissilesLevel > 0) upgradesText += ` MSL:${ship.homingMissilesLevel}`;
+    drawShadowedText(upgradesText, width - sideMargin, height - bottomMargin, textSizeVal * 0.8, uiTextColor, uiTextShadowColor);
 
-     // Mobile Buttons (Bottom Left/Right)
+     // Mobile Buttons (Enhanced Style)
      if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused && ship) {
-         // Draw Settings Button
+        // Settings Button
         let setBtn = mobileSettingsButton;
-        fill(uiPanelColor);
-        stroke(uiBorderColor);
-        strokeWeight(1.5);
-        rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5);
-        fill(uiTextColor);
-        noStroke();
-        textSize(setBtn.size * 0.6);
-        textAlign(CENTER, CENTER);
-        text('⚙️', setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2);
+        fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(setBtn.x, setBtn.y, setBtn.size, setBtn.size, 5);
+        drawShadowedText('⚙️', setBtn.x + setBtn.size / 2, setBtn.y + setBtn.size / 2, setBtn.size * 0.6, uiTextColor, uiTextShadowColor);
 
-        // Draw Missile Button (if applicable)
+        // Missile Button
         if (ship.homingMissilesLevel > 0) {
             let misBtn = mobileMissileButton;
-            fill(uiPanelColor);
-            stroke(uiBorderColor);
-            strokeWeight(1.5);
-            rect(misBtn.x, misBtn.y, misBtn.size, misBtn.size, 5);
-            fill(uiTextColor);
-            noStroke();
-            textSize(misBtn.size * 0.5);
+            fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(misBtn.x, misBtn.y, misBtn.size, misBtn.size, 5);
+            // Draw icon and count separately for better control
             textAlign(CENTER, CENTER);
-            text('🚀', misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size / 2 - 2); // Icon
-            textSize(misBtn.size * 0.3);
-             text(ship.currentMissiles, misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.75); // Count
+            drawShadowedText('🚀', misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.45, misBtn.size * 0.5, uiTextColor, uiTextShadowColor); // Icon higher
+            drawShadowedText(ship.currentMissiles, misBtn.x + misBtn.size / 2, misBtn.y + misBtn.size * 0.78, misBtn.size * 0.3, uiTextColor, uiTextShadowColor); // Count lower
         }
      }
 }
-function displayInfoMessage() { let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER); let msgWidth = textWidth(infoMessage); let padding = BUTTON_TEXT_PADDING; let boxW = msgWidth + padding * 2; let boxH = msgSize + padding; let boxX = width / 2 - boxW / 2; boxX = constrain(boxX, padding, width - boxW - padding); let boxY = height - boxH - (isMobile? 15 : 30); fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(boxX, boxY, boxW, boxH, 5); fill(uiTextColor); noStroke(); text(infoMessage, boxX + boxW / 2, boxY + boxH / 2); }
-function displayComboText() { if (showComboText && comboCounter >= 2) { let comboSize = isMobile ? 28 : 36; let comboY = height * 0.25; let alpha = map(comboTextTimeout, 0, 60, 0, 100); push(); textAlign(CENTER, CENTER); textSize(comboSize); let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.08; translate(width / 2, comboY); scale(scaleFactor); stroke(0, 0, 0, alpha * 0.8); strokeWeight(4); fill(uiHighlightColor); text(`COMBO x${comboCounter}!`, 0, 0); noStroke(); fill(255); pop(); } }
+
+function displayInfoMessage() {
+    let msgSize = isMobile ? 15 : 18;
+    textAlign(CENTER, CENTER);
+    let msgWidth = textWidth(infoMessage); // Use textSize set by drawShadowedText
+    let padding = BUTTON_TEXT_PADDING;
+    let boxW = msgWidth + padding * 2;
+    let boxH = msgSize + padding;
+    let boxX = width / 2 - boxW / 2;
+    boxX = constrain(boxX, padding, width - boxW - padding);
+    let boxY = height - boxH - (isMobile? 15 : 30);
+
+    // Draw panel background
+    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(boxX, boxY, boxW, boxH, 5);
+    // Inner highlight/shadow
+    noFill(); strokeWeight(1);
+    stroke(0, 0, 100, 15); line(boxX + 1, boxY + 1, boxX + boxW - 1, boxY + 1); line(boxX + 1, boxY + 1, boxX + 1, boxY + boxH - 1);
+    stroke(0, 0, 0, 25); line(boxX + 1, boxY + boxH - 1, boxX + boxW - 1, boxY + boxH - 1); line(boxX + boxW - 1, boxY + 1, boxX + boxW - 1, boxY + boxH - 1);
+
+    // Draw text
+    noStroke();
+    drawShadowedText(infoMessage, boxX + boxW / 2, boxY + boxH / 2, msgSize, uiTextColor, uiTextShadowColor);
+}
+
+function displayComboText() {
+    if (showComboText && comboCounter >= 2) {
+        let comboSize = isMobile ? 28 : 36;
+        let comboY = height * 0.25;
+        let alpha = map(comboTextTimeout, 0, 60, 0, 100);
+        push();
+        textAlign(CENTER, CENTER);
+        textSize(comboSize);
+        let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.12; // Slightly larger pop
+        translate(width / 2, comboY);
+        scale(scaleFactor);
+
+        // Draw thicker shadow/outline
+        fill(0, 0, 0, alpha * 0.7); // Darker shadow
+        text(`COMBO x${comboCounter}!`, 0 + 2, 0 + 2);
+        text(`COMBO x${comboCounter}!`, 0 - 2, 0 + 2);
+        text(`COMBO x${comboCounter}!`, 0 + 2, 0 - 2);
+        text(`COMBO x${comboCounter}!`, 0 - 2, 0 - 2);
+
+        // Draw main text
+        fill(uiHighlightColor); // Use highlight color
+        text(`COMBO x${comboCounter}!`, 0, 0);
+
+        pop();
+    }
+}
 
 // --- Game State Control ---
 function resetGame() {
@@ -2239,12 +2416,8 @@ class PowerUp {
         drawHexagon(0, 0, innerRadius);
 
         // --- Icon ---
-        fill(0, 0, 100); // White icon
-        noStroke();
-        textSize(iconSize);
-        textAlign(CENTER, CENTER);
-        text(this.icon, 0, currentSize * 0.03); // Adjust vertical position slightly
-
+        // Use shadowed text for the icon
+        drawShadowedText(this.icon, 0, currentSize * 0.03, iconSize, color(0,0,100), color(0,0,0, 50));
 
         pop();
     }
