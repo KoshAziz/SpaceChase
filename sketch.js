@@ -1,8 +1,9 @@
+
 // --- Features ---
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
-// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // INCREASED COSTS
+// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // INCREASED COSTS // MODIFIED: Resets on Game Over
 // - Mobile Gameplay Settings Button (Positioned bottom-left)
 // - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
@@ -37,7 +38,7 @@
 // - Mobile UI Buttons for Missiles // NEW FEATURE (Enhanced Style) // REMOVED: Laser button
 // - Removed Name Input and Leaderboard system.
 // - Implemented separate Points (score) and Money (upgrades) systems.
-// - Implemented persistent Tech Fragments currency for Skill Tree. // NEW FEATURE
+// - Implemented Tech Fragments currency for Skill Tree. // MODIFIED: Resets on Game Over
 // - Asteroids only spawn from Top, Left, and Right edges.
 // - Ship movement changed to free keyboard control (Arrows/WASD).
 // - MODIFIED: Hold Spacebar/Tap/Click to shoot (auto-fire respects cooldown).
@@ -125,8 +126,8 @@ let cosmeticsMenuItems = [ { id: 'shipColor', label: 'Ship Color', type: 'cycle'
 let selectedCosmeticsMenuItem = 0; let cosmeticsMenuButtons = [];
 
 // --- Skill Tree Variables ---
-let techFragments = 0; // Persistent currency
-let skillTreeData = { // Holds current level of each skill
+let techFragments = 0; // Currency - RESETS ON GAME OVER
+let skillTreeData = { // Holds current level of each skill - RESETS ON GAME OVER
     'MAX_SPEED': 0,
     'MAX_LIVES': 0,
     'SHIELD_REGEN': 0,
@@ -491,16 +492,27 @@ function loadGameData() {
             }
             // console.log("Game data loaded:", skillTreeData, techFragments);
         } else {
-            // console.log("No save data found, using defaults.");
-            // Initialize with defaults if no save data (redundant but safe)
-            techFragments = 0;
-             skillTreeData = { MAX_SPEED: 0, MAX_LIVES: 0, SHIELD_REGEN: 0, WEAPON_DAMAGE: 0, MISSILE_DAMAGE: 0, STARTING_MONEY: 0 };
+             resetSkillTreeAndFragments(); // Reset if no save data found
+             // console.log("No save data found, resetting skills and fragments.");
         }
     } catch (e) {
         console.error("Error loading game data from localStorage:", e);
-         techFragments = 0;
-         skillTreeData = { MAX_SPEED: 0, MAX_LIVES: 0, SHIELD_REGEN: 0, WEAPON_DAMAGE: 0, MISSILE_DAMAGE: 0, STARTING_MONEY: 0 };
+        resetSkillTreeAndFragments(); // Reset on error
     }
+}
+
+// --- Skill Tree Reset Function ---
+function resetSkillTreeAndFragments() {
+    techFragments = 0;
+    skillTreeData = {
+        'MAX_SPEED': 0,
+        'MAX_LIVES': 0,
+        'SHIELD_REGEN': 0,
+        'WEAPON_DAMAGE': 0,
+        'MISSILE_DAMAGE': 0,
+        'STARTING_MONEY': 0
+    };
+    // console.log("Skill Tree and Tech Fragments Reset.");
 }
 
 
@@ -774,11 +786,8 @@ function displayGameOver() {
     drawShadowedText("GAME OVER", width / 2, height / 3, isMobile ? 52 : 68, color(0, 80, 100), uiTextShadowColor);
     drawShadowedText("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
 
-    // Award Tech Fragments on Game Over based on score
-    let fragmentsEarned = floor(points / 500); // Example: 1 fragment per 500 points
-    if (fragmentsEarned > 0) {
-        drawShadowedText(`+${fragmentsEarned} Tech Fragments!`, width / 2, height / 3 + (isMobile ? 95 : 115), isMobile ? 16 : 20, uiHighlightColor, uiTextShadowColor);
-    }
+    // Inform user about skill reset
+     drawShadowedText(`Skill Tree Progress Reset`, width / 2, height / 3 + (isMobile ? 95 : 115), isMobile ? 16 : 20, uiHighlightColor, uiTextShadowColor);
 
     textAlign(CENTER, CENTER);
     let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu";
@@ -796,6 +805,7 @@ function displayWinScreen() {
     // Award Tech Fragments on Win based on score
     let fragmentsEarned = floor(points / 300) + 10; // Example: 1 per 300 points + 10 bonus for winning
     if (fragmentsEarned > 0) {
+        // Note: fragments are awarded *before* this screen potentially shows
         drawShadowedText(`+${fragmentsEarned} Tech Fragments!`, width / 2, winY + (isMobile ? 100 : 120), isMobile ? 16 : 20, uiHighlightColor, uiTextShadowColor);
     }
 
@@ -1176,10 +1186,9 @@ function handleCollisions() {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2);
                 if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
                 if (lives <= 0) {
-                     // Award fragments on game over
-                     let fragmentsEarned = floor(points / 500);
-                     if (fragmentsEarned > 0) techFragments += fragmentsEarned;
-                     saveGameData(); // Save before changing state
+                     // --- RESET SKILL TREE ON GAME OVER ---
+                     resetSkillTreeAndFragments(); // Reset skills and fragments
+                     saveGameData(); // Save the reset state
 
                      gameState = GAME_STATE.GAME_OVER;
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
@@ -1684,6 +1693,7 @@ function displayComboText() {
 
 // --- Game State Control ---
 function resetGame() {
+    // Skill Tree & Fragments are NOT reset here, only on game over or initial load w/o save data.
     ship = new Ship(); // Creates ship with base stats + skill tree bonuses
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
     points = 0;
@@ -2025,11 +2035,11 @@ class Ship {
         this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0;
         this.laserHitCooldown = 0;
 
-        // Apply Skill Tree Bonuses
-        this.maxSpeed = BASE_MAX_SPEED + skillTreeData.MAX_SPEED * SKILL_DEFINITIONS.MAX_SPEED.effectPerLevel;
-        this.bulletDamageMultiplier = 1 + skillTreeData.WEAPON_DAMAGE * SKILL_DEFINITIONS.WEAPON_DAMAGE.effectPerLevel;
-        this.missileDamageBonus = skillTreeData.MISSILE_DAMAGE * SKILL_DEFINITIONS.MISSILE_DAMAGE.effectPerLevel;
-        this.shieldRegenRate = skillTreeData.SHIELD_REGEN * SKILL_DEFINITIONS.SHIELD_REGEN.effectPerLevel; // Regen per frame
+        // Apply Skill Tree Bonuses (Important: skillTreeData should be loaded before creating Ship)
+        this.maxSpeed = BASE_MAX_SPEED + (skillTreeData['MAX_SPEED'] || 0) * SKILL_DEFINITIONS.MAX_SPEED.effectPerLevel;
+        this.bulletDamageMultiplier = 1 + (skillTreeData['WEAPON_DAMAGE'] || 0) * SKILL_DEFINITIONS.WEAPON_DAMAGE.effectPerLevel;
+        this.missileDamageBonus = (skillTreeData['MISSILE_DAMAGE'] || 0) * SKILL_DEFINITIONS.MISSILE_DAMAGE.effectPerLevel;
+        this.shieldRegenRate = (skillTreeData['SHIELD_REGEN'] || 0) * SKILL_DEFINITIONS.SHIELD_REGEN.effectPerLevel; // Regen per frame
         this.shieldRegenTimer = 0; // Timer for shield regen cooldown
         this.shieldRegenDelay = 180; // Frames after last hit before regen starts
     }
