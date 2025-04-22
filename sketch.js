@@ -2,13 +2,13 @@
 // --- Features ---
 // - Start Menu with Options (Start Game, Settings, Cosmetics)
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
-// - Cosmetics Menu (Ship Color [Red, Blue, Green], Bullet Style [Rainbow, White], Back)
+// - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
 // - Mobile Gameplay Settings Button (Positioned bottom-left)
 // - Level System based on Points (Up to Level 15)
-// - Selectable Bullet Styles (Rainbow Trail, White Bolt)
+// - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
 // - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // REMOVED: Laser Beam
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
-// - Selectable Ship Colors (Red, Blue, Green) with corresponding details
+// - Selectable Ship Colors (Red, Blue, Green, Orange, Purple, Cyan, Yellow) with corresponding details // ENHANCED: More Options
 // - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail) // MODIFIED: Reduced planet internal movement
 // - Enhanced Engine Thrust Effect (More reactive, Color linked to Ship Color)
 // - Asteroid Splitting
@@ -81,6 +81,7 @@
 // - MODIFIED: Screen shake duration reduced from ~2s to ~1s.
 // - MODIFIED: Pressing ESC during active gameplay or in the Upgrade Shop returns to the Start Menu. Pressing ESC while paused resumes gameplay. Pressing ESC in Settings/Cosmetics menus acts as 'Back'.
 // - MODIFIED: Reduced internal movement (noise animation) of background planets for a smoother look.
+// - ADDED: More color options for ship and bullets.
 // --------------------------
 
 
@@ -106,16 +107,20 @@ let selectedSettingsItem = 0; let settingsMenuButtons = [];
 let settingScreenShakeEnabled = true; let settingBackgroundEffectsEnabled = true; let settingParticleDensity = 'High';
 
 // --- Cosmetics Variables (Simplified) ---
-const SHIP_COLORS = ['Blue', 'Red', 'Green']; // Available ship colors
-const BULLET_STYLES = ['Rainbow', 'White']; // Available bullet styles
+const SHIP_COLORS = ['Blue', 'Red', 'Green', 'Orange', 'Purple', 'Cyan', 'Yellow']; // Available ship colors // ADDED MORE
+const BULLET_STYLES = ['Rainbow', 'White', 'Plasma', 'Fire', 'Ice']; // Available bullet styles // ADDED MORE
 let selectedShipColor = 'Blue'; // Current selection
 let selectedBulletStyle = 'Rainbow'; // Current selection
 
-// Simple color definitions (HSB format: [H, S, B])
+// Simple color definitions (HSB format: [H, S, B]) // ADDED MORE DEFINITIONS
 const COLOR_DEFINITIONS = {
     'Blue': { body: [210, 75, 85], cockpit: [180, 100, 100], wing: [220, 60, 70], detail1: [0, 0, 60], detail2: [0, 0, 90], engine1: [30, 100, 100], engine2: [0, 100, 100] },
     'Red': { body: [0, 80, 90], cockpit: [0, 0, 100], wing: [350, 70, 75], detail1: [0, 0, 40], detail2: [0, 0, 70], engine1: [15, 100, 100], engine2: [350, 90, 95] },
     'Green': { body: [130, 70, 70], cockpit: [150, 50, 100], wing: [120, 60, 55], detail1: [140, 30, 30], detail2: [140, 20, 60], engine1: [90, 100, 100], engine2: [110, 80, 90] },
+    'Orange': { body: [30, 85, 95], cockpit: [45, 70, 100], wing: [20, 75, 80], detail1: [0, 0, 50], detail2: [0, 0, 80], engine1: [45, 100, 100], engine2: [15, 100, 100] },
+    'Purple': { body: [280, 70, 75], cockpit: [260, 50, 100], wing: [290, 60, 60], detail1: [270, 30, 30], detail2: [270, 20, 60], engine1: [310, 90, 95], engine2: [290, 80, 90] },
+    'Cyan': { body: [180, 70, 80], cockpit: [190, 40, 100], wing: [170, 65, 70], detail1: [180, 20, 40], detail2: [180, 15, 70], engine1: [200, 80, 100], engine2: [160, 70, 90] },
+    'Yellow': { body: [55, 90, 100], cockpit: [60, 50, 100], wing: [50, 80, 85], detail1: [45, 40, 50], detail2: [45, 30, 80], engine1: [40, 100, 100], engine2: [65, 90, 95] }
 };
 
 // Cosmetics Menu Structure (Simplified)
@@ -750,8 +755,24 @@ class Bullet {
     constructor(x, y, angle = 0) {
         this.pos = createVector(x, y); this.speed = 17; this.size = 5.5;
         this.style = selectedBulletStyle; // Use global selection
-        if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; }
-        else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } // White
+
+        // Initialize color/trail properties
+        this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 0;
+
+        if (this.style === 'Rainbow') {
+            this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5;
+        } else if (this.style === 'White') {
+            this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7;
+        } else if (this.style === 'Plasma') {
+            this.hue = 150; this.sat = 100; this.bri = 90; this.trailLength = 6;
+        } else if (this.style === 'Fire') {
+            this.hue = 15; this.sat = 100; this.bri = 100; this.trailLength = 8;
+        } else if (this.style === 'Ice') {
+            this.hue = 200; this.sat = 30; this.bri = 100; this.trailLength = 4;
+        } else { // Default to White if style is unknown
+             this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7;
+        }
+
         let baseAngle = -PI / 2;
         // Special case for rear gun angle (passed as PI)
         if (angle === PI) { baseAngle = PI/2; angle=0;}
@@ -759,7 +780,16 @@ class Bullet {
         this.vel.mult(this.speed);
         this.trail = [];
     }
-    update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style === 'Rainbow') { this.hue = (this.hue + 5) % 360; } }
+    update() {
+        this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); }
+        this.pos.add(this.vel);
+        if (this.style === 'Rainbow') {
+            this.hue = (this.hue + 5) % 360;
+        } else if (this.style === 'Fire') {
+             this.hue = (this.hue + random(-2, 2) + 360) % 360; // Slight hue variation for flicker
+             this.hue = lerp(this.hue, 15, 0.1); // Pull back towards base orange/red
+        }
+    }
     draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
     isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); }
 }
