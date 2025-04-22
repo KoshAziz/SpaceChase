@@ -2,7 +2,7 @@
 // - Start Menu with Options (Start Game, Skills, Settings, Cosmetics) // ADDED: Skills Menu
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
 // - Cosmetics Menu (Ship Color [Red, Blue, Green, Orange, Purple, Cyan, Yellow], Bullet Style [Rainbow, White, Plasma, Fire, Ice], Back) // ENHANCED: More Options
-// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // **REDUCED COSTS** // MODIFIED: Resets on Game Over
+// - Skill Tree Menu (Permanent upgrades: Max Speed, Max Lives, Shield Regen, Base Weapon Dmg, Missile Dmg, Starting Money) using Tech Fragments // NEW FEATURE // ACCESSIBLE FROM PAUSE // REDUCED COSTS // MODIFIED: Resets on Game Over
 // - Mobile Gameplay Settings Button (Positioned top-left within HUD) // MODIFIED: Position fixed
 // - Level System based on Mission Objectives // NEW: Replaces point thresholds // MODIFIED: Level 3 & 5 Objectives Changed
 // - Selectable Bullet Styles (Rainbow Trail, White Bolt, Plasma, Fire, Ice) // ENHANCED: More Options
@@ -22,7 +22,7 @@
 //   - Turret Enemy: Slow/Stationary, fires patterns (bursts/spirals). // MODIFIED: Appearance more 'evil'
 //   - Swarmer Enemy: Small, appears in groups, simple movement. // MODIFIED: Appearance more 'evil'
 //   - Laser Enemy: Charges and fires a continuous beam. // NEW ENEMY TYPE
-// - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING
+// - Temporary Power-Ups (Temp Shield, Rapid Fire, EMP Burst, Score Multiplier, Drone, Invincibility) // ENHANCED (Visuals) // INCREASED SPAWN RATE & MAX COUNT // ADDED OBJECTIVE TRACKING // **REDUCED EMP SPAWN CHANCE**
 // - Visual Nebula Clouds in background // ENHANCED (Subtlety, Noise-based shapes)
 // - Background Structures (Stations/Derelicts) // ENHANCED (Visual Detail, Variety, Lighting)
 // - Pause Functionality (Press ESC during gameplay to Pause/Unpause, Tap Pause Button to access Skills/Settings) // ENHANCED (UI Style) // MODIFIED: ESC now Pauses/Resumes during Gameplay. Pause Menu added.
@@ -1042,7 +1042,14 @@ function runGameLogic() {
         }
         // Spawn Pickups & Background FX
         if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-        if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
+        if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) {
+            let type = floor(random(NUM_POWERUP_TYPES));
+            // Re-roll once if EMP is selected to reduce its chance
+            if (type === POWERUP_TYPES.EMP_BURST) {
+                type = floor(random(NUM_POWERUP_TYPES)); // Roll again
+            }
+            powerUps.push(new PowerUp(type));
+        }
         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
         if (settingBackgroundEffectsEnabled && random(1) < structureSpawnRate && backgroundStructures.length < maxStructuresAllowed) { backgroundStructures.push(new BackgroundStructure()); }
     }
