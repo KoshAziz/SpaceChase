@@ -1,16 +1,16 @@
 
 // --- Features ---
-// - Start Menu with Options (Start Game, Settings, Cosmetics) // NEW MENU ITEM
+// - Start Menu with Options (Start Game, Settings, Cosmetics)
 // - Settings Menu (Screen Shake, Background FX, Particle Density, Back)
-// - Cosmetics Menu (Ship Palette, Engine Trail, Bullet Style, Back) // NEW MENU
+// - Cosmetics Menu (Ship Palette, Engine Trail, Bullet Style, Back)
 // - Mobile Gameplay Settings Button // MODIFIED (Positioned bottom-left)
 // - Level System based on Points (Up to Level 15)
-// - Rainbow Bullets (Hue Cycling) // ENHANCED (Trail Effect, Style Options) // MODIFIED
-// - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Laser Beam, Rear Gun) - Uses Money // ENHANCED (UI Style) // MODIFIED: Button text size // REMOVED: Charge Shot
+// - Rainbow Bullets (Hue Cycling) // ENHANCED (Trail Effect, Style Options)
+// - Ship Upgrade System (Manual Purchase in Shop: Fire Rate, Spread Shot, Homing Missiles, Laser Beam, Rear Gun) - Uses Money // ENHANCED (UI Style, Text Fit) // MODIFIED: Button text size // REMOVED: Charge Shot
 // - Score-based Shield System (Gain shield charge every 50 points, max 1) - Uses Points
-// - Redesigned Spaceship Look (Score-based color/shape, added details, Palette Swaps) // FURTHER ENHANCED // MODIFIED
+// - Redesigned Spaceship Look (Score-based color/shape, added details, Palette Swaps) // FURTHER ENHANCED
 // - Dynamic Parallax Star Background (with occasional planet, galaxy, black hole) // ENHANCED (Twinkle, Shooting Stars, Slower BH Effect, More Planet Detail)
-// - Enhanced Engine Thrust Effect (More reactive, Color Options) // ENHANCED (Particles, Reduced Thrust Value, Smaller Visual) // MODIFIED
+// - Enhanced Engine Thrust Effect (More reactive, Color Options) // ENHANCED (Particles, Reduced Thrust Value, Smaller Visual)
 // - Asteroid Splitting
 // - Player Lives (Max 3)
 // - Simple Explosion Particles (Asteroid destruction + Bullet impact) // ENHANCED (Variety, Count)
@@ -28,7 +28,7 @@
 // - ADDED: Win Screen after completing Level 15 // ENHANCED (UI Style)
 // - ADDED: Monospace Font & UI Color Palette // NEW UI FEATURE
 // - ADDED: Styled HUD with Icons & Panel // MODIFIED (Moved Upgrade Levels & Shield Position, Added Missile Count, Score Multiplier Indicator)
-// - ADDED: Styled Buttons & Menu Panels // NEW UI FEATURE
+// - ADDED: Styled Buttons & Menu Panels // NEW UI FEATURE (Text Fit Logic Added)
 // - ADDED: Combo System (Timer, Counter, Max Bonus, Visual Feedback) // NEW GAMEPLAY FEATURE
 // - ADDED: New Weapon Systems & Upgrades: Homing Missiles, Laser Beam, Rear Gun // NEW FEATURE // REMOVED: Charge Shot
 // - ADDED: Drone Companion Class & Logic // NEW FEATURE
@@ -73,6 +73,7 @@
 // - ADDED: Previous Game State Tracking for Settings Menu return.
 // - MODIFIED: Screen Shake duration increased to ~2 seconds.
 // - MODIFIED: Spaceship drawing logic for a more detailed look.
+// - MODIFIED: Added text fitting logic to button drawing functions.
 // --------------------------
 
 
@@ -148,6 +149,7 @@ let spacebarHeld = false; // Keep for key press/release differentiation if neede
 // --- UI & Messages ---
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
 let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, uiButtonHoverColor, uiButtonDisabledColor, uiButtonBorderColor;
+const BUTTON_TEXT_PADDING = 12; // Added padding constant for text fit calculations
 
 // --- Background ---
 let currentTopColor, currentBottomColor; const BACKGROUND_CHANGE_INTERVAL = 1200; let isMobile = false;
@@ -197,8 +199,7 @@ function setDifficultyForLevel(level) { let effectiveLevel = min(level, MAX_LEVE
 function initializeCosmetics() { // Set initial selected and ensure defaults are unlocked
     selectedCosmetics = { palette: 'default', engineTrail: 'default', bulletStyle: 'rainbow' };
     unlockedCosmetics = { palettes: {'default': true}, engineTrails: {'default': true}, bulletStyles: {'rainbow': true} };
-    // Pre-unlock based on starting level if needed (though usually starts at 1)
-    checkAndUnlockCosmetics(currentLevel);
+    checkAndUnlockCosmetics(currentLevel); // Pre-unlock based on starting level
 }
 function checkAndUnlockCosmetics(level) {
     let newlyUnlocked = [];
@@ -211,7 +212,7 @@ function checkAndUnlockCosmetics(level) {
             }
         }
     }
-    if (newlyUnlocked.length > 0) {
+    if (newlyUnlocked.length > 0 && gameState != GAME_STATE.START_MENU) { // Don't show on initial load
         infoMessage = `Cosmetics Unlocked: ${newlyUnlocked.join(', ')}!`;
         infoMessageTimeout = 150;
     }
@@ -235,10 +236,27 @@ function setupShopButtons() {
 }
 function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * 1.5; let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function setupSettingsMenuButtons() { settingsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < settingsItems.length; i++) { settingsMenuButtons.push({ id: settingsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
-// Setup cosmetics menu buttons
 function setupCosmeticsMenuButtons() { cosmeticsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < cosmeticsItems.length; i++) { cosmeticsMenuButtons.push({ id: cosmeticsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
 function calculateMobileSettingsButtonPosition() { mobileSettingsButton.size = isMobile ? 35 : 45; mobileSettingsButton.padding = 10; mobileSettingsButton.x = mobileSettingsButton.padding; mobileSettingsButton.y = height - mobileSettingsButton.size - mobileSettingsButton.padding; }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; mobileLaserButton.size = buttonSize; mobileLaserButton.padding = padding; mobileLaserButton.x = width - buttonSize * 2 - padding * 2; mobileLaserButton.y = height - buttonSize - padding; }
+
+// Helper to draw text that fits in a button
+function drawButtonText(label, button, defaultSize) {
+    let currentTextSize = defaultSize;
+    textSize(currentTextSize);
+    let tw = textWidth(label);
+    // Iteratively reduce size if too wide
+    while (tw > button.w - BUTTON_TEXT_PADDING && currentTextSize > 8) { // Minimum size 8
+        currentTextSize--;
+        textSize(currentTextSize);
+        tw = textWidth(label);
+    }
+    // If still too wide even at minimum size, we might need to truncate (optional)
+    // if (tw > button.w - BUTTON_TEXT_PADDING) {
+    //     // Add truncation logic here if needed
+    // }
+    text(label, button.x + button.w / 2, button.y + button.h / 2);
+}
 
 // ==================
 // p5.js Draw Loop
@@ -266,65 +284,58 @@ function draw() {
 
 
 // --- Screen Display Functions ---
-function displayStartMenu() { let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3.5; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; } let menuTextSize = isMobile ? 24 : 30; textSize(menuTextSize); textAlign(CENTER, CENTER); for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; let label = button.id; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedMenuItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(label, button.x + button.w / 2, button.y + button.h / 2); } cursor(ARROW); }
-function displaySettingsMenu() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Settings", width / 2, height * 0.2); let menuTextSize = isMobile ? 18 : 22; textSize(menuTextSize); textAlign(CENTER, CENTER); for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; let setting = settingsItems[i]; let label = setting.label; let currentValue = ''; if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; } else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; } let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedSettingsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(fullLabel, button.x + button.w / 2, button.y + button.h / 2); } cursor(ARROW); }
+function displayStartMenu() { let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX; let titleY = height / 3.5; for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); fill(0, 0, 0, 50); text(char, currentX + charWidth / 2 + (isMobile ? 3 : 4), titleY + yOffset + (isMobile ? 3 : 4)); let h = (frameCount * 4 + i * 25) % 360; fill(h, 95, 100); text(char, currentX + charWidth / 2, titleY + yOffset); currentX += charWidth; }
+    let menuTextSize = isMobile ? 24 : 30; // Default size
+    textAlign(CENTER, CENTER); for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; let label = button.id; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedMenuItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+        fill(textCol); noStroke();
+        drawButtonText(label, button, menuTextSize); // Use helper to draw text
+    } cursor(ARROW); }
+function displaySettingsMenu() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Settings", width / 2, height * 0.2);
+    let menuTextSize = isMobile ? 18 : 22; // Default size
+    textAlign(CENTER, CENTER); for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; let setting = settingsItems[i]; let label = setting.label; let currentValue = ''; if (setting.type === 'toggle') { let stateVariable = (setting.id === 'screenShake') ? settingScreenShakeEnabled : settingBackgroundEffectsEnabled; currentValue = stateVariable ? ': ON' : ': OFF'; } else if (setting.type === 'cycle') { currentValue = ': ' + settingParticleDensity; } let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedSettingsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor; if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } } fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+        fill(textCol); noStroke();
+        drawButtonText(fullLabel, button, menuTextSize); // Use helper to draw text
+    } cursor(ARROW); }
 // New function to display cosmetics menu
 function displayCosmeticsMenu() {
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7);
     fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text("Cosmetics", width / 2, height * 0.2);
-    let menuTextSize = isMobile ? 18 : 22; textSize(menuTextSize); textAlign(CENTER, CENTER);
+    let menuTextSize = isMobile ? 18 : 22; // Default size
+    textAlign(CENTER, CENTER);
     for (let i = 0; i < cosmeticsMenuButtons.length; i++) {
         let button = cosmeticsMenuButtons[i]; let setting = cosmeticsItems[i]; let label = setting.label; let currentValue = '';
-        if (setting.type === 'cycle') { let category = setting.category; // e.g., 'palettes', 'engineTrails'
-            let selectedKey = selectedCosmetics[category.slice(0,-1)]; // e.g., 'palette'
-            currentValue = `: ${cosmetics[category][selectedKey]?.name || 'Default'}`; }
+        if (setting.type === 'cycle') { let category = setting.category; let selectedKey = selectedCosmetics[category.slice(0,-1)]; currentValue = `: ${cosmetics[category][selectedKey]?.name || 'Default'}`; }
         let fullLabel = label + currentValue;
         let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedCosmeticsItem); let buttonCol = uiButtonColor; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
         if (setting.id === 'back') { buttonCol = color(90, 70, 60); borderCol = color(90, 80, 85); if (selected || hover) { buttonCol = color(90, 75, 70); } } else { if (selected || hover) { buttonCol = uiButtonHoverColor; borderCol = color(hue(uiButtonHoverColor), 80, 100); } }
-        fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2); fill(textCol); noStroke(); text(fullLabel, button.x + button.w / 2, button.y + button.h / 2);
+        fill(buttonCol); stroke(borderCol); strokeWeight(selected ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 8); noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
+        fill(textCol); noStroke();
+        drawButtonText(fullLabel, button, menuTextSize); // Use helper to draw text
     }
-    // Tiny Ship Preview (Optional - Simple rectangle color preview for now)
-    let previewY = height * 0.2 + (isMobile ? 60 : 80);
-    let previewSize = isMobile ? 40 : 50;
-    let currentPalette = cosmetics.palettes[selectedCosmetics.palette];
-    if (currentPalette) {
-        push();
-        translate(width / 2, previewY);
-        fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]);
-        rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); // Body Preview
-        fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]);
-        triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); // Left Wing Preview
-        triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); // Right Wing Preview
-        pop();
-    }
+    // Tiny Ship Preview
+    let previewY = height * 0.2 + (isMobile ? 60 : 80); let previewSize = isMobile ? 40 : 50;
+    let currentPaletteKey = selectedCosmetics.palette;
+    // Check if the selected palette is actually unlocked, otherwise show default
+    if (!unlockedCosmetics.palettes[currentPaletteKey]) { currentPaletteKey = 'default'; }
+    let currentPalette = cosmetics.palettes[currentPaletteKey];
+    if (currentPalette) { push(); translate(width / 2, previewY); fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]); rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]); triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); pop(); }
     cursor(ARROW);
 }
 function displayPauseScreen() { drawPanelBackground(width * 0.6, height * 0.4); fill(uiTextColor); textSize(isMobile ? 54 : 64); textAlign(CENTER, CENTER); text("PAUSED", width / 2, height / 2 - 30); textSize(isMobile ? 18 : 22); text(isMobile ? "Tap Settings Button (⚙️) to Resume/Adjust" : "Press ESC to Resume", width / 2, height / 2 + 40); }
-function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textSize(isMobile ? 15 : 17); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
+function displayUpgradeShop() { drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.85)); fill(uiTextColor); textSize(isMobile ? 36 : 48); textAlign(CENTER, TOP); text(`Level ${currentLevel} Complete!`, width / 2, height * 0.1); textSize(isMobile ? 26 : 32); text("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65)); textSize(isMobile ? 20 : 26); textAlign(CENTER, TOP); fill(uiHighlightColor); text(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115)); textAlign(CENTER, CENTER); for (let button of shopButtons) { drawStyledButton(button); } }
 function displayGameOver() { drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5); fill(color(0, 80, 100)); textSize(isMobile ? 52 : 68); textAlign(CENTER, CENTER); text("GAME OVER", width / 2, height / 3); fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
 function displayWinScreen() { drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6); let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; fill(h, 95, 100); text(char, currentWinX + charWidth / 2, winY); currentWinX += charWidth; } fill(uiTextColor); textSize(isMobile ? 26 : 34); text("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80)); textAlign(CENTER, CENTER); textSize(isMobile ? 18 : 22); let pulse = map(sin(frameCount * 0.1), -1, 1, 70, 100); fill(0, 0, pulse); let restartInstruction = isMobile ? "Tap Screen for Menu" : "Click or Press Enter for Menu"; text(restartInstruction, width / 2, height * 0.7); cursor(ARROW); }
 function drawPanelBackground(panelWidth, panelHeight) { let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2; fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2); rect(panelX, panelY, panelWidth, panelHeight, 10); }
-// MODIFIED: drawStyledButton logic for removed Charge Shot
+// MODIFIED: drawStyledButton logic uses drawButtonText helper
 function drawStyledButton(button) {
     let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false;
     switch (button.id) {
-        case 'fireRate':
-            cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost);
-            currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break;
-        case 'spreadShot':
-            cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost);
-            currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break;
-        case 'rearGun':
-             cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost);
-             currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break;
-        case 'homingMissiles':
-            cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost);
-            currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break;
-        case 'laserBeam':
-            cost = ship.getUpgradeCost('laserBeam'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost);
-            currentLevelText = `Lvl ${ship.laserBeamLevel}/${ship.maxLaserLevel}`; label = `Laser Beam ${currentLevelText}`; isUpgradeButton = true; break;
-        case 'nextLevel':
-            label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break;
+        case 'fireRate': cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'spreadShot': cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'rearGun': cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'homingMissiles': cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'laserBeam': cost = ship.getUpgradeCost('laserBeam'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.laserBeamLevel}/${ship.maxLaserLevel}`; label = `Laser Beam ${currentLevelText}`; isUpgradeButton = true; break;
+        case 'nextLevel': label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break;
     }
 
     let buttonCol; let textCol = uiTextColor; let borderCol = uiButtonBorderColor;
@@ -339,110 +350,59 @@ function drawStyledButton(button) {
     fill(buttonCol); stroke(borderCol); strokeWeight(hover ? 2.5 : 1.5); rect(button.x, button.y, button.w, button.h, 6);
     noFill(); strokeWeight(1); stroke(0, 0, 100, 20); line(button.x + 2, button.y + 2, button.x + button.w - 2, button.y + 2); line(button.x + 2, button.y + 2, button.x + 2, button.y + button.h - 2); stroke(0, 0, 0, 30); line(button.x + 2, button.y + button.h - 2, button.x + button.w - 2, button.y + button.h - 2); line(button.x + button.w - 2, button.y + 2, button.x + button.w - 2, button.y + button.h - 2);
 
-    if (isUpgradeButton) { textSize(isMobile ? 13 : 15); } else { textSize(isMobile ? 15 : 17); }
-    fill(textCol); noStroke(); textAlign(CENTER, CENTER); text(label, button.x + button.w / 2, button.y + button.h / 2);
+    // Determine default text size based on button type
+    let defaultTextSize = isUpgradeButton ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17);
+
+    fill(textCol); noStroke(); textAlign(CENTER, CENTER);
+    drawButtonText(label, button, defaultTextSize); // Use helper to draw text
 }
 
 
 // --- Main Game Logic ---
 function runGameLogic() {
     if (isPaused) {
-        if (ship) ship.draw();
-        if (ship && ship.droneActive) ship.drone.draw();
-        for (let b of bullets) b.draw();
-        for (let m of homingMissiles) m.draw();
-        for (let l of laserBeams) l.draw();
-        for (let p of particles) p.draw();
-        for (let a of asteroids) a.draw();
-        for (let e of enemyShips) e.draw();
-        for (let eb of enemyBullets) eb.draw();
-        for (let pt of potions) pt.draw();
-        for (let pu of powerUps) pu.draw();
-        displayHUD();
-        return;
+        if (ship) ship.draw(); if (ship && ship.droneActive) ship.drone.draw();
+        for (let b of bullets) b.draw(); for (let m of homingMissiles) m.draw(); for (let l of laserBeams) l.draw();
+        for (let p of particles) p.draw(); for (let a of asteroids) a.draw(); for (let e of enemyShips) e.draw();
+        for (let eb of enemyBullets) eb.draw(); for (let pt of potions) pt.draw(); for (let pu of powerUps) pu.draw();
+        displayHUD(); return;
     }
-
     if (!ship) return;
 
     // --- Update Game Objects ---
-    ship.update();
-    if (ship.droneActive) ship.drone.update();
-    ship.draw();
-    if (ship.droneActive) ship.drone.draw();
-
-    // Bullets
+    ship.update(); if (ship.droneActive) ship.drone.update();
+    ship.draw(); if (ship.droneActive) ship.drone.draw();
     for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].update(); bullets[i].draw(); if (bullets[i].isOffscreen()) { bullets.splice(i, 1); } }
-    // Homing Missiles
     for (let i = homingMissiles.length - 1; i >= 0; i--) { homingMissiles[i].update(); homingMissiles[i].draw(); if (homingMissiles[i].isOffscreen() || homingMissiles[i].lifespan <= 0) { homingMissiles.splice(i, 1); } }
-    // Laser Beams
     for (let i = laserBeams.length - 1; i >= 0; i--) { laserBeams[i].update(); laserBeams[i].draw(); if (laserBeams[i].isDead()) { laserBeams.splice(i, 1); } }
-    // Particles
     for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].isDead()) { particles.splice(i, 1); } }
-    // Enemy Ships
     for (let i = enemyShips.length - 1; i >= 0; i--) { enemyShips[i].update(); enemyShips[i].draw(); if (enemyShips[i].isOffscreen()) { enemyShips.splice(i, 1); } }
-    // Enemy Bullets
     for (let i = enemyBullets.length - 1; i >= 0; i--) { enemyBullets[i].update(); enemyBullets[i].draw(); if (enemyBullets[i].isOffscreen()) { enemyBullets.splice(i, 1); } }
-    // Asteroids
     for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; asteroids[i].update(); asteroids[i].draw(); }
 
-    // --- Special Weapon Logic ---
-    // Laser Damage
+    // Laser Damage Logic (simplified)
     if (ship.laserActive) {
-        let laserDamage = 0.05 + ship.laserBeamLevel * 0.02;
-        let laserWidth = 5 + ship.laserBeamLevel * 1.5;
-        let laserOrigin = createVector(ship.pos.x, ship.pos.y - ship.size * 0.7 + ship.hoverOffset); // Adjusted for hover
-        let laserEnd = createVector(laserOrigin.x, -50); // Approximate end point off-screen
-
+        let laserDamage = 0.05 + ship.laserBeamLevel * 0.02; let laserWidth = 5 + ship.laserBeamLevel * 1.5;
+        let laserOrigin = createVector(ship.pos.x, ship.pos.y - ship.size * 0.7 + ship.hoverOffset); let laserEnd = createVector(laserOrigin.x, -50);
         for (let i = enemyShips.length - 1; i >= 0; i--) {
-             let enemy = enemyShips[i];
-             if (!enemy) continue;
-
-             // Simplified Check: Project enemy position onto laser line segment
-             let lineVec = p5.Vector.sub(laserEnd, laserOrigin);
-             let pointVec = p5.Vector.sub(enemy.pos, laserOrigin);
-             let lineLenSq = lineVec.magSq();
-             let dot = pointVec.dot(lineVec);
-             let t = constrain(dot / lineLenSq, 0, 1); // Project onto the segment
-             let closestPoint = p5.Vector.add(laserOrigin, lineVec.mult(t));
-             let distSq = p5.Vector.dist(enemy.pos, closestPoint);
-
-             if (distSq < (enemy.size / 2 + laserWidth / 2)) { // Collision detected
-                 if (enemy.takeDamage(laserDamage)) { // Apply damage
-                     let pointsToAdd = enemy.pointsValue; let moneyToAdd = enemy.moneyValue;
-                     if(ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; }
-                     points += floor(pointsToAdd); money += floor(moneyToAdd);
-                     comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter);
-                     if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
-                     createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0);
-                     enemyShips.splice(i, 1);
-                     checkAndUnlockCosmetics(currentLevel); // Check unlocks on enemy kill too
-                 } else {
-                     if(frameCount % 5 === 0) { createParticles(enemy.pos.x + random(-enemy.size/2, enemy.size/2), enemy.pos.y + random(-enemy.size/2, enemy.size/2), 1, ship.laserColor, 2, 0.5, 0.3); }
-                 }
-             }
+             let enemy = enemyShips[i]; if (!enemy) continue;
+             let lineVec = p5.Vector.sub(laserEnd, laserOrigin); let pointVec = p5.Vector.sub(enemy.pos, laserOrigin); let lineLenSq = lineVec.magSq(); let dot = pointVec.dot(lineVec); let t = constrain(dot / lineLenSq, 0, 1); let closestPoint = p5.Vector.add(laserOrigin, lineVec.mult(t)); let distSq = p5.Vector.dist(enemy.pos, closestPoint);
+             if (distSq < (enemy.size / 2 + laserWidth / 2)) { if (enemy.takeDamage(laserDamage)) { let pointsToAdd = enemy.pointsValue; let moneyToAdd = enemy.moneyValue; if(ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += floor(pointsToAdd); money += floor(moneyToAdd); comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(i, 1); checkAndUnlockCosmetics(currentLevel); } else { if(frameCount % 5 === 0) { createParticles(enemy.pos.x + random(-enemy.size/2, enemy.size/2), enemy.pos.y + random(-enemy.size/2, enemy.size/2), 1, ship.laserColor, 2, 0.5, 0.3); } } }
         }
     }
 
-    // --- Handle Pickups & Collisions ---
-    handlePotions();
-    handleCollisions(); // Handles bullet/missile collisions and player collisions
-    handlePowerUps();
+    // Pickups & Collisions
+    handlePotions(); handleCollisions(); handlePowerUps();
 
-    // --- Update Combo System ---
+    // Combo System
     if (comboTimer > 0) { comboTimer--; if (comboTimer <= 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Bonus: +${bonusPoints} PTS, +$${bonusMoney}! (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } }
     if (comboTextTimeout > 0) { comboTextTimeout--; if (comboTextTimeout <= 0) { showComboText = false; } }
 
     // --- Spawning Logic ---
-    if (gameState === GAME_STATE.PLAYING) { // Only spawn during active play
-         let timeFactor = floor(frameCount / 1800) * 0.0005; // Slight increase over time
-         currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor;
-         let currentTotalEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5;
-         let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3);
-         let maxEnemiesAllowed = min(15, 5 + currentLevel * 2);
-         let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3;
-         // Asteroids
+    if (gameState === GAME_STATE.PLAYING) {
+         let timeFactor = floor(frameCount / 1800) * 0.0005; currentAsteroidSpawnRate = baseAsteroidSpawnRate + timeFactor; let currentTotalEnemySpawnRate = baseEnemySpawnRate + timeFactor * 0.5;
+         let maxAsteroidsAllowed = min(40, 15 + currentLevel * 3); let maxEnemiesAllowed = min(15, 5 + currentLevel * 2); let maxPotionsAllowed = 2; let maxPowerUpsAllowed = 1; let maxNebulasAllowed = 3;
          if (random(1) < currentAsteroidSpawnRate && asteroids.length < maxAsteroidsAllowed) { asteroids.push(new Asteroid()); }
-         // Enemies
          if (random(1) < currentTotalEnemySpawnRate && enemyShips.length < maxEnemiesAllowed) {
               let totalWeight = basicEnemyWeight + kamikazeWeight + turretWeight + swarmerWeight; let typeRoll = random(totalWeight);
               if (typeRoll < swarmerWeight && currentLevel >= 3) { let swarmCount = floor(random(5, 10)); let spawnX = random(width * 0.2, width * 0.8); let spawnY = -20; for (let i = 0; i < swarmCount; i++) { if (enemyShips.length < maxEnemiesAllowed) { let offsetPos = createVector(spawnX + random(-50, 50), spawnY + random(-30, 30)); enemyShips.push(new SwarmerEnemy(offsetPos.x, offsetPos.y)); } else break; } }
@@ -450,19 +410,13 @@ function runGameLogic() {
               else if (typeRoll < swarmerWeight + turretWeight + kamikazeWeight && currentLevel >= 2) { enemyShips.push(new KamikazeEnemy()); }
               else { enemyShips.push(new BasicEnemy()); }
          }
-         // Potions
          if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-         // Power-Ups
          if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) { let type = floor(random(NUM_POWERUP_TYPES)); powerUps.push(new PowerUp(type)); }
-        // Background Nebulas
-        if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
+         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
     }
 
-    // --- Display HUD & Combo ---
-    if (gameState === GAME_STATE.PLAYING) { // Ensure HUD only shows in play state
-        displayHUD();
-        displayComboText();
-    }
+    // HUD & Combo Text
+    if (gameState === GAME_STATE.PLAYING) { displayHUD(); displayComboText(); }
 }
 
 // --- Collision and Pickup Handling ---
@@ -488,88 +442,37 @@ function handlePowerUps() {
 }
 function handleCollisions() {
     if (gameState !== GAME_STATE.PLAYING || !ship || isPaused) return;
-
-    const destroyEnemy = (enemy, index, projectileType) => {
-        let basePoints = enemy.pointsValue; let baseMoney = enemy.moneyValue;
-        if (projectileType === 'HomingMissile') { basePoints *= 1.1; }
-        let pointsToAdd = basePoints; if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; }
-        points += floor(pointsToAdd); money += floor(baseMoney);
-        comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter);
-        if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
-        createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0);
-        enemyShips.splice(index, 1);
-        checkAndUnlockCosmetics(currentLevel); // Check unlocks on enemy kill
-    };
-
-    // --- Asteroid Collisions ---
+    const destroyEnemy = (enemy, index, projectileType) => { let basePoints = enemy.pointsValue; let baseMoney = enemy.moneyValue; if (projectileType === 'HomingMissile') { basePoints *= 1.1; } let pointsToAdd = basePoints; if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += floor(pointsToAdd); money += floor(baseMoney); comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(index, 1); checkAndUnlockCosmetics(currentLevel); };
+    // Asteroid Collisions
     for (let i = asteroids.length - 1; i >= 0; i--) {
         if (!asteroids[i]) continue; let asteroidHit = false;
-        // Check Bullets vs Asteroid
         for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, floor(random(3, 6)), color(60, 40, 100), 2, 0.8, 0.7); bullets.splice(j, 1); asteroidHit = true; break; } }
-        // Check Missiles vs Asteroid
         if (!asteroidHit) { for (let j = homingMissiles.length - 1; j >= 0; j--) { if (asteroids[i] && homingMissiles[j] && asteroids[i].hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 15, homingMissiles[j].color, 5, 1.8, 1.0); homingMissiles.splice(j, 1); asteroidHit = true; break; } } }
-        // Process Asteroid Destruction if hit
         if (asteroidHit) {
-            let oldPoints = points; let asteroidSizeValue = asteroids[i].size;
-            let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; }
-            points += pointsToAdd; money += 2;
-            comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
+            let oldPoints = points; let asteroidSizeValue = asteroids[i].size; let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; money += 2; comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; }
             let shieldsToAdd = floor(points / SHIELD_POINTS_THRESHOLD) - floor(oldPoints / SHIELD_POINTS_THRESHOLD); if (shieldsToAdd > 0 && ship.shieldCharges < MAX_SHIELD_CHARGES) { let actualAdded = ship.gainShields(shieldsToAdd); if (actualAdded > 0) { infoMessage = `+${actualAdded} SHIELD CHARGE(S)!`; infoMessageTimeout = 90; } }
             let oldShapeLevel = floor(oldPoints / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; }
-            let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; asteroids.splice(i, 1);
-            createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1);
+            let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; asteroids.splice(i, 1); createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1);
             if (asteroidSizeValue > minAsteroidSize * 2) { let newSize = asteroidSizeValue * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); }
-
-            // --- Level Up Check ---
-            if (currentLevel < MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) {
-                points += 100 * currentLevel; money += 25 * currentLevel;
-                gameState = GAME_STATE.UPGRADE_SHOP; infoMessage = `Level ${currentLevel} Cleared!`; infoMessageTimeout = 180;
-                checkAndUnlockCosmetics(currentLevel + 1); // Check unlocks for NEXT level entering shop
-                setupShopButtons(); cursor(ARROW);
-                bullets = []; homingMissiles = []; laserBeams = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
-                comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
-                return;
-            }
-            // --- Win Condition Check ---
-            else if (currentLevel === MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) {
-                 checkAndUnlockCosmetics(MAX_LEVEL); // Final unlock check on win
-                 gameState = GAME_STATE.WIN_SCREEN; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
-                 bullets = []; homingMissiles = []; laserBeams = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
-                 comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
-                 return;
-            }
-        } // End if asteroidHit
-    } // End Asteroid loop
-
-    // --- Enemy Collisions ---
+            if (currentLevel < MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) { points += 100 * currentLevel; money += 25 * currentLevel; gameState = GAME_STATE.UPGRADE_SHOP; infoMessage = `Level ${currentLevel} Cleared!`; infoMessageTimeout = 180; checkAndUnlockCosmetics(currentLevel + 1); setupShopButtons(); cursor(ARROW); bullets = []; homingMissiles = []; laserBeams = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; return; }
+            else if (currentLevel === MAX_LEVEL && points >= LEVEL_THRESHOLDS[currentLevel]) { checkAndUnlockCosmetics(MAX_LEVEL); gameState = GAME_STATE.WIN_SCREEN; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); bullets = []; homingMissiles = []; laserBeams = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; return; }
+        }
+    }
+    // Enemy Collisions
     for (let i = enemyShips.length - 1; i >= 0; i--) {
         let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false;
-        // Check Bullets vs Enemy
         for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(1)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } }
         if (enemyDestroyed) continue;
-        // Check Missiles vs Enemy
         for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage || 3; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } }
         if (enemyDestroyed) continue;
-    } // End Enemy loop
-
-    // --- Player Collisions (with Asteroids, Enemies, Enemy Bullets) ---
+    }
+    // Player Collisions
     if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) {
-        const takeDamage = (sourceObject, sourceArray, index) => {
-            if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false;
-            let gameOver = false;
-            if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; }
-            if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } }
-            else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } }
-            else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 120; } if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } if (sourceObject && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { let explosionColor = (sourceObject.getExplosionColor) ? sourceObject.getExplosionColor() : (sourceObject.color || color(0,0,50)); let particleCount = sourceObject.size ? floor(sourceObject.size * 1.2) : 20; if (sourceObject instanceof EnemyBullet) { particleCount = 8; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor, sourceObject.size * 0.2); if (sourceObject instanceof KamikazeEnemy) { createParticles(sourceObject.pos.x, sourceObject.pos.y, floor(sourceObject.size * 1.5), sourceObject.getExplosionColor(), sourceObject.size * 0.3, 1.5, 1.2); } sourceArray.splice(index, 1); } }
-            return gameOver;
-        };
-        // Check Asteroids vs Player
+        const takeDamage = (sourceObject, sourceArray, index) => { if (ship.invincibilityTimer > 0 || ship.invulnerableTimer > 0) return false; let gameOver = false; if (comboCounter > 0) { if (maxComboReached >= 3) { let bonusPoints = maxComboReached * 5; let bonusMoney = floor(maxComboReached / 3); points += bonusPoints; money += bonusMoney; infoMessage = `Combo Broken! Bonus: +${bonusPoints} PTS, +$${bonusMoney} (Max: x${maxComboReached})`; infoMessageTimeout = 120; } comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; } if (ship.tempShieldActive) { ship.tempShieldActive = false; createParticles(ship.pos.x, ship.pos.y, 40, color(45, 100, 100), 5, 2.0); infoMessage = "TEMPORARY SHIELD LOST!"; infoMessageTimeout = 90; if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(45,90,100)); sourceArray.splice(index, 1); } } else if (ship.shieldCharges > 0) { ship.loseShield(); createParticles(ship.pos.x, ship.pos.y, 35, color(180, 80, 100), 4, 1.8); if (sourceObject instanceof EnemyBullet && sourceArray && index !== undefined) { createParticles(sourceObject.pos.x, sourceObject.pos.y, 5, color(180,80,100)); sourceArray.splice(index, 1); } } else { lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 120; } if (lives <= 0) { gameState = GAME_STATE.GAME_OVER; infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW); gameOver = true; } else { ship.setInvulnerable(); } if (sourceObject && sourceArray && index !== undefined && sourceArray.includes(sourceObject)) { let explosionColor = (sourceObject.getExplosionColor) ? sourceObject.getExplosionColor() : (sourceObject.color || color(0,0,50)); let particleCount = sourceObject.size ? floor(sourceObject.size * 1.2) : 20; if (sourceObject instanceof EnemyBullet) { particleCount = 8; } createParticles(sourceObject.pos.x, sourceObject.pos.y, particleCount, explosionColor, sourceObject.size * 0.2); if (sourceObject instanceof KamikazeEnemy) { createParticles(sourceObject.pos.x, sourceObject.pos.y, floor(sourceObject.size * 1.5), sourceObject.getExplosionColor(), sourceObject.size * 0.3, 1.5, 1.2); } sourceArray.splice(index, 1); } } return gameOver; };
         for (let i = asteroids.length - 1; i >= 0; i--) { if (asteroids[i] && asteroids[i].hitsShip(ship)) { if (takeDamage(asteroids[i], asteroids, i)) return; break; } }
-        // Check Enemies vs Player
         if (gameState === GAME_STATE.PLAYING) { for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (enemy && enemy.hitsShip(ship)) { if (takeDamage(enemy, enemyShips, i)) return; break; } } }
-        // Check Enemy Bullets vs Player
         if (gameState === GAME_STATE.PLAYING) { for (let i = enemyBullets.length - 1; i >= 0; i--) { if (enemyBullets[i] && enemyBullets[i].hitsShip(ship)) { if (takeDamage(enemyBullets[i], enemyBullets, i)) return; break; } } }
-    } // End player collision check
+    }
 }
 function handlePotions() {
     if (gameState !== GAME_STATE.PLAYING || isPaused) { for (let i = potions.length - 1; i >= 0; i--) { potions[i].draw(); } return; }
@@ -621,44 +524,38 @@ function displayHUD() {
 }
 function displayInfoMessage() {
     let msgSize = isMobile ? 15 : 18; textSize(msgSize); textAlign(CENTER, CENTER);
-    let msgWidth = textWidth(infoMessage); let padding = 10; let boxH = msgSize + padding;
+    let msgWidth = textWidth(infoMessage); let padding = BUTTON_TEXT_PADDING; // Use constant
+    let boxW = msgWidth + padding * 2; let boxH = msgSize + padding;
+    let boxX = width / 2 - boxW / 2;
+    // Ensure box doesn't go off screen horizontally
+    boxX = constrain(boxX, padding, width - boxW - padding);
     let boxY = height - boxH - (isMobile? 15 : 30);
-    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(width/2 - msgWidth/2 - padding, boxY, msgWidth + padding*2, boxH, 5);
-    fill(uiTextColor); noStroke(); text(infoMessage, width / 2, boxY + boxH / 2);
+    fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(1.5); rect(boxX, boxY, boxW, boxH, 5);
+    fill(uiTextColor); noStroke(); text(infoMessage, boxX + boxW / 2, boxY + boxH / 2);
 }
 function displayComboText() { if (showComboText && comboCounter >= 2) { let comboSize = isMobile ? 28 : 36; let comboY = height * 0.25; let alpha = map(comboTextTimeout, 0, 60, 0, 100); push(); textAlign(CENTER, CENTER); textSize(comboSize); let scaleFactor = 1.0 + sin(map(comboTextTimeout, 60, 0, 0, PI)) * 0.08; translate(width / 2, comboY); scale(scaleFactor); stroke(0, 0, 0, alpha * 0.8); strokeWeight(4); fill(uiHighlightColor); text(`COMBO x${comboCounter}!`, 0, 0); noStroke(); fill(255); pop(); } }
 
 // --- Game State Control ---
 function resetGame() {
-    ship = new Ship(); // Uses selected cosmetics now
-    bullets = []; homingMissiles = []; laserBeams = [];
-    particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
+    initializeCosmetics(); // Reset selected cosmetics and unlock status
+    ship = new Ship(); // Create ship *after* initializing cosmetics
+    bullets = []; homingMissiles = []; laserBeams = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = [];
     points = 0; money = 0; lives = 3; currentLevel = 1;
     setDifficultyForLevel(currentLevel);
-    lastPlanetAppearanceTime = -Infinity; planetVisible = false;
-    frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
-    screenShakeDuration = 0; screenShakeIntensity = 0;
-    isPaused = false; levelTransitionFlash = 0;
-    comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
-    spacebarHeld = false;
-    cursor(); // Reset cursor
-    spawnInitialAsteroids();
-    checkAndUnlockCosmetics(currentLevel); // Ensure level 1 cosmetics are marked unlocked
+    lastPlanetAppearanceTime = -Infinity; planetVisible = false; frameCount = 0; infoMessage = ""; infoMessageTimeout = 0;
+    screenShakeDuration = 0; screenShakeIntensity = 0; isPaused = false; levelTransitionFlash = 0;
+    comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0; spacebarHeld = false;
+    cursor(); spawnInitialAsteroids();
+    // checkAndUnlockCosmetics(currentLevel); // Already done in initializeCosmetics
 }
 function startGame() { resetGame(); gameState = GAME_STATE.PLAYING; }
 function startNextLevel() {
     if (gameState !== GAME_STATE.UPGRADE_SHOP) return;
-    currentLevel++;
-    checkAndUnlockCosmetics(currentLevel); // Check unlocks for the level being started
-    setDifficultyForLevel(currentLevel);
-    ship.resetPositionForNewLevel();
-    if (ship.homingMissilesLevel > 0) { ship.currentMissiles = ship.maxMissiles; }
+    currentLevel++; checkAndUnlockCosmetics(currentLevel); setDifficultyForLevel(currentLevel);
+    ship.resetPositionForNewLevel(); if (ship.homingMissilesLevel > 0) { ship.currentMissiles = ship.maxMissiles; }
     asteroids = []; bullets = []; homingMissiles = []; laserBeams = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
-    frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90;
-    levelTransitionFlash = 15;
-    spawnInitialAsteroids();
-    gameState = GAME_STATE.PLAYING;
-    cursor();
+    frameCount = 0; infoMessage = `Starting Level ${currentLevel}`; infoMessageTimeout = 90; levelTransitionFlash = 15;
+    spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
 function selectMenuItem(index) {
     switch (menuItems[index]) {
@@ -668,24 +565,17 @@ function selectMenuItem(index) {
     }
 }
 function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor();} selectedMenuItem = 0; break; } }
-// Function to handle actions in the cosmetics menu
 function selectCosmeticsItemAction(index) {
     let setting = cosmeticsItems[index];
-    if (setting.id === 'back') {
-        gameState = previousGameState;
-        if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor(); }
-        selectedMenuItem = 0;
-        return;
-    }
+    if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING) { isPaused = false; cursor(); } selectedMenuItem = 0; return; }
     if (setting.type === 'cycle') {
-        let category = setting.category; // e.g., 'palettes'
-        let selectedKey = selectedCosmetics[category.slice(0,-1)]; // e.g., 'palette'
-        let unlockedKeys = Object.keys(unlockedCosmetics[category]);
-        let currentIndex = unlockedKeys.indexOf(selectedKey);
-        if (currentIndex === -1) currentIndex = 0; // Fallback if somehow invalid
+        let category = setting.category; let selectedKey = selectedCosmetics[category.slice(0,-1)];
+        let unlockedKeys = Object.keys(cosmetics[category]).filter(key => unlockedCosmetics[category][key]); // Get only unlocked keys
+        if(unlockedKeys.length === 0) return; // Should not happen if default is always unlocked
+        let currentIndex = unlockedKeys.indexOf(selectedKey); if (currentIndex === -1) currentIndex = 0;
         let nextIndex = (currentIndex + 1) % unlockedKeys.length;
         selectedCosmetics[category.slice(0,-1)] = unlockedKeys[nextIndex];
-        if (ship) { ship.applyCosmetics(); } // Apply immediately if ship exists (e.g., if accessed via pause)
+        if (ship) { ship.applyCosmetics(); } // Apply immediately if ship exists
     }
 }
 
@@ -700,7 +590,7 @@ function mousePressed() {
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsItem = i; selectCosmeticsItemAction(i); return; } } break; // Added cosmetics menu handling
         case GAME_STATE.PLAYING: if (!isPaused && ship) { let hitMobileUI = false; if (isMobile) { let misBtn = mobileMissileButton; let lasBtn = mobileLaserButton; if (mouseX > btn.x && mouseX < btn.x + btn.size + btn.padding*2 && mouseY > btn.y && mouseY < btn.y + btn.size + btn.padding*2) hitMobileUI = true; if (!hitMobileUI && ship.homingMissilesLevel > 0 && mouseX > misBtn.x && mouseX < misBtn.x + misBtn.size && mouseY > misBtn.y && mouseY < misBtn.y + misBtn.size) hitMobileUI = true; if (!hitMobileUI && ship.laserBeamLevel > 0 && mouseX > lasBtn.x && mouseX < lasBtn.x + lasBtn.size && mouseY > lasBtn.y && mouseY < lasBtn.y + lasBtn.size) hitMobileUI = true; } if (!hitMobileUI) { ship.shoot(); } } break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
-        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; initializeCosmetics(); break; // Reset cosmetics on returning to menu
+        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break; // initializeCosmetics happens in resetGame if started
     }
 }
 function mouseReleased() { /* No action needed */ }
@@ -715,7 +605,7 @@ function keyPressed() {
     else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsItem = (selectedCosmeticsItem - 1 + cosmeticsItems.length) % cosmeticsItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsItem = (selectedCosmeticsItem + 1) % cosmeticsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsItem); } } // Added cosmetics menu navigation
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } if (keyCode === 76) { ship.fireLaser(); return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; initializeCosmetics(); } } // Reset cosmetics
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } } // initializeCosmetics happens in resetGame if started
 }
 function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } } // Just reset flag
 function touchStarted() {
@@ -727,7 +617,7 @@ function touchStarted() {
     else if (gameState === GAME_STATE.START_MENU) { for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return false; } } return false; }
     else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return false; } } return false; }
     else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsItem = i; selectCosmeticsItemAction(i); return false; } } return false; } // Added cosmetics touch
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; initializeCosmetics(); return false; } // Reset cosmetics
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; return false; } // initializeCosmetics happens in resetGame if started
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); return false; } } return false; }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { let hitUI = false; if (isMobile) { if (touchX > setBtn.x && touchX < setBtn.x + setBtn.size + setBtn.padding*2 && touchY > setBtn.y && touchY < setBtn.y + setBtn.size + setBtn.padding*2) hitUI = true; if (!hitUI && ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) hitUI = true; if (!hitUI && ship.laserBeamLevel > 0 && touchX > lasBtn.x && touchX < lasBtn.x + lasBtn.size && touchY > lasBtn.y && touchY < lasBtn.y + lasBtn.size) hitUI = true; } if (!hitUI) { ship.shoot(); } return false; }
     return false;
@@ -743,184 +633,88 @@ function windowResized() { resizeCanvas(windowWidth, windowHeight); createStarfi
 // ======================================================================
 
 // Ship Class
-// MODIFIED: Apply cosmetic colors in constructor and draw, applyCosmetics method added
 class Ship {
     constructor() {
-        this.pos = createVector(width / 2, height - 50);
-        this.vel = createVector(0, 0);
-        this.thrust = 0.38;
-        this.touchThrustMultiplier = 1.15;
-        this.friction = 0.975;
-        this.maxSpeed = 9.5;
-        this.size = 30;
-
-        // Cosmetic Color Placeholders - set by applyCosmetics
-        this.bodyColor = null; this.cockpitColor = null; this.wingColor = null;
-        this.detailColor1 = null; this.detailColor2 = null;
-        this.engineColor1 = null; this.engineColor2 = null;
+        this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
+        this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975; this.maxSpeed = 9.5; this.size = 30;
+        this.bodyColor = null; this.cockpitColor = null; this.wingColor = null; this.detailColor1 = null; this.detailColor2 = null; this.engineColor1 = null; this.engineColor2 = null;
         this.applyCosmetics(); // Apply initially selected cosmetics
-
-        this.shapeState = 0;
-        this.shootCooldown = 0;
-        this.baseShootDelay = 15;
-        this.shootDelayPerLevel = 2;
-        this.shieldCharges = 0;
-        this.shieldVisualRadius = this.size * 1.3;
-        this.invulnerableTimer = 0;
-        this.invulnerabilityDuration = 120;
-        this.hoverOffset = 0;
-        this.rapidFireTimer = 0;
-        this.tempShieldActive = false;
-        this.fireRateLevel = 0;
-        this.spreadShotLevel = 0;
-        this.maxUpgradeLevel = 5;
+        this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2; this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.3; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.hoverOffset = 0; this.rapidFireTimer = 0; this.tempShieldActive = false;
+        this.fireRateLevel = 0; this.spreadShotLevel = 0; this.maxUpgradeLevel = 5;
         this.rearGunLevel = 0; this.maxRearGunLevel = 3; this.rearGunDelayFactor = [0, 1.5, 1.2, 1.0];
         this.homingMissilesLevel = 0; this.maxMissileLevel = 4; this.missileCapacity = [0, 2, 3, 4, 5]; this.missileDamage = [0, 3, 4, 5, 6]; this.missileRegenTime = [0, 480, 420, 360, 300]; this.maxMissiles = 0; this.currentMissiles = 0; this.missileRegenTimer = 0; this.missileCooldown = 0; this.missileColor = color(30, 90, 100);
         this.laserBeamLevel = 0; this.maxLaserLevel = 3; this.laserDamageFactor = [0, 1.0, 1.5, 2.0]; this.laserDurationTime = [0, 120, 150, 180]; this.laserCooldownTime = [0, 400, 350, 300]; this.laserActive = false; this.laserDuration = 0; this.laserCooldown = 0; this.laserColor = color(0, 90, 100);
         this.baseUpgradeCost = 30; this.costMultiplier = 2.0; this.specialCostMultiplier = 2.5;
-        this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1;
-        this.droneActive = false; this.drone = null;
-        this.invincibilityTimer = 0;
+        this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0;
     }
-
     applyCosmetics() {
-        let palette = cosmetics.palettes[selectedCosmetics.palette];
-        if (!palette) palette = cosmetics.palettes['default']; // Fallback
-        this.bodyColor = color(palette.body[0], palette.body[1], palette.body[2]);
-        this.cockpitColor = color(palette.cockpit[0], palette.cockpit[1], palette.cockpit[2]);
-        this.wingColor = color(palette.wing[0], palette.wing[1], palette.wing[2]);
-        this.detailColor1 = color(palette.detail1[0], palette.detail1[1], palette.detail1[2]);
-        this.detailColor2 = color(palette.detail2[0], palette.detail2[1], palette.detail2[2]);
-
-        let trail = cosmetics.engineTrails[selectedCosmetics.engineTrail];
-        if (!trail) trail = cosmetics.engineTrails['default']; // Fallback
-        this.engineColor1 = color(trail.color1[0], trail.color1[1], trail.color1[2]);
-        this.engineColor2 = color(trail.color2[0], trail.color2[1], trail.color2[2]);
-        // Bullet style is applied in the Bullet class itself based on global selectedCosmetics.bulletStyle
+        let paletteKey = selectedCosmetics.palette; if (!unlockedCosmetics.palettes[paletteKey]) paletteKey = 'default'; let palette = cosmetics.palettes[paletteKey];
+        this.bodyColor = color(palette.body[0], palette.body[1], palette.body[2]); this.cockpitColor = color(palette.cockpit[0], palette.cockpit[1], palette.cockpit[2]); this.wingColor = color(palette.wing[0], palette.wing[1], palette.wing[2]); this.detailColor1 = color(palette.detail1[0], palette.detail1[1], palette.detail1[2]); this.detailColor2 = color(palette.detail2[0], palette.detail2[1], palette.detail2[2]);
+        let trailKey = selectedCosmetics.engineTrail; if (!unlockedCosmetics.engineTrails[trailKey]) trailKey = 'default'; let trail = cosmetics.engineTrails[trailKey];
+        this.engineColor1 = color(trail.color1[0], trail.color1[1], trail.color1[2]); this.engineColor2 = color(trail.color2[0], trail.color2[1], trail.color2[2]);
     }
-
     gainShields(amount) { let currentCharges = this.shieldCharges; this.shieldCharges = min(this.shieldCharges + amount, MAX_SHIELD_CHARGES); return this.shieldCharges - currentCharges; }
     loseShield() { if (this.shieldCharges > 0) { this.shieldCharges--; } }
     setInvulnerable() { this.invulnerableTimer = this.invulnerabilityDuration; }
     changeShape(level) { this.shapeState = min(1, floor(level / 2)); }
     get currentShootDelay() { if (this.rapidFireTimer > 0) { return 2; } else { return max(3, this.baseShootDelay - (this.fireRateLevel * this.shootDelayPerLevel)); } }
-
-    getUpgradeCost(upgradeType) {
-        let level, maxLevel, multiplier = this.costMultiplier;
-        switch (upgradeType) { case 'fireRate': level = this.fireRateLevel; maxLevel = this.maxUpgradeLevel; break; case 'spreadShot': level = this.spreadShotLevel; maxLevel = this.maxUpgradeLevel; break; case 'rearGun': level = this.rearGunLevel; maxLevel = this.maxRearGunLevel; multiplier = this.costMultiplier * 0.8; break; case 'homingMissiles': level = this.homingMissilesLevel; maxLevel = this.maxMissileLevel; multiplier = this.specialCostMultiplier; break; case 'laserBeam': level = this.laserBeamLevel; maxLevel = this.maxLaserLevel; multiplier = this.specialCostMultiplier; break; default: return Infinity; }
-        if (level >= maxLevel) return "MAX";
-        return floor(this.baseUpgradeCost * pow(multiplier, level));
-    }
-
-    attemptUpgrade(upgradeType) {
-        let cost = this.getUpgradeCost(upgradeType); if (typeof cost !== 'number' || money < cost) return false; money -= cost;
-        switch (upgradeType) { case 'fireRate': this.fireRateLevel++; break; case 'spreadShot': this.spreadShotLevel++; break; case 'rearGun': this.rearGunLevel++; break; case 'homingMissiles': this.homingMissilesLevel++; this.maxMissiles = this.missileCapacity[this.homingMissilesLevel]; break; case 'laserBeam': this.laserBeamLevel++; break; default: money += cost; return false; }
-        return true;
-    }
-
+    getUpgradeCost(upgradeType) { let level, maxLevel, multiplier = this.costMultiplier; switch (upgradeType) { case 'fireRate': level = this.fireRateLevel; maxLevel = this.maxUpgradeLevel; break; case 'spreadShot': level = this.spreadShotLevel; maxLevel = this.maxUpgradeLevel; break; case 'rearGun': level = this.rearGunLevel; maxLevel = this.maxRearGunLevel; multiplier = this.costMultiplier * 0.8; break; case 'homingMissiles': level = this.homingMissilesLevel; maxLevel = this.maxMissileLevel; multiplier = this.specialCostMultiplier; break; case 'laserBeam': level = this.laserBeamLevel; maxLevel = this.maxLaserLevel; multiplier = this.specialCostMultiplier; break; default: return Infinity; } if (level >= maxLevel) return "MAX"; return floor(this.baseUpgradeCost * pow(multiplier, level)); }
+    attemptUpgrade(upgradeType) { let cost = this.getUpgradeCost(upgradeType); if (typeof cost !== 'number' || money < cost) return false; money -= cost; switch (upgradeType) { case 'fireRate': this.fireRateLevel++; break; case 'spreadShot': this.spreadShotLevel++; break; case 'rearGun': this.rearGunLevel++; break; case 'homingMissiles': this.homingMissilesLevel++; this.maxMissiles = this.missileCapacity[this.homingMissilesLevel]; break; case 'laserBeam': this.laserBeamLevel++; break; default: money += cost; return false; } return true; }
     resetPositionForNewLevel() { this.pos.set(width / 2, height - 50); this.vel.set(0, 0); this.invulnerableTimer = 60; this.rapidFireTimer = 0; this.tempShieldActive = false; this.laserActive = false; this.laserDuration = 0; this.laserCooldown = 0; this.missileCooldown = 0; this.scoreMultiplierTimer = 0; this.scoreMultiplierValue = 1; this.droneActive = false; this.drone = null; this.invincibilityTimer = 0; }
-
     update() {
-        // Timers
         if (this.invulnerableTimer > 0) { this.invulnerableTimer--; } if (this.rapidFireTimer > 0) { this.rapidFireTimer--; } if (this.shootCooldown > 0) { this.shootCooldown--; } if (this.missileCooldown > 0) { this.missileCooldown--; } if (this.laserCooldown > 0) { this.laserCooldown--; } if (this.scoreMultiplierTimer > 0) { this.scoreMultiplierTimer--; if(this.scoreMultiplierTimer <= 0) this.scoreMultiplierValue = 1;} if (this.invincibilityTimer > 0) { this.invincibilityTimer--; }
-        // Drone
         if (this.droneActive && this.drone && this.drone.isExpired()) { this.droneActive = false; this.drone = null; infoMessage = "Drone Deactivated"; infoMessageTimeout = 90; createParticles(this.pos.x, this.pos.y, 15, color(180, 50, 80), 4, 1.5, 0.8); }
-        // Laser
         if (this.laserActive) { this.laserDuration--; if (this.laserDuration <= 0) { this.laserActive = false; this.laserCooldown = this.laserCooldownTime[this.laserBeamLevel]; laserBeams = []; } }
-        // Missile Regen
         if (this.homingMissilesLevel > 0 && this.currentMissiles < this.maxMissiles) { this.missileRegenTimer--; if (this.missileRegenTimer <= 0) { this.currentMissiles++; this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; } } else if (this.homingMissilesLevel > 0) { this.missileRegenTimer = this.missileRegenTime[this.homingMissilesLevel]; }
-
-        // --- Player Input & Movement ---
-        this.hoverOffset = sin(frameCount * 0.05) * 2;
-        let isTouching = isMobile && touches.length > 0; let acceleration = createVector(0, 0); let applyThrustParticles = false;
+        this.hoverOffset = sin(frameCount * 0.05) * 2; let isTouching = isMobile && touches.length > 0; let acceleration = createVector(0, 0); let applyThrustParticles = false;
         if (isTouching) { let touchPos = createVector(touches[0].x, touches[0].y); let direction = p5.Vector.sub(touchPos, this.pos); if (direction.magSq() > (this.size * 0.5) * (this.size * 0.5)) { let targetVel = direction.copy().normalize().mult(this.maxSpeed * this.touchThrustMultiplier); this.vel.lerp(targetVel, 0.15); applyThrustParticles = this.vel.magSq() > 0.1; } else { this.vel.mult(this.friction); } }
         else { let currentThrust = this.thrust; if (!isMobile) { currentThrust *= 1.5; } let movingUp = keyIsDown(UP_ARROW) || keyIsDown(87); let movingDown = keyIsDown(DOWN_ARROW) || keyIsDown(83); let movingLeft = keyIsDown(LEFT_ARROW) || keyIsDown(65); let movingRight = keyIsDown(RIGHT_ARROW) || keyIsDown(68); if (movingUp) { acceleration.y -= currentThrust; applyThrustParticles = true;} if (movingDown) { acceleration.y += currentThrust; } if (movingLeft) { acceleration.x -= currentThrust; applyThrustParticles = true;} if (movingRight) { acceleration.x += currentThrust; applyThrustParticles = true;} this.vel.add(acceleration); this.vel.mult(this.friction); }
-        if (applyThrustParticles && frameCount % 3 === 0) { // Use cosmetic engine colors
-            let thrustColor = lerpColor(this.engineColor1, this.engineColor2, random(0.3, 0.7)); createParticles(this.pos.x, this.pos.y + this.size * 0.6, 1, thrustColor, 3, 1.5, 0.5); }
-
-        this.vel.limit(this.maxSpeed); this.pos.add(this.vel);
-        let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin);
-        // Auto-Fire
+        if (applyThrustParticles && frameCount % 3 === 0) { let thrustColor = lerpColor(this.engineColor1, this.engineColor2, random(0.3, 0.7)); createParticles(this.pos.x, this.pos.y + this.size * 0.6, 1, thrustColor, 3, 1.5, 0.5); }
+        this.vel.limit(this.maxSpeed); this.pos.add(this.vel); let margin = this.size * 0.7; this.pos.x = constrain(this.pos.x, margin, width - margin); this.pos.y = constrain(this.pos.y, margin, height - margin);
         if (!isMobile && keyIsDown(32) && gameState === GAME_STATE.PLAYING && !isPaused && !this.laserActive) { this.shoot(); }
     }
-
     shoot() {
         if (this.shootCooldown <= 0 && !this.laserActive) {
-            let originY = this.pos.y - this.size * 0.7 + this.hoverOffset;
-            let originPoints = [createVector(this.pos.x, originY)]; let numShots = 1; let spreadAngle = 0;
+            let originY = this.pos.y - this.size * 0.7 + this.hoverOffset; let originPoints = [createVector(this.pos.x, originY)]; let numShots = 1; let spreadAngle = 0;
             if (this.spreadShotLevel >= 1 && this.spreadShotLevel <= 2) { let offset = this.size * 0.15; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; numShots = 3; spreadAngle = PI / 20; }
             else if (this.spreadShotLevel >= 3 && this.spreadShotLevel <= 4) { let offset = this.size * 0.2; originPoints = [ createVector(this.pos.x - offset, originY + 5), createVector(this.pos.x, originY), createVector(this.pos.x + offset, originY + 5) ]; numShots = 3; spreadAngle = PI / 15; }
             else if (this.spreadShotLevel >= this.maxUpgradeLevel) { let offset1 = this.size * 0.25; let offset2 = this.size * 0.1; originPoints = [ createVector(this.pos.x - offset1, originY + 8), createVector(this.pos.x - offset2, originY + 3), createVector(this.pos.x, originY), createVector(this.pos.x + offset2, originY + 3), createVector(this.pos.x + offset1, originY + 8) ]; numShots = 5; spreadAngle = PI / 12; }
             for (let i = 0; i < numShots; i++) { let angle = 0; if (numShots > 1) { angle = map(i, 0, numShots - 1, -spreadAngle, spreadAngle); } let origin = originPoints[i] || originPoints[0]; bullets.push(new Bullet(origin.x, origin.y, angle)); }
-            this.fireRearGun();
-            let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
+            this.fireRearGun(); let rearGunFactor = (this.rearGunLevel > 0) ? this.rearGunDelayFactor[this.rearGunLevel] : 1.0; this.shootCooldown = this.currentShootDelay * rearGunFactor;
         }
     }
-
-    fireMissile() {
-         if (this.homingMissilesLevel > 0 && this.currentMissiles > 0 && this.missileCooldown <= 0 && !this.laserActive) { let originY = this.pos.y + this.hoverOffset; let originXOffset = this.size * 0.4; let side = (this.currentMissiles % 2 === 0) ? -1 : 1; homingMissiles.push(new HomingMissile(this.pos.x + originXOffset * side, originY, this.missileDamage[this.homingMissilesLevel], this.missileColor)); this.currentMissiles--; this.missileCooldown = 20; createParticles(this.pos.x + originXOffset * side, originY, 10, this.missileColor, 3, 1.8, 0.6); }
-    }
-
-    fireLaser() {
-         if (this.laserBeamLevel > 0 && !this.laserActive && this.laserCooldown <= 0) { this.laserActive = true; this.laserDuration = this.laserDurationTime[this.laserBeamLevel]; laserBeams.push(new LaserBeam(this, this.laserColor, 5 + this.laserBeamLevel * 1.5)); createParticles(this.pos.x, this.pos.y - this.size*0.7, 30, this.laserColor, 5, 1.0, 0.5); }
-    }
-
+    fireMissile() { if (this.homingMissilesLevel > 0 && this.currentMissiles > 0 && this.missileCooldown <= 0 && !this.laserActive) { let originY = this.pos.y + this.hoverOffset; let originXOffset = this.size * 0.4; let side = (this.currentMissiles % 2 === 0) ? -1 : 1; homingMissiles.push(new HomingMissile(this.pos.x + originXOffset * side, originY, this.missileDamage[this.homingMissilesLevel], this.missileColor)); this.currentMissiles--; this.missileCooldown = 20; createParticles(this.pos.x + originXOffset * side, originY, 10, this.missileColor, 3, 1.8, 0.6); } }
+    fireLaser() { if (this.laserBeamLevel > 0 && !this.laserActive && this.laserCooldown <= 0) { this.laserActive = true; this.laserDuration = this.laserDurationTime[this.laserBeamLevel]; laserBeams.push(new LaserBeam(this, this.laserColor, 5 + this.laserBeamLevel * 1.5)); createParticles(this.pos.x, this.pos.y - this.size*0.7, 30, this.laserColor, 5, 1.0, 0.5); } }
     fireRearGun() { if (this.rearGunLevel > 0) { let originY = this.pos.y + this.size * 0.6 + this.hoverOffset; let numRearShots = this.rearGunLevel; let rearSpread = PI / 18; for (let i = 0; i < numRearShots; i++) { let angle = PI / 2; if (numRearShots > 1) { angle += map(i, 0, numRearShots - 1, -rearSpread, rearSpread); } bullets.push(new Bullet(this.pos.x, originY, angle)); } } }
-
     draw() {
-        let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0;
-        let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5);
-
+        let showInvulnerableEffect = this.invulnerableTimer > 0 || this.invincibilityTimer > 0; let drawShip = !showInvulnerableEffect || (showInvulnerableEffect && frameCount % 10 < 5);
         if (drawShip) {
             push(); translate(this.pos.x, this.pos.y + this.hoverOffset);
-            // Draw Shield Effects (unchanged)
             if (this.invincibilityTimer > 0) { let invincibilityAlpha = map(sin(frameCount * 0.5), -1, 1, 40, 90); let invincibilityColor = color(0, 0, 100); fill(invincibilityColor, invincibilityAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); strokeWeight(3); stroke(invincibilityColor, invincibilityAlpha + 20); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.5, this.shieldVisualRadius * 2.5); }
             else if (this.tempShieldActive) { let tempShieldAlpha = map(sin(frameCount * 0.3), -1, 1, 60, 100); let tempShieldHue = 45; fill(tempShieldHue, 90, 100, tempShieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); strokeWeight(2.5); stroke(tempShieldHue, 100, 100, tempShieldAlpha + 25); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.3, this.shieldVisualRadius * 2.3); }
             else if (this.shieldCharges > 0) { let shieldAlpha = map(sin(frameCount * 0.2), -1, 1, 50, 90); let shieldHue = 180; fill(shieldHue, 80, 100, shieldAlpha); noStroke(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); strokeWeight(2); stroke(shieldHue, 90, 100, shieldAlpha + 35); noFill(); ellipse(0, 0, this.shieldVisualRadius * 2.1, this.shieldVisualRadius * 2.1); }
-
-            // Draw Engine Glow (Uses cosmetic colors)
-            let enginePulseFactor = 1.0 + this.vel.mag() * 0.04; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke();
-            // Use this.engineColor1 and this.engineColor2 (already p5.Color objects)
-            let engineY = this.size * 0.6;
-            for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(this.engineColor2), saturation(this.engineColor2), engineBrightness, alpha); ellipse(0, engineY, i * 0.8, i * 1.2); }
-            fill(hue(this.engineColor1), saturation(this.engineColor1), 100); ellipse(0, engineY, engineSize * 0.5, engineSize * 1.0);
-
-            // Draw Ship Body (Uses cosmetic colors)
-            let s = this.size; let bodyW = s * 0.5; let wingW = s * (this.shapeState === 0 ? 1.1 : 1.3); let wingH = s * 0.8; let noseL = s * 0.8;
-            // Use this.bodyColor, this.wingColor, this.detailColor1, this.detailColor2
-            strokeWeight(1.5); stroke(this.detailColor1); fill(this.wingColor); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -bodyW * 0.7, s * 0.6); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, bodyW * 0.7, s * 0.6);
-            // Brighter wing highlight
-            fill(hue(this.wingColor), saturation(this.wingColor), brightness(this.wingColor)*1.2); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -wingW * 0.4, s * 0.0); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, wingW * 0.4, s * 0.0);
-            // Main body
-            fill(this.bodyColor); quad( 0, -noseL, bodyW / 2, s * 0.1, 0, s * 0.4, -bodyW / 2, s * 0.1 );
-            // Shape state additions
-            if (this.shapeState === 1) { fill(this.wingColor); triangle(0, s*0.4, -s*0.2, s*0.7, s*0.2, s*0.7); quad(-bodyW*0.7, s*0.6, -bodyW*0.6, s*0.8, -wingW*0.4, s*0.7, -wingW/2, s*0.5); quad( bodyW*0.7, s*0.6,  bodyW*0.6, s*0.8,  wingW*0.4, s*0.7,  wingW/2, s*0.5); }
-            // Cockpit
-            let cockpitY = -s * 0.15; let cockpitW = s * 0.4; let cockpitH = s * 0.6; fill(this.cockpitColor); ellipse(0, cockpitY, cockpitW, cockpitH); noStroke(); fill(0, 0, 100, 50); ellipse(0, cockpitY - cockpitH * 0.1, cockpitW * 0.7, cockpitH * 0.4);
-            // Detail lines
-            strokeWeight(1); stroke(this.detailColor2); line(0, -noseL * 0.8, 0, cockpitY + cockpitH / 2); line(-bodyW / 2, s * 0.1, -wingW * 0.4, s * 0.0); line( bodyW / 2, s * 0.1, wingW * 0.4, s * 0.0); if (this.shapeState === 1) { line(-bodyW*0.3, s*0.0, -bodyW*0.4, s*0.3); line( bodyW*0.3, s*0.0,  bodyW*0.4, s*0.3); }
-
+            let enginePulseFactor = 1.0 + this.vel.mag() * 0.04; let pulseSpeed = (this.rapidFireTimer > 0) ? 0.5 : 0.25; let enginePulse = map(sin(frameCount * pulseSpeed), -1, 1, 0.8, 1.3) * enginePulseFactor; let engineSize = this.size * 0.55 * enginePulse; let engineBrightness = map(sin(frameCount * 0.35), -1, 1, 85, 100); noStroke(); let engineY = this.size * 0.6; for (let i = engineSize * 1.2; i > 0; i -= 3) { let alpha = map(i, 0, engineSize * 1.2, 0, 30); fill(hue(this.engineColor2), saturation(this.engineColor2), engineBrightness, alpha); ellipse(0, engineY, i * 0.8, i * 1.2); } fill(hue(this.engineColor1), saturation(this.engineColor1), 100); ellipse(0, engineY, engineSize * 0.5, engineSize * 1.0);
+            let s = this.size; let bodyW = s * 0.5; let wingW = s * (this.shapeState === 0 ? 1.1 : 1.3); let wingH = s * 0.8; let noseL = s * 0.8; strokeWeight(1.5); stroke(this.detailColor1); fill(this.wingColor); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -bodyW * 0.7, s * 0.6); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, bodyW * 0.7, s * 0.6); fill(hue(this.wingColor), saturation(this.wingColor), brightness(this.wingColor)*1.2); triangle(-bodyW / 2, s * 0.1, -wingW / 2, s * 0.5, -wingW * 0.4, s * 0.0); triangle( bodyW / 2, s * 0.1, wingW / 2, s * 0.5, wingW * 0.4, s * 0.0); fill(this.bodyColor); quad( 0, -noseL, bodyW / 2, s * 0.1, 0, s * 0.4, -bodyW / 2, s * 0.1 ); if (this.shapeState === 1) { fill(this.wingColor); triangle(0, s*0.4, -s*0.2, s*0.7, s*0.2, s*0.7); quad(-bodyW*0.7, s*0.6, -bodyW*0.6, s*0.8, -wingW*0.4, s*0.7, -wingW/2, s*0.5); quad( bodyW*0.7, s*0.6,  bodyW*0.6, s*0.8,  wingW*0.4, s*0.7,  wingW/2, s*0.5); }
+            let cockpitY = -s * 0.15; let cockpitW = s * 0.4; let cockpitH = s * 0.6; fill(this.cockpitColor); ellipse(0, cockpitY, cockpitW, cockpitH); noStroke(); fill(0, 0, 100, 50); ellipse(0, cockpitY - cockpitH * 0.1, cockpitW * 0.7, cockpitH * 0.4); strokeWeight(1); stroke(this.detailColor2); line(0, -noseL * 0.8, 0, cockpitY + cockpitH / 2); line(-bodyW / 2, s * 0.1, -wingW * 0.4, s * 0.0); line( bodyW / 2, s * 0.1, wingW * 0.4, s * 0.0); if (this.shapeState === 1) { line(-bodyW*0.3, s*0.0, -bodyW*0.4, s*0.3); line( bodyW*0.3, s*0.0,  bodyW*0.4, s*0.3); }
             pop();
         }
     }
 }
 
-
 // Projectile Classes
-// MODIFIED: Bullet uses selectedCosmetics.bulletStyle
 class Bullet {
     constructor(x, y, angle = 0) {
         this.pos = createVector(x, y); this.speed = 17; this.size = 5.5;
-        this.style = cosmetics.bulletStyles[selectedCosmetics.bulletStyle] || cosmetics.bulletStyles['rainbow'];
+        let styleKey = selectedCosmetics.bulletStyle; if (!unlockedCosmetics.bulletStyles[styleKey]) styleKey = 'rainbow'; // Fallback if selected not unlocked
+        this.style = cosmetics.bulletStyles[styleKey];
         this.hue = (this.style.type === 'fixed') ? this.style.hue : frameCount % 360;
         this.sat = (this.style.type === 'fixed') ? this.style.sat : 90;
         this.bri = (this.style.type === 'fixed') ? this.style.bri : 100;
         let baseAngle = -PI / 2; this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed);
-        this.trail = []; this.trailLength = (this.style.type === 'rainbow') ? 5 : 8; // Longer trail for fixed colors?
+        this.trail = []; this.trailLength = (this.style.type === 'rainbow') ? 5 : 7; // Adjusted trail length
     }
-    update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style.type === 'rainbow') { this.hue = (this.hue + 5) % 360; } } // Only cycle hue for rainbow
-    draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); // Slightly adjust main bullet color
-        stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
+    update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style.type === 'rainbow') { this.hue = (this.hue + 5) % 360; } }
+    draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); }
     isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); }
 }
 class HomingMissile { constructor(x, y, damage, color) { this.pos = createVector(x, y); this.vel = createVector(random(-1, 1), -random(4, 6)); this.acc = createVector(0, 0); this.maxSpeed = 8 + (ship?.homingMissilesLevel || 1) * 0.5; this.maxForce = 0.25 + (ship?.homingMissilesLevel || 1) * 0.05; this.size = 10; this.damage = damage; this.color = color; this.target = null; this.lifespan = 180; this.trail = []; this.trailLength = 8; } findTarget() { let closestDist = Infinity; let closestEnemy = null; for (let enemy of enemyShips) { let d = p5.Vector.dist(this.pos, enemy.pos); if (d < closestDist && d < width / 2) { closestDist = d; closestEnemy = enemy; } } this.target = closestEnemy; } seek() { if (!this.target || !enemyShips.includes(this.target)) { this.findTarget(); if (!this.target) { this.acc.mult(0); this.lifespan -= 2; return; } } let desired = p5.Vector.sub(this.target.pos, this.pos); desired.setMag(this.maxSpeed); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.maxForce); this.acc.add(steer); } update() { this.lifespan--; if (frameCount % 5 === 0 || !this.target) { this.findTarget(); } this.seek(); this.vel.add(this.acc); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); this.acc.mult(0); this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); noFill(); beginShape(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 60, 0); stroke(hue(this.color), saturation(this.color) * 0.8, brightness(this.color) * 0.9, alpha); strokeWeight(map(i, 0, this.trail.length - 1, this.size * 0.6, 1)); let relativePos = p5.Vector.sub(trailPos, this.pos); relativePos.rotate(-(this.vel.heading() + PI / 2)); vertex(relativePos.x, relativePos.y); } endShape(); fill(this.color); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.4, this.size * 0.5, this.size * 0.4, this.size * 0.5); fill(hue(this.color), saturation(this.color) * 0.7, brightness(this.color) * 0.7); rect(-this.size * 0.4, this.size * 0.2, this.size * 0.2, this.size * 0.5); rect(this.size * 0.2, this.size * 0.2, this.size * 0.2, this.size * 0.5); pop(); } isOffscreen() { let margin = this.size * 2; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } hits(target) { let d = dist(this.pos.x, this.pos.y, target.pos.x, target.pos.y); return d < this.size / 2 + target.size / 2; } }
@@ -949,3 +743,4 @@ class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 16, 1, 5,
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 // Nebula Class (Unchanged)
 class Nebula { constructor() { this.numEllipses = floor(random(10, 20)); this.ellipses = []; this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(3, 8); let overallWidth = random(width * 0.6, width * 1.4); let overallHeight = random(height * 0.4, height * 0.7); if (random(1) < 0.5) { this.pos = createVector(-overallWidth / 2, random(height)); this.vel = createVector(random(0.04, 0.12), random(-0.015, 0.015)); } else { this.pos = createVector(width + overallWidth / 2, random(height)); this.vel = createVector(random(-0.12, -0.04), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-50, 50)) % 360; this.color1 = color(h1, random(40, 75), random(15, 45)); this.color2 = color(h2, random(40, 75), random(15, 45)); for (let i = 0; i < this.numEllipses; i++) { this.ellipses.push({ pos: createVector(random(-overallWidth * 0.45, overallWidth * 0.45), random(-overallHeight * 0.45, overallHeight * 0.45)), w: random(overallWidth * 0.15, overallWidth * 0.7), h: random(overallHeight * 0.15, overallHeight * 0.7), alpha: this.baseAlpha * random(0.6, 1.4) }); } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); for (let el of this.ellipses) { let inter = map(el.pos.x, -width * 0.45, width * 0.45, 0, 1); let c = lerpColor(this.color1, this.color2, inter); fill(hue(c), saturation(c), brightness(c), el.alpha * random(0.9, 1.1)); ellipse(el.pos.x, el.pos.y, el.w, el.h); } pop(); } isOffscreen() { let maxDimension = max(this.ellipses.reduce((maxR, el) => max(maxR, el.pos.mag() + max(el.w, el.h) / 2), 0), width * 0.7); let margin = maxDimension; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
+
