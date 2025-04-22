@@ -948,6 +948,21 @@ function mousePressed() {
 }
 function mouseReleased() { /* No action needed on mouse release anymore */ }
 function keyPressed() {
+
+function keyPressed() {
+    // ... (other key checks like ESC)
+
+    else if (gameState === GAME_STATE.START_MENU) {
+        // --- Only runs if in Start Menu ---
+        // ... (Arrow/Enter checks for Start Menu)
+    }
+    else if (gameState === GAME_STATE.SETTINGS_MENU) {
+        // --- Only runs if in Settings Menu ---
+        // ... (Arrow/Enter checks for Settings Menu)
+    }
+
+    // ... (other game state checks like PLAYING)
+}
     if (keyCode === ESCAPE) { if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) {cursor(ARROW); previousGameState = gameState;} else {cursor();} } else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); } }
     else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } }
     else if (gameState === GAME_STATE.SETTINGS_MENU) { if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; } else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); } }
