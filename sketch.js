@@ -1,8 +1,8 @@
-
 // --- Features ---
 // ... (previous features) ...
 // - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // RETAINED for WIN condition only
-// - Gradually harder objectives per level // MODIFIED
+// - Gradually harder objectives per level
+// - Updated Enemy Visuals // NEW
 // ... (rest of features) ...
 // --------------------------
 
@@ -103,7 +103,6 @@ const MAX_LEVEL = 15;
 
 // --- Mission Objectives ---
 const OBJECTIVE_TYPE = { DESTROY_BASIC: 'destroy_basic', DESTROY_KAMIKAZE: 'destroy_kamikaze', DESTROY_TURRET: 'destroy_turret', DESTROY_SWARMER: 'destroy_swarmer', DESTROY_LASER: 'destroy_laser', DESTROY_ASTEROIDS: 'destroy_asteroids', SURVIVE_TIME: 'survive_time', SCORE_REACH: 'score_reach', COLLECT_POTIONS: 'collect_potions', COLLECT_POWERUPS: 'collect_powerups', PROTECT_FRIENDLY: 'protect_friendly' };
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< MODIFIED OBJECTIVES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 const LEVEL_OBJECTIVES = [
     null, // Level 0 doesn't exist
     { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 5, description: "Destroy Basic Fighters" },   // Level 1
@@ -122,7 +121,6 @@ const LEVEL_OBJECTIVES = [
     { type: OBJECTIVE_TYPE.SCORE_REACH, target: 35000, description: "Reach 35000 Points"},       // Level 14 (+10000)
     { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 135 * 60, description: "Survive the Final Wave (135s)" }, // Level 15 (+15s)
 ];
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< END MODIFIED OBJECTIVES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 let currentObjective = { type: null, target: 0, progress: 0, description: "", startTime: 0 };
 let levelStartTime = 0;
 
@@ -817,15 +815,11 @@ function handleCollisions() {
                      resetSkillTreeAndFragments(); // Reset skills and fragments on Game Over
                      currentPlayerScore = points; // Store final score (maybe useful later, but not for name entry)
                      saveGameData(); // Save reset skills
-
-                     // --- MODIFICATION: Always go to Game Over screen after dying ---
                      gameState = GAME_STATE.GAME_OVER;
                      if (nameInputElement) { // Clean up just in case
                          nameInputElement.remove();
                          nameInputElement = null;
                      }
-                     // --- END MODIFICATION ---
-
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
                      gameOver = true;
                 } else { ship.setInvulnerable(); }
@@ -1188,7 +1182,7 @@ class Ship {
 // Projectile Classes (No changes needed)
 class Bullet { constructor(x, y, angle = 0, damageMultiplier = 1) { this.pos = createVector(x, y); this.speed = 17; this.size = 5.5; this.style = selectedBulletStyle; this.damage = BASE_BULLET_DAMAGE * damageMultiplier; this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 0; if (this.style === 'Rainbow') { this.hue = frameCount % 360; this.sat = 90; this.bri = 100; this.trailLength = 5; } else if (this.style === 'White') { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } else if (this.style === 'Plasma') { this.hue = 150; this.sat = 100; this.bri = 90; this.trailLength = 6; } else if (this.style === 'Fire') { this.hue = 15; this.sat = 100; this.bri = 100; this.trailLength = 8; } else if (this.style === 'Ice') { this.hue = 200; this.sat = 30; this.bri = 100; this.trailLength = 4; } else { this.hue = 0; this.sat = 0; this.bri = 100; this.trailLength = 7; } let baseAngle = -PI / 2; if (angle === PI) { baseAngle = PI/2; angle=0;} this.vel = p5.Vector.fromAngle(baseAngle + angle); this.vel.mult(this.speed); this.trail = []; } update() { this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } this.pos.add(this.vel); if (this.style === 'Rainbow') { this.hue = (this.hue + 5) % 360; } else if (this.style === 'Fire') { this.hue = (this.hue + random(-2, 2) + 360) % 360; this.hue = lerp(this.hue, 15, 0.1); } } draw() { noStroke(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 50, 0); let trailSize = map(i, 0, this.trail.length - 1, this.size, this.size * 0.5); fill(this.hue, this.sat, this.bri, alpha); ellipse(trailPos.x, trailPos.y, trailSize, trailSize * 2.0); } fill(this.hue, this.sat * 1.05, this.bri); stroke(0, 0, 100); strokeWeight(1); ellipse(this.pos.x, this.pos.y, this.size, this.size * 2.5); } isOffscreen() { let margin = this.size * 5; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } }
 class HomingMissile { constructor(x, y, damage, color) { this.pos = createVector(x, y); this.vel = createVector(random(-1, 1), -random(4, 6)); this.acc = createVector(0, 0); this.maxSpeed = 8 + (ship?.homingMissilesLevel || 1) * 0.5; this.maxForce = 0.25 + (ship?.homingMissilesLevel || 1) * 0.05; this.size = 10; this.damage = damage; this.color = color; this.target = null; this.lifespan = 180; this.trail = []; this.trailLength = 8; } findTarget() { let closestDist = Infinity; let closestEnemy = null; for (let enemy of enemyShips) { let d = p5.Vector.dist(this.pos, enemy.pos); if (d < closestDist && d < width / 2) { closestDist = d; closestEnemy = enemy; } } this.target = closestEnemy; } seek() { if (!this.target || !enemyShips.includes(this.target)) { this.findTarget(); if (!this.target) { this.acc.mult(0); this.lifespan -= 2; return; } } let desired = p5.Vector.sub(this.target.pos, this.pos); desired.setMag(this.maxSpeed); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.maxForce); this.acc.add(steer); } update() { this.lifespan--; if (frameCount % 5 === 0 || !this.target) { this.findTarget(); } this.seek(); this.vel.add(this.acc); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); this.acc.mult(0); this.trail.unshift(this.pos.copy()); if (this.trail.length > this.trailLength) { this.trail.pop(); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); noFill(); beginShape(); for (let i = 0; i < this.trail.length; i++) { let trailPos = this.trail[i]; let alpha = map(i, 0, this.trail.length - 1, 60, 0); stroke(hue(this.color), saturation(this.color) * 0.8, brightness(this.color) * 0.9, alpha); strokeWeight(map(i, 0, this.trail.length - 1, this.size * 0.6, 1)); let relativePos = p5.Vector.sub(trailPos, this.pos); relativePos.rotate(-(this.vel.heading() + PI / 2)); vertex(relativePos.x, relativePos.y); } endShape(); fill(this.color); noStroke(); triangle(0, -this.size * 0.8, -this.size * 0.4, this.size * 0.5, this.size * 0.4, this.size * 0.5); fill(hue(this.color), saturation(this.color) * 0.7, brightness(this.color) * 0.7); rect(-this.size * 0.4, this.size * 0.2, this.size * 0.2, this.size * 0.5); rect(this.size * 0.2, this.size * 0.2, this.size * 0.2, this.size * 0.5); pop(); } isOffscreen() { let margin = this.size * 2; return (this.pos.y < -margin || this.pos.y > height + margin || this.pos.x < -margin || this.pos.x > width + margin); } hits(target) { let d = dist(this.pos.x, this.pos.y, target.pos.x, target.pos.y); return d < this.size / 2 + target.size / 2; } }
-// Other Classes (Asteroid, Particle, Star, ShootingStar, HealthPotion, PowerUp, Drone, Enemy*, Nebula, BackgroundStructure) remain unchanged.
+// Other Classes (Asteroid, Particle, Star, ShootingStar, HealthPotion, PowerUp, Drone) remain unchanged.
 class Asteroid { constructor(x, y, size, vel) { this.size = size || random(30, 85); this.pos = createVector(); let isInitialPlacement = (x !== undefined && y !== undefined); if (isInitialPlacement) { this.pos.x = x; this.pos.y = y; } else { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.7); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.7); } } if (vel) { this.vel = vel; } else { let baseSpeedMin = 0.6 + (currentLevel - 1) * 0.1; let baseSpeedMax = 1.8 + (currentLevel - 1) * 0.2; this.speed = min(MAX_ASTEROID_SPEED, random(baseSpeedMin, baseSpeedMax)); this.speed *= (this.size > 50 ? 0.9 : 1.1); this.speed *= random(0.9, 1.1); let direction; if (isInitialPlacement) { direction = p5.Vector.random2D(); } else { let targetX = width / 2 + random(-width * 0.25, width * 0.25); let targetY = height / 2 + random(-height * 0.25, height * 0.25); direction = createVector(targetX - this.pos.x, targetY - this.pos.y); direction.normalize(); direction.rotate(random(-PI / 12, PI / 12)); } this.vel = direction; this.vel.mult(this.speed); } this.color = color(random(20, 50), random(30, 70), random(35, 65)); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.04, 0.04); this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(9, 18)); for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI); let r = this.size / 2 + random(-this.size * 0.45, this.size * 0.35); let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); } this.craters = []; let numCraters = floor(random(2, 7)); for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.4); let craterSize = random(this.size * 0.1, this.size * 0.3); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); } } update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.06, 0.06); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); let gradSteps = 10; let bodyRadius = this.size / 2; for (let i = 0; i < gradSteps; i++) { let inter = i / gradSteps; let y = lerp(-bodyRadius, bodyRadius, inter); let h = lerp(0, bodyRadius * 2, inter); let w = sqrt(max(0, bodyRadius*bodyRadius - y*y)) * 2; let bri = lerp(mainBri * 1.4, mainBri * 0.5, inter); fill(mainHue, mainSat, bri); ellipse(0, y, w*0.95, h / gradSteps * 1.2); } beginShape(); for (let v of this.vertices) { vertex(v.x, v.y); } endShape(CLOSE); let craterBaseColor = color(mainHue, mainSat * 0.8, mainBri * 0.5, 90); let craterHighlightColor = color(mainHue, mainSat * 0.6, mainBri * 1.1, 70); for (let crater of this.craters) { fill(craterBaseColor); ellipse(crater.pos.x, crater.pos.y, crater.size, crater.size * random(0.7, 1.3)); fill(craterHighlightColor); ellipse(crater.pos.x + crater.size * 0.1, crater.pos.y + crater.size * 0.1, crater.size * 0.6, crater.size * 0.6 * random(0.7, 1.3)); } strokeWeight(0.5); stroke(mainHue, mainSat * 0.9, mainBri * 0.8, 25); let numLines = 5; for (let i = 0; i < numLines; i++) { let yLine = map(i, 0, numLines -1, -bodyRadius * 0.7, bodyRadius * 0.7); let xLine = sqrt(max(0, bodyRadius*bodyRadius - yLine*yLine)) * 0.7; line(-xLine, yLine, xLine, yLine); } pop(); } hits(projectile) { let d = dist(this.pos.x, this.pos.y, projectile.pos.x, projectile.pos.y); return d < this.size / 2 + projectile.size / 2; } hitsShip(ship) { let targetX = ship.pos.x; let targetY = ship.pos.y; let targetRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); let d = dist(this.pos.x, this.pos.y, targetX, targetY); return d < this.size / 2 * 0.9 + targetRadius; } }
 class Particle { constructor(x, y, particleColor, size = null, speedMult = 1, lifespanMult = 1) { this.pos = createVector(x, y); this.vel = p5.Vector.random2D(); this.vel.mult(random(1.5, 6) * speedMult); this.lifespan = 100 * lifespanMult * random(0.8, 1.5); this.maxLifespan = this.lifespan; this.baseHue = hue(particleColor); this.baseSat = saturation(particleColor); this.baseBri = brightness(particleColor); this.size = size !== null ? size * random(0.8, 1.2) : random(2, 7); this.drag = random(0.95, 0.99); } update() { this.pos.add(this.vel); this.lifespan -= 2.5; this.vel.mult(this.drag); } draw() { noStroke(); let currentAlpha = map(this.lifespan, 0, this.maxLifespan, 0, 100); fill(this.baseHue, this.baseSat, this.baseBri, currentAlpha); ellipse(this.pos.x, this.pos.y, this.size * (this.lifespan / this.maxLifespan)); } isDead() { return this.lifespan <= 0; } }
 class Star { constructor() { this.x = random(width); this.y = random(height); this.layer = floor(random(4)); this.size = map(this.layer, 0, 3, 0.4, 2.8); this.speed = map(this.layer, 0, 3, 0.05, 0.6); this.baseBrightness = random(50, 95); this.twinkleSpeed = random(0.03, 0.08); this.twinkleRange = random(0.6, 1.4); this.twinkleOffset = random(TWO_PI); } update() { this.y += this.speed; if (this.y > height + this.size) { this.y = -this.size; this.x = random(width); } } draw() { let twinkleFactor = map(sin(frameCount * this.twinkleSpeed + this.twinkleOffset), -1, 1, 1.0 - this.twinkleRange / 2, 1.0 + this.twinkleRange / 2); let currentBrightness = constrain(this.baseBrightness * twinkleFactor, 30, 100); fill(0, 0, currentBrightness, 90); noStroke(); ellipse(this.x, this.y, this.size, this.size); } }
@@ -1196,12 +1190,315 @@ class ShootingStar { constructor() { this.startX = random(width); this.startY = 
 class HealthPotion { constructor(x, y) { this.pos = createVector(x || random(width * 0.1, width * 0.9), y || -30); this.vel = createVector(0, random(0.5, 1.5)); this.size = 20; this.rotation = 0; this.rotationSpeed = random(-0.015, 0.015); this.pulseOffset = random(TWO_PI); } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let pulseFactor = map(sin(frameCount * 0.15 + this.pulseOffset), -1, 1, 0.95, 1.05); let s = this.size * pulseFactor; let bodyHeight = s * 0.7; let bodyWidth = s * 0.6; let neckHeight = s * 0.3; let neckWidth = s * 0.25; let lipHeight = s * 0.08; let lipWidth = neckWidth * 1.4; let stopperHeight = s * 0.2; let stopperWidth = neckWidth * 1.1; let bodyBottomY = s * 0.4; let neckBottomY = -s * 0.3; let neckTopY = neckBottomY - neckHeight; let glowAlpha = map(pulseFactor, 0.95, 1.05, 35, 75); noStroke(); for (let i = 3; i > 0; i--) { fill(0, 90, 100, glowAlpha / (i * 2)); ellipse(0, 0, s * (1 + i * 0.25), s * (1 + i * 0.25)); } fill(0, 85, 90); noStroke(); ellipse(0, neckBottomY - bodyHeight*0.3, bodyWidth, bodyHeight * 0.7); rect(-neckWidth / 2, neckBottomY, neckWidth, bodyHeight * 0.3); strokeWeight(1.5); stroke(0, 0, 65, 90); fill(0, 0, 100, 18); arc(0, neckBottomY - bodyHeight*0.3, bodyWidth, bodyHeight*0.7, 0, PI, CHORD); line(-bodyWidth/2, neckBottomY, -neckWidth/2, neckBottomY); line(bodyWidth/2, neckBottomY, neckWidth/2, neckBottomY); line(-neckWidth / 2, neckBottomY, -neckWidth / 2, neckTopY); line(neckWidth / 2, neckBottomY, neckWidth / 2, neckTopY); noFill(); ellipse(0, neckTopY, lipWidth, lipHeight * 2); fill(40, 40, 30); stroke(40, 40, 15); strokeWeight(1); arc(0, neckTopY - stopperHeight*0.6, stopperWidth, stopperHeight*0.8, PI, TWO_PI); rect(-stopperWidth/2, neckTopY - stopperHeight*0.6, stopperWidth, stopperHeight*0.6); noStroke(); fill(0, 0, 100, 35); beginShape(); vertex(-bodyWidth * 0.15, neckBottomY - bodyHeight * 0.05); bezierVertex(-bodyWidth * 0.35, neckBottomY - bodyHeight * 0.3, -bodyWidth * 0.3, bodyBottomY * 0.4, -bodyWidth * 0.1, bodyBottomY * 0.6); bezierVertex(-bodyWidth * 0.05, bodyBottomY * 0.3, bodyWidth * 0.0, neckBottomY - bodyHeight * 0.4, -bodyWidth * 0.15, neckBottomY - bodyHeight * 0.05); endShape(CLOSE); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let shipRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); return d < this.size * 0.7 + shipRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
 class PowerUp { constructor(type) { this.type = type; this.pos = createVector(random(width * 0.1, width * 0.9), -30); this.vel = createVector(0, random(0.8, 1.8)); this.size = 22; this.pulseOffset = random(TWO_PI); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.02, 0.02); this.icon = '?'; this.color = color(0, 0, 100); switch (this.type) { case POWERUP_TYPES.TEMP_SHIELD: this.icon = 'S'; this.color = color(45, 90, 100); break; case POWERUP_TYPES.RAPID_FIRE: this.icon = 'R'; this.color = color(120, 90, 100); break; case POWERUP_TYPES.EMP_BURST: this.icon = 'E'; this.color = color(210, 90, 100); break; case POWERUP_TYPES.SCORE_MULT: this.icon = 'x2'; this.color = color(60, 100, 100); break; case POWERUP_TYPES.DRONE: this.icon = 'D'; this.color = color(180, 50, 100); break; case POWERUP_TYPES.INVINCIBILITY: this.icon = 'I'; this.color = color(300, 80, 100); break; } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let pulse = map(sin(frameCount * 0.2 + this.pulseOffset), -1, 1, 0.9, 1.1); let currentSize = this.size * pulse; let iconSize = currentSize * (this.icon === 'x2' ? 0.6 : 0.75); let currentBrightness = brightness(this.color); let glowAlpha = map(pulse, 0.9, 1.1, 40, 90); noStroke(); let glowRadius = currentSize * 0.6; for (let i = 3; i > 0; i--) { let sizeFactor = 1 + i * 0.3; fill(hue(this.color), saturation(this.color), currentBrightness, glowAlpha / (i * 2)); drawHexagon(0, 0, glowRadius * sizeFactor); } strokeWeight(2); stroke(hue(this.color), saturation(this.color) * 1.1, currentBrightness * 1.1, 95); fill(hue(this.color), saturation(this.color) * 0.8, currentBrightness * 0.7); drawHexagon(0, 0, glowRadius); let innerRadius = glowRadius * 0.6; fill(hue(this.color), saturation(this.color) * 0.5, currentBrightness * 0.5, 80); noStroke(); drawHexagon(0, 0, innerRadius); drawShadowedText(this.icon, 0, currentSize * 0.03, iconSize, color(0,0,100), color(0,0,0, 50)); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let shipRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); return d < this.size * 0.7 + shipRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
 class Drone { constructor(playerShip) { this.ship = playerShip; this.offset = createVector(this.ship.size * 1.8, 0); this.pos = p5.Vector.add(this.ship.pos, this.offset); this.vel = createVector(); this.size = 15; this.color = color(180, 60, 95); this.wingColor = color(180, 40, 70); this.shootCooldown = 0; this.shootDelay = 35; this.lifespan = 900; this.rotation = 0; this.targetAngle = 0; this.lerpFactor = 0.1; } update() { this.lifespan--; let targetPos = p5.Vector.add(this.ship.pos, this.offset.copy().rotate(this.rotation)); this.pos.lerp(targetPos, this.lerpFactor); this.rotation += 0.02; this.shootCooldown--; if (this.shootCooldown <= 0 && !isPaused && gameState === GAME_STATE.PLAYING) { this.shoot(); this.shootCooldown = this.shootDelay; } } shoot() { bullets.push(new Bullet(this.pos.x, this.pos.y, 0, this.ship.bulletDamageMultiplier)); createParticles(this.pos.x, this.pos.y, 2, this.color, 2, 1.2, 0.4); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation * 2); let s = this.size; fill(this.color); stroke(0, 0, 20); strokeWeight(1); ellipse(0, 0, s, s * 1.2); fill(this.wingColor); triangle(-s * 0.4, -s * 0.2, -s * 1.1, -s * 0.5, -s * 0.8, s * 0.4); triangle(s * 0.4, -s * 0.2, s * 1.1, -s * 0.5, s * 0.8, s * 0.4); fill(0, 0, 100); ellipse(0, -s * 0.3, s * 0.3, s * 0.3); pop(); } isExpired() { return this.lifespan <= 0; } }
+
+// Enemy Classes with Updated Visuals
 class BaseEnemy { constructor(x, y, size, health, pointsValue, moneyValue) { this.pos = createVector(x, y); this.vel = createVector(); this.size = size; this.health = health; this.maxHealth = health; this.pointsValue = pointsValue; this.moneyValue = moneyValue; this.hitColor = color(0, 0, 80); this.explosionColor = color(30, 80, 90); } update() { this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); fill(300, 80, 50); rectMode(CENTER); rect(0, 0, this.size, this.size); pop(); } hits(projectile) { let d = dist(this.pos.x, this.pos.y, projectile.pos.x, projectile.pos.y); return d < this.size / 2 + projectile.size / 2; } hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); let targetRadius; if (playerShip.invincibilityTimer > 0) targetRadius = playerShip.shieldVisualRadius * 1.2; else if (playerShip.tempShieldActive) targetRadius = playerShip.shieldVisualRadius * 1.1; else if (playerShip.shieldCharges > 0) targetRadius = playerShip.shieldVisualRadius; else targetRadius = playerShip.size * 0.5; return d < this.size * 0.45 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } takeDamage(amount) { this.health -= amount; return this.health <= 0; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } _setDefaultSpawnPosition() { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.6); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.6); } } }
-class BasicEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 30, 1, 20, 5); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.shootCooldown = random(120, 240); this.shootTimer = this.shootCooldown; this.bulletSpeed = 3.5 + currentLevel * 0.1; if (this.pos.y < 0) { this.vel.set(random(-0.5, 0.5), random(0.8, 1.5)); } else if (this.pos.x > width) { this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5)); } else { this.vel.set(random(0.8, 1.5), random(-0.5, 0.5)); } let speedScale = min(MAX_ENEMY_SPEED_BASIC, 1.0 + (currentLevel - 1) * 0.1); this.vel.mult(speedScale); this.vel.x += random(-0.25, 0.25) * speedScale; this.bodyColor = color(0, 0, 15); this.accentColor = color(0, 90, 75); this.glowColor = color(0, 100, 100, 70); this.explosionColor = color(340, 90, 90); this.hitColor = this.accentColor; } update() { super.update(); this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.shoot(); this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } } shoot() { let aimAngle = PI / 2; enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y + this.size * 0.4, aimAngle, this.bulletSpeed)); } draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; fill(this.bodyColor); stroke(this.accentColor); strokeWeight(2); beginShape(); vertex(0, -s * 0.7); vertex(s * 0.6, s * 0.1); vertex(s * 0.3, s * 0.5); vertex(-s * 0.3, s * 0.5); vertex(-s * 0.6, s * 0.1); endShape(CLOSE); noStroke(); let glowPulse = map(sin(frameCount * 0.15), -1, 1, 0.8, 1.2); fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), alpha(this.glowColor) * glowPulse); ellipse(0, -s * 0.1, s * 0.25 * glowPulse, s * 0.35 * glowPulse); fill(this.accentColor); triangle(s * 0.3, s * 0.5, s * 0.4, s * 0.7, s * 0.2, s * 0.6); triangle(-s * 0.3, s * 0.5, -s * 0.4, s * 0.7, -s * 0.2, s * 0.6); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class KamikazeEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 24, 1, 15, 3); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); this.pos.y = constrain(this.pos.y, -this.size, height * 0.6); } this.acceleration = 0.09 + currentLevel * 0.006; this.maxSpeed = min(MAX_ENEMY_SPEED_KAMIKAZE, 3.5 + currentLevel * 0.22); this.vel = p5.Vector.random2D().mult(this.maxSpeed * 0.5); this.bodyColor = color(0, 100, 65); this.spikeColor = color(25, 100, 100); this.trailColor = color(0, 90, 80, 40); this.explosionColor = color(20, 100, 100); this.hitColor = this.spikeColor; this.glowIntensity = 0; } update() { if (ship && gameState === GAME_STATE.PLAYING && !isPaused) { let direction = p5.Vector.sub(ship.pos, this.pos); let distanceSq = direction.magSq(); direction.normalize(); direction.mult(this.acceleration); this.vel.add(direction); this.vel.limit(this.maxSpeed); this.glowIntensity = map(sqrt(distanceSq), 200, 50, 0, 1, true); } else { this.glowIntensity = 0; } this.pos.add(this.vel); if (frameCount % 4 === 0) { createParticles(this.pos.x, this.pos.y, 1, this.trailColor, this.size * 0.25, 0.5, 0.3); } } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); let s = this.size; if (this.glowIntensity > 0) { let glowPulse = map(sin(frameCount * 0.25), -1, 1, 0.7, 1.3); let glowSize = s * 1.8 * glowPulse * this.glowIntensity; noStroke(); fill(0, 100, 90, 30 * this.glowIntensity * glowPulse); ellipse(0, 0, glowSize, glowSize); } fill(this.bodyColor); stroke(0,0,10); strokeWeight(1); triangle(0, -s * 0.9, -s * 0.45, s * 0.55, s * 0.45, s * 0.55); fill(this.spikeColor); noStroke(); triangle(-s * 0.45, s * 0.55, -s * 0.65, s * 0.8, -s * 0.35, s * 0.7); triangle(s * 0.45, s * 0.55, s * 0.65, s * 0.8, s * 0.35, s * 0.7); triangle(0, -s * 0.9, -s * 0.15, -s * 1.1, s * 0.15, -s * 1.1); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class TurretEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 38, 3, 50, 10); if (x === undefined || y === undefined) { let edge = random(1) < 0.5 ? -1 : 1; this.pos.x = (edge < 0) ? -this.size : width + this.size; this.pos.y = random(height * 0.1, height * 0.7); this.vel.set(edge * random(-0.3, -0.05), random(-0.05, 0.05)); } else { this.vel.set(random(-0.1, 0.1), random(-0.1, 0.1)); } this.bulletSpeed = 2.5 + currentLevel * 0.05; this.fireMode = floor(random(3)); this.shootCooldown = random(180, 300); this.shootTimer = this.shootCooldown; this.patternTimer = 0; this.patternAngle = random(TWO_PI); this.burstCount = 0; this.baseColor = color(270, 60, 35); this.barrelColor = color(0, 0, 25); this.lightColor = color(330, 100, 100); this.glowColor = color(270, 70, 60, 40); this.explosionColor = color(280, 80, 95); this.hitColor = color(270, 70, 70); } update() { super.update(); if (this.pos.x < this.size * 1.5 && this.vel.x < 0) this.vel.x *= -0.2; if (this.pos.x > width - this.size * 1.5 && this.vel.x > 0) this.vel.x *= -0.2; if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) { this.vel.y *= 0.5; } this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.startShootingPattern(); this.shootCooldown = random(max(100, 220 - currentLevel * 7), max(160, 340 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } this.updateShootingPattern(); } startShootingPattern() { this.fireMode = floor(random(3)); this.patternTimer = 0; this.patternAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : random(TWO_PI); switch (this.fireMode) { case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 8; break; case 1: this.burstCount = 12 + currentLevel; this.patternTimer = 4; break; case 2: this.burstCount = 4 + floor(currentLevel / 3); this.patternTimer = 0; break; } } updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { switch (this.fireMode) { case 0: let angleToPlayer = atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angleToPlayer, this.bulletSpeed * 1.1)); this.patternTimer = 8; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, this.patternAngle, this.bulletSpeed * 0.9)); this.patternAngle += PI / (5 + currentLevel * 0.4); this.patternTimer = 4; this.burstCount--; break; case 2: let spreadArc = PI / 3.5 + (currentLevel * PI / 25); for(let i = 0; i < this.burstCount; i++) { let angle = this.patternAngle + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y, angle, this.bulletSpeed * 1.05)); } this.burstCount = 0; break; } } } } draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; fill(this.baseColor); stroke(0, 0, 10); strokeWeight(2); beginShape(); let sides = 6; for (let i = 0; i < sides; i++) { let angle = map(i, 0, sides, 0, TWO_PI) + PI / sides; let radius = s/2 * (i%2 === 0 ? 1.0 : 0.85); vertex(cos(angle) * radius, sin(angle) * radius); } endShape(CLOSE); let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : PI/2; rotate(aimAngle - PI/2); fill(this.barrelColor); stroke(0, 0, 5); strokeWeight(1.5); rect(-s * 0.15, -s * 0.5, s * 0.3, s * 0.7); let lightPulse = 1.0; let auraAlpha = 0; if (this.shootTimer < 60 || this.burstCount > 0) { lightPulse = map(sin(frameCount * 0.4), -1, 1, 0.6, 1.6); auraAlpha = map(lightPulse, 0.6, 1.6, 30, 80); } else { auraAlpha = map(sin(frameCount * 0.1), -1, 1, 10, 35); } noStroke(); fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), alpha(this.glowColor) * (auraAlpha/40)); ellipse(0, 0, s * 1.5 * lightPulse, s * 1.5 * lightPulse ); fill(this.lightColor); noStroke(); ellipse(0, s * 0.05, s * 0.2 * lightPulse, s * 0.2 * lightPulse); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 16, 1, 5, 1); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.6 + currentLevel * 0.12); this.vel = p5.Vector.random2D().mult(this.maxSpeed); this.turnForce = 0.035 + random(0.025); this.phaseOffset = random(TWO_PI); this.bodyColor = color(130, 80, 45); this.wingColor = color(130, 60, 30, 75); this.eyeColor = color(0, 100, 90); this.explosionColor = color(140, 95, 95); this.hitColor = color(130, 100, 100); } update() { let targetY = height * 0.7; let targetX = width / 2; if(ship && !isPaused) { targetX = ship.pos.x + random(-width*0.3, width*0.3); targetY = ship.pos.y + random(30, 180); } let desired = createVector(targetX - this.pos.x, targetY - this.pos.y); desired.normalize(); desired.mult(this.maxSpeed); let wave = createVector(desired.y, -desired.x); wave.normalize(); wave.mult(sin(frameCount * 0.07 + this.phaseOffset) * this.maxSpeed * 0.65); desired.add(wave); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.turnForce); this.vel.add(steer); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); let s = this.size; let wingPulse = map(sin(frameCount * 0.25 + this.phaseOffset), -1, 1, 0.7, 1.3); fill(this.wingColor); noStroke(); triangle(-s * 0.3, -s * 0.1, -s * 0.9 * wingPulse, -s * 0.5 * wingPulse, -s * 0.6 * wingPulse, s * 0.4 * wingPulse); triangle(s * 0.3, -s * 0.1, s * 0.9 * wingPulse, -s * 0.5 * wingPulse, s * 0.6 * wingPulse, s * 0.4 * wingPulse); fill(this.bodyColor); stroke(0,0,15); strokeWeight(0.5); ellipse(0, 0, s * 0.7, s); fill(this.eyeColor); noStroke(); ellipse(0, -s * 0.25, s * 0.15, s * 0.15); pop(); } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
-class LaserEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 35, 4, 60, 12); this.chargeTime = 100 + random(40); this.fireDuration = 150 + random(60); this.cooldownTime = 180 + random(100); this.laserState = 'idle'; this.chargeTimer = 0; this.fireTimer = 0; this.cooldownTimer = this.cooldownTime / 2; this.laserTargetPos = null; this.laserWidth = 10; this.isFiring = false; this.bodyColor = color(0, 0, 60); this.accentColor = color(0, 0, 85); this.chargeColor = color(0, 100, 100); this.laserColorInner = color(15, 100, 100, 95); this.laserColorOuter = color(0, 100, 100, 40); this.explosionColor = color(10, 90, 95); this.hitColor = color(0, 0, 90); if (x === undefined || y === undefined) { this.pos.x = random(width * 0.1, width * 0.9); this.pos.y = random(height * 0.05, height * 0.2); this.vel.set(random(-MAX_ENEMY_SPEED_LASER, MAX_ENEMY_SPEED_LASER) * (random() < 0.5 ? 1 : -1), 0); } else { this.vel.set(random(-MAX_ENEMY_SPEED_LASER*0.5, MAX_ENEMY_SPEED_LASER*0.5), random(-0.1, 0.1)); } } update() { this.pos.add(this.vel); if ((this.pos.x < this.size / 2 && this.vel.x < 0) || (this.pos.x > width - this.size / 2 && this.vel.x > 0)) { this.vel.x *= -1; } this.pos.y += sin(frameCount * 0.02 + this.pos.x * 0.01) * 0.15; this.pos.y = constrain(this.pos.y, this.size/2, height * 0.3); switch (this.laserState) { case 'idle': if (this.cooldownTimer > 0) { this.cooldownTimer--; } else if (ship && !isPaused && gameState === GAME_STATE.PLAYING) { this.laserState = 'charging'; this.chargeTimer = this.chargeTime; } break; case 'charging': this.chargeTimer--; if (this.chargeTimer <= 0 && ship) { this.laserState = 'firing'; this.fireTimer = this.fireDuration; this.laserTargetPos = ship.pos.copy(); this.isFiring = true; } break; case 'firing': this.fireTimer--; if (this.fireTimer <= 0) { this.laserState = 'cooldown'; this.cooldownTimer = this.cooldownTime; this.isFiring = false; this.laserTargetPos = null; } if (this.isFiring && frameCount % 5 === 0) { createParticles(this.pos.x, this.pos.y, 1, this.laserColorInner, 4, 0.5, 0.3); } break; case 'cooldown': this.cooldownTimer--; if (this.cooldownTimer <= 0) { this.laserState = 'idle'; } break; } } draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; fill(this.bodyColor); stroke(this.accentColor); strokeWeight(2); beginShape(); vertex(0, -s / 2); vertex(s / 2, 0); vertex(0, s / 2); vertex(-s / 2, 0); endShape(CLOSE); let chargeRatio = 0; if (this.laserState === 'charging') { chargeRatio = 1.0 - (this.chargeTimer / this.chargeTime); let chargeSize = s * 0.4 * chargeRatio; let chargeAlpha = map(chargeRatio, 0, 1, 50, 100); let chargeBri = map(sin(frameCount * 0.3 + chargeRatio * PI), -1, 1, 80, 100); fill(hue(this.chargeColor), saturation(this.chargeColor), chargeBri, chargeAlpha); noStroke(); ellipse(0, 0, chargeSize, chargeSize); } else if (this.laserState === 'firing') { chargeRatio = 1.0; let firePulse = map(sin(frameCount * 0.5), -1, 1, 0.8, 1.0); let chargeSize = s * 0.4 * firePulse; fill(hue(this.chargeColor), 90, 100, 90); noStroke(); ellipse(0, 0, chargeSize, chargeSize); } pop(); if (this.isFiring && this.laserTargetPos) { let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x); let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + height; let endX = this.pos.x + cos(laserAngle) * beamLength; let endY = this.pos.y + sin(laserAngle) * beamLength; let outerWidth = this.laserWidth * map(sin(frameCount * 0.4), -1, 1, 2.0, 3.5); strokeWeight(outerWidth); stroke(hue(this.laserColorOuter), saturation(this.laserColorOuter), brightness(this.laserColorOuter), alpha(this.laserColorOuter) * random(0.8, 1.2)); line(this.pos.x, this.pos.y, endX, endY); let innerWidth = this.laserWidth * map(sin(frameCount * 0.5 + PI/2), -1, 1, 0.8, 1.2); strokeWeight(innerWidth); stroke(hue(this.laserColorInner), saturation(this.laserColorInner), brightness(this.laserColorInner), alpha(this.laserColorInner)); line(this.pos.x, this.pos.y, endX, endY); } } checkLaserHit(playerShip) { if (!this.isFiring || !this.laserTargetPos) return false; let p1 = this.pos; let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x); let beamLength = width * 2; let p2 = createVector(this.pos.x + cos(laserAngle) * beamLength, this.pos.y + sin(laserAngle) * beamLength); let c = playerShip.pos; let r = playerShip.size * 0.5; let laserVec = p5.Vector.sub(p2, p1); let pointVec = p5.Vector.sub(c, p1); let laserLenSq = laserVec.magSq(); let dot = pointVec.dot(laserVec); let t = dot / laserLenSq; t = constrain(t, 0, Infinity); let closestPoint = p5.Vector.add(p1, laserVec.mult(t)); let distToClosest = p5.Vector.dist(c, closestPoint); let hitRadius = r + this.laserWidth / 2; return distToClosest < hitRadius; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
+class BasicEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 30, 1, 20, 5); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.shootCooldown = random(120, 240); this.shootTimer = this.shootCooldown; this.bulletSpeed = 3.5 + currentLevel * 0.1; if (this.pos.y < 0) { this.vel.set(random(-0.5, 0.5), random(0.8, 1.5)); } else if (this.pos.x > width) { this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5)); } else { this.vel.set(random(0.8, 1.5), random(-0.5, 0.5)); } let speedScale = min(MAX_ENEMY_SPEED_BASIC, 1.0 + (currentLevel - 1) * 0.1); this.vel.mult(speedScale); this.vel.x += random(-0.25, 0.25) * speedScale;
+    // --- NEW VISUALS ---
+    this.bodyColor = color(240, 40, 30); // Dark Blue/Grey
+    this.wingColor = color(230, 30, 50); // Slightly lighter grey/blue
+    this.engineColor = color(180, 90, 100); // Cyan engine
+    this.detailColor = color(0, 0, 70); // Light grey detail
+    this.explosionColor = color(190, 80, 90); // Cyan/blue explosion
+    this.hitColor = this.engineColor;
+    // --- END NEW VISUALS ---
+    }
+    update() { super.update(); this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.shoot(); this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } }
+    shoot() { let aimAngle = PI / 2; enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y + this.size * 0.4, aimAngle, this.bulletSpeed)); }
+    draw() {
+        // --- NEW DRAW LOGIC ---
+        push();
+        translate(this.pos.x, this.pos.y);
+        let s = this.size;
+
+        // Engine Glow
+        let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2);
+        let engineSize = s * 0.4 * enginePulse;
+        noStroke();
+        fill(hue(this.engineColor), saturation(this.engineColor), brightness(this.engineColor), 40 * enginePulse);
+        ellipse(0, s * 0.45, engineSize * 1.5, engineSize * 1.2);
+        fill(this.engineColor);
+        ellipse(0, s * 0.45, engineSize, engineSize * 0.7);
+
+        // Body
+        stroke(this.detailColor);
+        strokeWeight(1);
+        fill(this.bodyColor);
+        rect(-s * 0.3, -s * 0.5, s * 0.6, s, 3); // Main body rectangle
+
+        // Wings
+        fill(this.wingColor);
+        beginShape();
+        vertex(-s * 0.25, -s * 0.1);
+        vertex(-s * 0.6, s * 0.3);
+        vertex(-s * 0.4, s * 0.5);
+        vertex(-s * 0.25, s * 0.3);
+        endShape(CLOSE);
+        beginShape();
+        vertex(s * 0.25, -s * 0.1);
+        vertex(s * 0.6, s * 0.3);
+        vertex(s * 0.4, s * 0.5);
+        vertex(s * 0.25, s * 0.3);
+        endShape(CLOSE);
+
+        // Detail
+        fill(this.detailColor);
+        noStroke();
+        rect(-s*0.1, -s*0.55, s*0.2, s*0.15); // Top detail
+        ellipse(0, s*0.0, s*0.2, s*0.3); // Central circle detail
+
+        pop();
+        // --- END NEW DRAW LOGIC ---
+    }
+    getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
+class KamikazeEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 24, 1, 15, 3); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); this.pos.y = constrain(this.pos.y, -this.size, height * 0.6); } this.acceleration = 0.09 + currentLevel * 0.006; this.maxSpeed = min(MAX_ENEMY_SPEED_KAMIKAZE, 3.5 + currentLevel * 0.22); this.vel = p5.Vector.random2D().mult(this.maxSpeed * 0.5);
+    // --- NEW VISUALS ---
+    this.bodyColor = color(40, 70, 40); // Dark orange/brown
+    this.spikeColor = color(25, 80, 100); // Bright orange
+    this.glowColor = color(15, 100, 100); // Red/Orange glow
+    this.explosionColor = color(30, 100, 100); // Orange/Yellow explosion
+    this.hitColor = this.spikeColor;
+    this.glowIntensity = 0;
+    // --- END NEW VISUALS ---
+    }
+    update() { if (ship && gameState === GAME_STATE.PLAYING && !isPaused) { let direction = p5.Vector.sub(ship.pos, this.pos); let distanceSq = direction.magSq(); direction.normalize(); direction.mult(this.acceleration); this.vel.add(direction); this.vel.limit(this.maxSpeed); this.glowIntensity = map(sqrt(distanceSq), 200, 50, 0, 1, true); } else { this.glowIntensity = 0; } this.pos.add(this.vel); if (frameCount % 4 === 0 && this.vel.magSq() > 1) { let trailColor = lerpColor(this.bodyColor, this.glowColor, 0.5); createParticles(this.pos.x - this.vel.x * 1.5, this.pos.y - this.vel.y * 1.5, 1, trailColor, this.size * 0.15, 0.3, 0.2); } }
+    draw() {
+        // --- NEW DRAW LOGIC ---
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.vel.heading() + PI / 2);
+        let s = this.size;
+
+        // Glow effect when close
+        if (this.glowIntensity > 0) {
+            let glowPulse = map(sin(frameCount * 0.35), -1, 1, 0.8, 1.2);
+            let glowSize = s * 2.2 * glowPulse * this.glowIntensity;
+            noStroke();
+            fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), 25 * this.glowIntensity * glowPulse);
+            for(let i = glowSize; i > 0; i-= 4) {
+                 ellipse(0, 0, i, i);
+            }
+        }
+
+        // Spikes
+        fill(this.spikeColor);
+        noStroke();
+        let spikeCount = 6;
+        for(let i = 0; i < spikeCount; i++){
+            let angle = TWO_PI / spikeCount * i + frameCount * 0.01; // Slight rotation
+            let spikeLength = s * 0.8;
+            let spikeBase = s * 0.3;
+            triangle(0, -spikeBase*0.5,
+                     cos(angle) * spikeLength, sin(angle) * spikeLength,
+                     0, spikeBase*0.5);
+        }
+
+        // Body
+        fill(this.bodyColor);
+        stroke(0,0,10);
+        strokeWeight(1.5);
+        ellipse(0, 0, s * 0.6, s * 0.6); // Central core
+
+        pop();
+        // --- END NEW DRAW LOGIC ---
+    }
+    getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
+class TurretEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 38, 3, 50, 10); if (x === undefined || y === undefined) { let edge = random(1) < 0.5 ? -1 : 1; this.pos.x = (edge < 0) ? -this.size : width + this.size; this.pos.y = random(height * 0.1, height * 0.7); this.vel.set(edge * random(-0.3, -0.05), random(-0.05, 0.05)); } else { this.vel.set(random(-0.1, 0.1), random(-0.1, 0.1)); } this.bulletSpeed = 2.5 + currentLevel * 0.05; this.fireMode = floor(random(3)); this.shootCooldown = random(180, 300); this.shootTimer = this.shootCooldown; this.patternTimer = 0; this.patternAngle = random(TWO_PI); this.burstCount = 0;
+    // --- NEW VISUALS ---
+    this.baseColor = color(210, 25, 55); // Dark grey-blue base
+    this.barrelColor = color(0, 0, 30); // Very dark barrel
+    this.lightColor = color(60, 100, 100); // Yellow light
+    this.glowColor = color(210, 40, 80, 40); // Light blue glow
+    this.explosionColor = color(200, 60, 95); // Blue explosion
+    this.hitColor = color(210, 50, 90);
+    this.barrelRotation = 0;
+    // --- END NEW VISUALS ---
+    }
+    update() { super.update(); if (this.pos.x < this.size * 1.5 && this.vel.x < 0) this.vel.x *= -0.2; if (this.pos.x > width - this.size * 1.5 && this.vel.x > 0) this.vel.x *= -0.2; if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) { this.vel.y *= 0.5; } this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.startShootingPattern(); this.shootCooldown = random(max(100, 220 - currentLevel * 7), max(160, 340 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } this.updateShootingPattern(); let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : this.barrelRotation; this.barrelRotation = lerpAngle(this.barrelRotation, aimAngle, 0.08); }
+    startShootingPattern() { this.fireMode = floor(random(3)); this.patternTimer = 0; this.patternAngle = this.barrelRotation; switch (this.fireMode) { case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 8; break; case 1: this.burstCount = 12 + currentLevel; this.patternTimer = 4; break; case 2: this.burstCount = 4 + floor(currentLevel / 3); this.patternTimer = 0; break; } }
+    updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { let spawnX = this.pos.x + cos(this.barrelRotation) * this.size * 0.4; let spawnY = this.pos.y + sin(this.barrelRotation) * this.size * 0.4; switch (this.fireMode) { case 0: enemyBullets.push(new EnemyBullet(spawnX, spawnY, this.barrelRotation, this.bulletSpeed * 1.1)); this.patternTimer = 8; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(spawnX, spawnY, this.patternAngle, this.bulletSpeed * 0.9)); this.patternAngle += PI / (5 + currentLevel * 0.4); this.patternTimer = 4; this.burstCount--; break; case 2: let spreadArc = PI / 3.5 + (currentLevel * PI / 25); for(let i = 0; i < this.burstCount; i++) { let angle = this.barrelRotation + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(spawnX, spawnY, angle, this.bulletSpeed * 1.05)); } this.burstCount = 0; break; } } } }
+    draw() {
+        // --- NEW DRAW LOGIC ---
+        push();
+        translate(this.pos.x, this.pos.y);
+        let s = this.size;
+
+        // Base structure
+        fill(this.baseColor);
+        stroke(0, 0, 15);
+        strokeWeight(2);
+        let sides = 8; // Octagonal base
+        beginShape();
+        for (let i = 0; i < sides; i++) {
+            let angle = map(i, 0, sides, 0, TWO_PI) + PI / sides;
+            vertex(cos(angle) * s * 0.5, sin(angle) * s * 0.5);
+        }
+        endShape(CLOSE);
+
+        // Rotating Turret Part
+        rotate(this.barrelRotation);
+        fill(hue(this.baseColor), saturation(this.baseColor)*0.8, brightness(this.baseColor)*0.8); // Slightly different color
+        ellipse(0, 0, s * 0.6, s * 0.6);
+
+        // Barrel
+        fill(this.barrelColor);
+        stroke(0, 0, 5);
+        strokeWeight(1);
+        rect(0, -s * 0.1, s * 0.6, s * 0.2, 2); // Barrel shape
+
+        // Light / Indicator
+        let lightPulse = 1.0;
+        let lightAlpha = 50;
+        if (this.shootTimer < 60 || this.burstCount > 0) {
+            lightPulse = map(sin(frameCount * 0.4), -1, 1, 0.6, 1.6);
+            lightAlpha = map(lightPulse, 0.6, 1.6, 60, 100);
+        }
+        fill(hue(this.lightColor), saturation(this.lightColor), brightness(this.lightColor), lightAlpha);
+        noStroke();
+        ellipse(s * 0.3, 0, s * 0.1 * lightPulse, s * 0.1 * lightPulse); // Light at the tip of the barrel
+
+        pop();
+        // --- END NEW DRAW LOGIC ---
+    }
+    getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
+class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 16, 1, 5, 1); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.6 + currentLevel * 0.12); this.vel = p5.Vector.random2D().mult(this.maxSpeed); this.turnForce = 0.035 + random(0.025); this.phaseOffset = random(TWO_PI);
+    // --- NEW VISUALS ---
+    this.bodyColor = color(90, 60, 60); // Greenish body
+    this.wingColor = color(100, 40, 80, 60); // Lighter green, semi-transparent wings
+    this.eyeColor = color(0, 0, 100); // White eye
+    this.explosionColor = color(110, 80, 80); // Bright green explosion
+    this.hitColor = color(90, 80, 90);
+    // --- END NEW VISUALS ---
+    }
+    update() { let targetY = height * 0.7; let targetX = width / 2; if(ship && !isPaused) { targetX = ship.pos.x + random(-width*0.3, width*0.3); targetY = ship.pos.y + random(30, 180); } let desired = createVector(targetX - this.pos.x, targetY - this.pos.y); desired.normalize(); desired.mult(this.maxSpeed); let wave = createVector(desired.y, -desired.x); wave.normalize(); wave.mult(sin(frameCount * 0.07 + this.phaseOffset) * this.maxSpeed * 0.65); desired.add(wave); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.turnForce); this.vel.add(steer); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); }
+    draw() {
+        // --- NEW DRAW LOGIC ---
+        push();
+        translate(this.pos.x, this.pos.y);
+        rotate(this.vel.heading() + PI / 2);
+        let s = this.size;
+
+        // Wings
+        let wingFlap = sin(frameCount * 0.35 + this.phaseOffset) * 0.3;
+        fill(this.wingColor);
+        noStroke();
+        // Left Wing Pair
+        ellipse(-s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4);
+        ellipse(-s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3);
+        // Right Wing Pair
+        ellipse(s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4);
+        ellipse(s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3);
+
+        // Body Segment
+        fill(this.bodyColor);
+        stroke(0,0,20);
+        strokeWeight(1);
+        ellipse(0, 0, s * 0.8, s * 1.3); // Main body ellipse
+
+        // Head / Eye
+        fill(hue(this.bodyColor), saturation(this.bodyColor)*1.1, brightness(this.bodyColor)*1.1);
+        ellipse(0, -s*0.5, s*0.5, s*0.5); // Head part
+        fill(this.eyeColor);
+        ellipse(0, -s*0.6, s*0.2, s*0.2); // Eye
+
+        pop();
+        // --- END NEW DRAW LOGIC ---
+    }
+    getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
+class LaserEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 35, 4, 60, 12); this.chargeTime = 100 + random(40); this.fireDuration = 150 + random(60); this.cooldownTime = 180 + random(100); this.laserState = 'idle'; this.chargeTimer = 0; this.fireTimer = 0; this.cooldownTimer = this.cooldownTime / 2; this.laserTargetPos = null; this.laserWidth = 10; this.isFiring = false;
+    // --- NEW VISUALS ---
+    this.bodyColor = color(300, 50, 50); // Purple/Magenta body
+    this.emitterColor = color(330, 80, 90); // Brighter pink emitter part
+    this.chargeColor = color(330, 100, 100); // Pink/White charge
+    this.laserColorInner = color(320, 80, 100, 95); // Bright Pink inner beam
+    this.laserColorOuter = color(300, 60, 100, 40); // Purple outer beam
+    this.explosionColor = color(310, 80, 95); // Purple/Pink explosion
+    this.hitColor = color(300, 70, 80);
+    // --- END NEW VISUALS ---
+    if (x === undefined || y === undefined) { this.pos.x = random(width * 0.1, width * 0.9); this.pos.y = random(height * 0.05, height * 0.2); this.vel.set(random(-MAX_ENEMY_SPEED_LASER, MAX_ENEMY_SPEED_LASER) * (random() < 0.5 ? 1 : -1), 0); } else { this.vel.set(random(-MAX_ENEMY_SPEED_LASER*0.5, MAX_ENEMY_SPEED_LASER*0.5), random(-0.1, 0.1)); } }
+    update() { this.pos.add(this.vel); if ((this.pos.x < this.size / 2 && this.vel.x < 0) || (this.pos.x > width - this.size / 2 && this.vel.x > 0)) { this.vel.x *= -1; } this.pos.y += sin(frameCount * 0.02 + this.pos.x * 0.01) * 0.15; this.pos.y = constrain(this.pos.y, this.size/2, height * 0.3); switch (this.laserState) { case 'idle': if (this.cooldownTimer > 0) { this.cooldownTimer--; } else if (ship && !isPaused && gameState === GAME_STATE.PLAYING) { this.laserState = 'charging'; this.chargeTimer = this.chargeTime; } break; case 'charging': this.chargeTimer--; if (this.chargeTimer <= 0 && ship) { this.laserState = 'firing'; this.fireTimer = this.fireDuration; this.laserTargetPos = ship.pos.copy(); this.isFiring = true; } break; case 'firing': this.fireTimer--; if (this.fireTimer <= 0) { this.laserState = 'cooldown'; this.cooldownTimer = this.cooldownTime; this.isFiring = false; this.laserTargetPos = null; } if (this.isFiring && frameCount % 5 === 0) { createParticles(this.pos.x, this.pos.y, 1, this.laserColorInner, 4, 0.5, 0.3); } break; case 'cooldown': this.cooldownTimer--; if (this.cooldownTimer <= 0) { this.laserState = 'idle'; } break; } }
+    draw() {
+        // --- NEW DRAW LOGIC ---
+        push();
+        translate(this.pos.x, this.pos.y);
+        let s = this.size;
+
+        // Main body - crescent shape
+        fill(this.bodyColor);
+        stroke(0, 0, 20);
+        strokeWeight(1.5);
+        beginShape();
+        vertex(-s * 0.5, -s * 0.2);
+        bezierVertex(-s * 0.7, 0, -s * 0.5, s * 0.6);
+        bezierVertex(0, s*0.8, s*0.5, s*0.6);
+        bezierVertex(s * 0.7, 0, s * 0.5, -s * 0.2);
+        bezierVertex(0, -s * 0.7, -s * 0.5, -s * 0.2); // Close the crescent
+        endShape(CLOSE);
+
+        // Emitter / Charging visual
+        let chargeRatio = 0;
+        let emitterSize = s * 0.3;
+        if (this.laserState === 'charging') {
+            chargeRatio = 1.0 - (this.chargeTimer / this.chargeTime);
+            emitterSize = s * 0.3 + s * 0.4 * chargeRatio;
+            let chargeAlpha = map(chargeRatio, 0, 1, 60, 100);
+            let chargeBri = map(sin(frameCount * 0.4 + chargeRatio * PI), -1, 1, 90, 100);
+            fill(hue(this.chargeColor), saturation(this.chargeColor), chargeBri, chargeAlpha);
+            noStroke();
+            ellipse(0, 0, emitterSize, emitterSize);
+        } else if (this.laserState === 'firing') {
+             chargeRatio = 1.0;
+             let firePulse = map(sin(frameCount * 0.6), -1, 1, 0.9, 1.1);
+             emitterSize = s * 0.7 * firePulse;
+             fill(hue(this.chargeColor), 90, 100, 95);
+             noStroke();
+             ellipse(0, 0, emitterSize, emitterSize);
+        }
+         // Static emitter part
+        fill(this.emitterColor);
+        noStroke();
+        ellipse(0, 0, s * 0.3, s * 0.3);
+
+
+        pop();
+
+        // Laser Beam (remains the same)
+        if (this.isFiring && this.laserTargetPos) {
+            let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x);
+            let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + height; // Extend past target
+            let endX = this.pos.x + cos(laserAngle) * beamLength;
+            let endY = this.pos.y + sin(laserAngle) * beamLength;
+
+            // Outer glow
+            let outerWidth = this.laserWidth * map(sin(frameCount * 0.4), -1, 1, 2.0, 3.5);
+            strokeWeight(outerWidth);
+            stroke(hue(this.laserColorOuter), saturation(this.laserColorOuter), brightness(this.laserColorOuter), alpha(this.laserColorOuter) * random(0.8, 1.2));
+            line(this.pos.x, this.pos.y, endX, endY);
+
+            // Inner core
+            let innerWidth = this.laserWidth * map(sin(frameCount * 0.5 + PI/2), -1, 1, 0.8, 1.2);
+            strokeWeight(innerWidth);
+            stroke(hue(this.laserColorInner), saturation(this.laserColorInner), brightness(this.laserColorInner), alpha(this.laserColorInner));
+            line(this.pos.x, this.pos.y, endX, endY);
+        }
+        // --- END NEW DRAW LOGIC ---
+    }
+    checkLaserHit(playerShip) { if (!this.isFiring || !this.laserTargetPos) return false; let p1 = this.pos; let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x); let beamLength = width * 2; let p2 = createVector(this.pos.x + cos(laserAngle) * beamLength, this.pos.y + sin(laserAngle) * beamLength); let c = playerShip.pos; let r = playerShip.size * 0.5; let laserVec = p5.Vector.sub(p2, p1); let pointVec = p5.Vector.sub(c, p1); let laserLenSq = laserVec.magSq(); let dot = pointVec.dot(laserVec); let t = dot / laserLenSq; t = constrain(t, 0, Infinity); let closestPoint = p5.Vector.add(p1, laserVec.mult(t)); let distToClosest = p5.Vector.dist(c, closestPoint); let hitRadius = r + this.laserWidth / 2; return distToClosest < hitRadius; }
+    getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
+
 class EnemyBullet { constructor(x, y, angle, speed) { this.pos = createVector(x, y); this.vel = p5.Vector.fromAngle(angle); this.vel.mult(speed); this.size = 7; this.color = color(0, 90, 100); } update() { this.pos.add(this.vel); } draw() { noStroke(); fill(hue(this.color), saturation(this.color)*0.8, brightness(this.color), 50); ellipse(this.pos.x, this.pos.y, this.size * 1.8, this.size * 1.8); fill(this.color); ellipse(this.pos.x, this.pos.y, this.size, this.size); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let targetRadius; if (ship.invincibilityTimer > 0) targetRadius = ship.shieldVisualRadius * 1.2; else if (ship.tempShieldActive) targetRadius = ship.shieldVisualRadius * 1.1; else if (ship.shieldCharges > 0) targetRadius = ship.shieldVisualRadius; else targetRadius = ship.size * 0.5; return d < this.size * 0.6 + targetRadius; } isOffscreen() { let margin = this.size * 3; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } }
+// Nebula and BackgroundStructure remain unchanged.
 class Nebula { constructor() { this.noiseSeedX = random(1000); this.noiseSeedY = random(1000); this.noiseScale = random(0.003, 0.008); this.numLayers = floor(random(3, 6)); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0004, 0.0004); this.baseAlpha = random(2, 6); this.overallWidth = random(width * 0.8, width * 1.8); this.overallHeight = random(height * 0.5, height * 1.0); if (random(1) < 0.5) { this.pos = createVector(random(-this.overallWidth * 0.3, -this.overallWidth * 0.1), random(height)); this.vel = createVector(random(0.05, 0.15), random(-0.015, 0.015)); } else { this.pos = createVector(random(width + this.overallWidth * 0.1, width + this.overallWidth * 0.3), random(height)); this.vel = createVector(random(-0.15, -0.05), random(-0.015, 0.015)); } let h1 = random(240, 330); let h2 = (h1 + random(-60, 60) + 360) % 360; this.color1 = color(h1, random(40, 70), random(10, 35)); this.color2 = color(h2, random(40, 70), random(10, 35)); this.timeOffset = random(1000); } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); let currentTime = frameCount * 0.005 + this.timeOffset; for (let layer = 0; layer < this.numLayers; layer++) { let layerAlpha = this.baseAlpha * map(layer, 0, this.numLayers - 1, 1.0, 0.4); let layerScale = map(layer, 0, this.numLayers - 1, 1.0, 0.6); let layerColor = lerpColor(this.color1, this.color2, layer / (this.numLayers - 1)); fill(hue(layerColor), saturation(layerColor), brightness(layerColor), layerAlpha); beginShape(); let points = 80; for (let i = 0; i < points; i++) { let angle = map(i, 0, points, 0, TWO_PI); let xOff = map(cos(angle), -1, 1, 0, 5 * layerScale); let yOff = map(sin(angle), -1, 1, 0, 5 * layerScale); let noiseFactor = noise(this.noiseSeedX + xOff * this.noiseScale, this.noiseSeedY + yOff * this.noiseScale, currentTime + layer * 0.1); let radius = (this.overallWidth / 2) * layerScale * (0.6 + noiseFactor * 0.8); let x = cos(angle) * radius; let y = sin(angle) * radius * (this.overallHeight / this.overallWidth); vertex(x, y); } endShape(CLOSE); } pop(); } isOffscreen() { let margin = max(this.overallWidth, this.overallHeight) * 1.1; return (this.pos.x + margin < 0 || this.pos.x - margin > width || this.pos.y + margin < 0 || this.pos.y - margin > height); } }
 class BackgroundStructure { constructor() { this.type = random() < 0.4 ? 'Derelict' : 'Station'; this.size = random(width * 0.15, width * 0.4); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.0005, 0.0005); this.noiseSeed = random(1000); let edge = floor(random(4)); if (edge === 0) this.pos = createVector(random(width), -this.size); else if (edge === 1) this.pos = createVector(width + this.size, random(height * 0.8)); else if (edge === 2) this.pos = createVector(random(width), height + this.size); else this.pos = createVector(-this.size, random(height * 0.8)); let targetPos = createVector(width - this.pos.x + random(-width*0.2, width*0.2), height - this.pos.y + random(-height*0.2, height*0.2)); this.vel = p5.Vector.sub(targetPos, this.pos).normalize().mult(random(0.05, 0.15)); this.components = []; this.lights = []; this.initializeStructure(); this.lightTimer = floor(random(180)); } initializeStructure() { this.components = []; this.lights = []; let s = this.size; let baseColor, detailColor, lightColor; if (this.type === 'Station') { baseColor = color(0, 0, 65); detailColor = color(0, 0, 80); lightColor = color(180, 50, 100); let highlightColor = color(0, 0, 85); this.components.push({ type: 'rect', x: 0, y: 0, w: s * 0.4, h: s * 0.6, c: baseColor, rot: 0 }); this.components.push({ type: 'rect', x: 0, y: 0, w: s * 0.6, h: s * 0.4, c: baseColor, rot: 0 }); this.components.push({ type: 'ellipse', x: 0, y: 0, w: s * 0.3, h: s * 0.3, c: detailColor }); let numArms = floor(random(3, 7)); for (let i = 0; i < numArms; i++) { let armAngle = TWO_PI / numArms * i + random(-PI/8, PI/8); let armLength = s * random(0.4, 0.8); let armWidth = s * random(0.1, 0.2); let armX = cos(armAngle) * (s * 0.3 + armLength / 2); let armY = sin(armAngle) * (s * 0.3 + armLength / 2); this.components.push({ type: 'rect', x: armX, y: armY, w: armWidth, h: armLength, c: baseColor, rot: armAngle }); let detailX = cos(armAngle) * (s * 0.3 + armLength * 0.8); let detailY = sin(armAngle) * (s * 0.3 + armLength * 0.8); this.components.push({ type: 'ellipse', x: detailX, y: detailY, w: armWidth * 1.1, h: armWidth * 1.1, c: detailColor }); if (random() < 0.3) { let antLength = s * random(0.1, 0.3); let antX1 = detailX; let antY1 = detailY; let antX2 = detailX + cos(armAngle + random(-PI/6, PI/6)) * antLength; let antY2 = detailY + sin(armAngle + random(-PI/6, PI/6)) * antLength; this.components.push({ type: 'line', x1: antX1, y1: antY1, x2: antX2, y2: antY2, c: highlightColor, weight: 1 }); } if(random() < 0.6){ this.lights.push({x: detailX + random(-armWidth/2, armWidth/2), y: detailY + random(-armWidth/2, armWidth/2), size: s*0.015, color: lightColor, blinkRate: random(30,90)}); } } for(let i=0; i< 5; i++){ this.lights.push({x: random(-s*0.1, s*0.1), y: random(-s*0.1, s*0.1), size: s*0.01, color: color(60, 70, 100), blinkRate: 120}); } } else { baseColor = color(30, 30, 40); detailColor = color(20, 40, 25); lightColor = color(0, 80, 60); let damageColor = color(15, 60, 30); let numFragments = floor(random(5, 12)); for (let i = 0; i < numFragments; i++) { let fragAngle = random(TWO_PI); let fragDist = random(s * 0.1, s * 0.5); let fragX = cos(fragAngle) * fragDist; let fragY = sin(fragAngle) * fragDist; let fragW = s * random(0.1, 0.4); let fragH = s * random(0.1, 0.4); let fragRot = random(TWO_PI); this.components.push({ type: 'rect', x: fragX, y: fragY, w: fragW, h: fragH, c: baseColor, rot: fragRot }); if(random() < 0.5){ this.components.push({ type: 'rect', x: fragX + random(-fragW/3, fragW/3), y: fragY + random(-fragH/3, fragH/3), w: fragW * random(0.3, 0.7), h: fragH * random(0.3, 0.7), c: detailColor, rot: fragRot + random(-0.2, 0.2) }); } if(random() < 0.3){ this.components.push({ type: 'rect', x: fragX + random(-fragW/3, fragW/3), y: fragY + random(-fragH/3, fragH/3), w: fragW * random(0.1, 0.4), h: fragH * random(0.1, 0.4), c: damageColor, rot: fragRot + random(-0.3, 0.3) }); } if (random() < 0.2) { let lineAngle = random(TWO_PI); let lineLength = s * random(0.05, 0.2); let lineX1 = fragX; let lineY1 = fragY; let lineX2 = fragX + cos(lineAngle) * lineLength; let lineY2 = fragY + sin(lineAngle) * lineLength; this.components.push({type: 'line', x1: lineX1, y1: lineY1, x2: lineX2, y2: lineY2, c: detailColor, weight: random(0.5, 1.5) }); } if(random() < 0.15){ this.lights.push({x: fragX, y: fragY, size: s*0.01, color: lightColor, blinkRate: random(80, 150), flicker: true}); } } } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; this.lightTimer = (this.lightTimer + 1) % 180; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); rectMode(CENTER); ellipseMode(CENTER); for (let comp of this.components) { push(); translate(comp.x, comp.y); rotate(comp.rot || 0); fill(comp.c); if (comp.type === 'rect') { noStroke(); rect(0, 0, comp.w, comp.h); fill(0, 0, 0, 15); rect(0 + comp.w * 0.1, 0 + comp.h * 0.1, comp.w * 0.8, comp.h * 0.8); fill(0, 0, 100, 10); rect(0 - comp.w * 0.1, 0 - comp.h * 0.1, comp.w * 0.8, comp.h * 0.8); } else if (comp.type === 'ellipse') { noStroke(); ellipse(0, 0, comp.w, comp.h); fill(0, 0, 0, 15); ellipse(comp.w * 0.05, comp.h * 0.05, comp.w * 0.8, comp.h * 0.8); fill(0, 0, 100, 10); ellipse(-comp.w * 0.05, -comp.h * 0.05, comp.w * 0.8, comp.h * 0.8); } else if (comp.type === 'line') { stroke(comp.c); strokeWeight(comp.weight || 1); line(0, 0, comp.x2 - comp.x1, comp.y2 - comp.y1); noStroke(); } pop(); } noStroke(); for(let light of this.lights){ let blinkPhase = (this.lightTimer % light.blinkRate) / light.blinkRate; let lightOn = false; if(light.flicker){ lightOn = blinkPhase < 0.3 && random() < 0.7; } else { lightOn = blinkPhase < 0.5; } if(lightOn){ fill(light.color); ellipse(light.x, light.y, light.size, light.size); } } pop(); } isOffscreen() { let margin = this.size * 1.5; return (this.pos.x < -margin || this.pos.x > width + margin || this.pos.y < -margin || this.pos.y > height + margin); } }
+// Helper function for lerping angles correctly
+function lerpAngle(a, b, t) {
+    let diff = b - a;
+    while (diff < -PI) diff += TWO_PI;
+    while (diff > PI) diff -= TWO_PI;
+    return a + diff * t;
+}
