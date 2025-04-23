@@ -1,8 +1,10 @@
+
 // --- Features ---
 // ... (previous features) ...
 // - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // RETAINED for WIN condition only
 // - Gradually harder objectives per level
-// - Updated Enemy Visuals // NEW
+// - Updated Enemy Visuals
+// - Faster Enemy Spawning // NEW
 // ... (rest of features) ...
 // --------------------------
 
@@ -125,7 +127,8 @@ let currentObjective = { type: null, target: 0, progress: 0, description: "", st
 let levelStartTime = 0;
 
 // Game Settings & Thresholds
-let baseAsteroidSpawnRate; let currentAsteroidSpawnRate; let baseEnemySpawnRate = 0.002;
+let baseAsteroidSpawnRate; let currentAsteroidSpawnRate;
+let baseEnemySpawnRate = 0.004; // <<<<<<<<<<<<<<<<<<<< INCREASED BASE ENEMY SPAWN RATE
 let basicEnemyWeight = 10; let kamikazeWeight = 0; let turretWeight = 0; let swarmerWeight = 0; let laserWeight = 0;
 let powerUpSpawnRate = 0.005; let potionSpawnRate = 0.004; let nebulaSpawnRate = 0.0003; let shootingStarSpawnRate = 0.001; let structureSpawnRate = 0.00015;
 let initialAsteroids = 5; let minAsteroidSize = 15; const MAX_SHIELD_CHARGES = 1; const SHAPE_CHANGE_POINTS_THRESHOLD = 100;
@@ -218,7 +221,8 @@ function setDifficultyForLevel(level) {
     let effectiveLevel = min(level, MAX_LEVEL); let mobileFactor = isMobile ? 0.7 : 1.0;
     baseAsteroidSpawnRate = (0.009 + (effectiveLevel - 1) * 0.0015) * mobileFactor;
     currentAsteroidSpawnRate = baseAsteroidSpawnRate;
-    baseEnemySpawnRate = (0.002 + (effectiveLevel - 1) * 0.0006) * mobileFactor;
+    // Adjust baseEnemySpawnRate for faster spawning
+    baseEnemySpawnRate = (0.004 + (effectiveLevel - 1) * 0.0007) * mobileFactor; // <<<<<<<<<<<<<<<<<<<< INCREASED BASE AND SCALING
     basicEnemyWeight = 10;
     kamikazeWeight = (effectiveLevel >= 2) ? 3 + effectiveLevel : 0;
     turretWeight = (effectiveLevel >= 5) ? 2 + floor(effectiveLevel / 2) : 0;
@@ -630,7 +634,7 @@ function displayLeaderboardScreen() {
 
     // Draw Back Button
     let backButton = leaderboardButtons[0];
-    let hover = !isMobile && (mouseX > backButton.x && mouseX < backButton.x + backButton.w && mouseY > backButton.y && mouseY < backButton.y + backButton.h);
+    let hover = !isMobile && (mouseX > backButton.x && mouseX < backButton.x + backButton.w && mouseY > button.y && mouseY < button.y + backButton.h);
     drawStyledUiButton(backButton, "Back", scoreTextSize, hover, false, true);
 
     cursor(ARROW);
