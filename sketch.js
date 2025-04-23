@@ -7,11 +7,11 @@
 // - Various power-ups (Shield, Rapid Fire, Score Multiplier, Drone, Invincibility) // MODIFIED: Removed EMP
 // - Health Potions
 // - Level progression with increasingly difficult objectives and spawning
-// - In-game shop between levels for upgrades (Fire Rate, Spread Shot, Rear Gun, Missiles)
+// - In-game shop between levels for upgrades (Fire Rate, Spread Shot, Rear Gun, Missiles) AND Cosmetics // MODIFIED
 // - Persistent Skill Tree for passive bonuses (Speed, Lives, Shield Regen, Damage, Money) using Tech Fragments
 // - Visual effects: particles, screen shake, background fx, ship shape evolution
 // - Combo system for skillful play
-// - Customizable ship color and bullet style
+// - Persistently customizable ship color and bullet style // MODIFIED: Selection persists, purchased in shop
 // - Settings menu (Screen Shake, Background FX, Particle Density)
 // - Pause menu
 // - Mobile controls (touch movement/shooting, on-screen buttons)
@@ -34,14 +34,15 @@ let potions = []; let enemyShips = []; let enemyBullets = []; let powerUps = [];
 let backgroundStructures = [];
 
 // Game State Management
-const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7 }; // Enum order matters
+// REMOVED COSMETICS_MENU(2), LEADERBOARD_SCREEN(8) and ENTER_NAME(9) - Renumbered states
+const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, /*COSMETICS_MENU: 2,*/ SKILL_TREE: 3, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7 }; // Enum order matters
 let gameState = GAME_STATE.START_MENU;
-let previousGameState = GAME_STATE.START_MENU; // Tracks where Settings/Cosmetics should return to
+let previousGameState = GAME_STATE.START_MENU; // Tracks where Settings should return to
 let skillTreeReturnState = GAME_STATE.START_MENU; // Tracks where Skill Tree should return to (Start Menu or Pause)
 let isPaused = false;
 
 // --- Menu Variables ---
-let menuItems = ['Start Game', 'Skills', 'Settings', 'Cosmetics'];
+let menuItems = ['Start Game', 'Skills', 'Settings']; // REMOVED Leaderboard & Cosmetics
 let selectedMenuItem = 0; let startMenuButtons = [];
 
 // --- Settings Variables and Menu Items ---
@@ -49,11 +50,11 @@ let settingsItems = [ { id: 'screenShake', label: 'Screen Shake', type: 'toggle'
 let selectedSettingsItem = 0; let settingsMenuButtons = [];
 let settingScreenShakeEnabled = true; let settingBackgroundEffectsEnabled = true; let settingParticleDensity = 'High';
 
-// --- Cosmetics Variables (Simplified) ---
+// --- Cosmetics Variables ---
 const SHIP_COLORS = ['Blue', 'Red', 'Green', 'Orange', 'Purple', 'Cyan', 'Yellow'];
 const BULLET_STYLES = ['Rainbow', 'White', 'Plasma', 'Fire', 'Ice'];
-let selectedShipColor = 'Blue';
-let selectedBulletStyle = 'Rainbow';
+let selectedShipColor = 'Blue'; // Default, loaded from storage
+let selectedBulletStyle = 'Rainbow'; // Default, loaded from storage
 const COLOR_DEFINITIONS = {
     'Blue': { body: [210, 75, 85], cockpit: [180, 100, 100], wing: [220, 60, 70], detail1: [0, 0, 60], detail2: [0, 0, 90], engine1: [30, 100, 100], engine2: [0, 100, 100] },
     'Red': { body: [0, 80, 90], cockpit: [0, 0, 100], wing: [350, 70, 75], detail1: [0, 0, 40], detail2: [0, 0, 70], engine1: [15, 100, 100], engine2: [350, 90, 95] },
@@ -63,8 +64,7 @@ const COLOR_DEFINITIONS = {
     'Cyan': { body: [180, 70, 80], cockpit: [190, 40, 100], wing: [170, 65, 70], detail1: [180, 20, 40], detail2: [180, 15, 70], engine1: [200, 80, 100], engine2: [160, 70, 90] },
     'Yellow': { body: [55, 90, 100], cockpit: [60, 50, 100], wing: [50, 80, 85], detail1: [45, 40, 50], detail2: [45, 30, 80], engine1: [40, 100, 100], engine2: [65, 90, 95] }
 };
-let cosmeticsMenuItems = [ { id: 'shipColor', label: 'Ship Color', type: 'cycle', options: SHIP_COLORS }, { id: 'bulletStyle', label: 'Bullet Style', type: 'cycle', options: BULLET_STYLES }, { id: 'back', label: 'Back', type: 'action' } ];
-let selectedCosmeticsMenuItem = 0; let cosmeticsMenuButtons = [];
+// REMOVED: Cosmetics Menu variables
 
 // --- Skill Tree Variables ---
 let techFragments = 0; // Currency - RESETS ON GAME OVER
@@ -99,9 +99,8 @@ let mobileSettingsButton = { x: 0, y: 0, size: 0, padding: 5 };
 let mobileMissileButton = { x: 0, y: 0, size: 0, padding: 5 };
 
 // Power-Up Types
-// REMOVED EMP_BURST(2)
-const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, SCORE_MULT: 3, DRONE: 4, INVINCIBILITY: 5 };
-const NUM_POWERUP_TYPES = 5; // Reduced count
+const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, /*EMP_BURST: 2,*/ SCORE_MULT: 3, DRONE: 4, INVINCIBILITY: 5 }; // Removed EMP_BURST
+const NUM_POWERUP_TYPES = 5; // Reduced count accordingly
 const INVINCIBILITY_SPAWN_CHANCE = 0.25;
 
 // Enemy Types
@@ -153,6 +152,8 @@ let isMobileShooting = false;
 let infoMessage = ""; let infoMessageTimeout = 0; let shopButtons = []; let levelTransitionFlash = 0;
 let uiPanelColor, uiBorderColor, uiTextColor, uiHighlightColor, uiButtonColor, uiButtonHoverColor, uiButtonDisabledColor, uiButtonBorderColor, uiTextShadowColor, uiSpecialButtonColor, uiSpecialButtonHoverColor, uiSpecialButtonBorderColor, uiProgressBarColor, uiProgressBarBgColor;
 const BUTTON_TEXT_PADDING = 12;
+const COST_CYCLE_COLOR = 15; // NEW: Cost to cycle ship color in shop
+const COST_CYCLE_BULLET = 10; // NEW: Cost to cycle bullet style in shop
 
 // --- Background ---
 let currentTopColor, currentBottomColor;
@@ -184,7 +185,7 @@ function setup() {
     colorMode(HSB, 360, 100, 100, 100);
     let ua = navigator.userAgent;
     if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
-    loadGameData(); // Load persistent data (fragments, skills) FIRST
+    loadGameData(); // Load persistent data (fragments, skills, cosmetics) FIRST
     createStarfield(200);
     textAlign(CENTER, CENTER);
     textFont('monospace');
@@ -214,7 +215,7 @@ function setup() {
     setDifficultyForLevel(currentLevel);
     setupMenuButtons();
     setupSettingsMenuButtons();
-    setupCosmeticsMenuButtons();
+    // REMOVED: setupCosmeticsMenuButtons();
     setupSkillTreeButtons();
     setupPauseMenuButtons();
     calculateMobileActionButtonsPosition();
@@ -254,26 +255,32 @@ function loadObjectiveForLevel(level) {
 }
 function setupShopButtons() {
     shopButtons = [];
-    let buttonWidth = isMobile ? 190 : 240; let buttonHeight = isMobile ? 45 : 55;
-    let availableButtonIds = ['fireRate', 'spreadShot', 'rearGun'];
-    if (!isMobile) { availableButtonIds.push('homingMissiles'); }
-    let numButtons = availableButtonIds.length;
-    let totalButtonHeight = numButtons * buttonHeight + (numButtons - 1) * (isMobile ? 10 : 15);
+    let buttonWidth = isMobile ? 190 : 240;
+    let buttonHeight = isMobile ? 40 : 50; // Slightly smaller height for more buttons
+    let ySpacing = buttonHeight + (isMobile ? 8 : 12); // Reduced spacing
+    let nextLevelSpacing = isMobile ? 20 : 25; // Reduced spacing
+
+    let upgradeButtonIds = ['fireRate', 'spreadShot', 'rearGun'];
+    if (!isMobile) { upgradeButtonIds.push('homingMissiles'); }
+
+    let cosmeticButtonIds = ['buyShipColor', 'buyBulletStyle'];
+
+    let allButtonIds = [...upgradeButtonIds, ...cosmeticButtonIds, 'nextLevel'];
+    let numButtons = allButtonIds.length;
+
+    let totalButtonHeight = numButtons * buttonHeight + (numButtons - 1) * (isMobile ? 8 : 12);
     let startX = width / 2 - buttonWidth / 2;
-    let startY = height / 2 - totalButtonHeight / 2 - (isMobile ? 30 : 40);
-    let spacing = buttonHeight + (isMobile ? 10 : 15);
-    let nextLevelSpacing = isMobile ? 25 : 30;
+    let startY = height / 2 - totalButtonHeight / 2 - (isMobile ? 25 : 35); // Adjust start Y
+
     for (let i = 0; i < numButtons; i++) {
-        let buttonId = availableButtonIds[i];
-        let buttonY = startY + i * spacing;
+        let buttonId = allButtonIds[i];
+        let buttonY = startY + i * ySpacing;
         shopButtons.push({ id: buttonId, x: startX, y: buttonY, w: buttonWidth, h: buttonHeight });
     }
-    let nextLevelY = startY + numButtons * spacing + nextLevelSpacing;
-    shopButtons.push({ id: 'nextLevel', x: startX, y: nextLevelY, w: buttonWidth, h: buttonHeight });
 }
 function setupMenuButtons() { startMenuButtons = []; let buttonWidth = isMobile ? 180 : 220; let buttonHeight = isMobile ? 40 : 50; let startY = height / 2 - buttonHeight * (menuItems.length / 2.0); let spacing = isMobile ? 55 : 65; for (let i = 0; i < menuItems.length; i++) { startMenuButtons.push({ id: menuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing - buttonHeight/2, w: buttonWidth, h: buttonHeight }); } }
 function setupSettingsMenuButtons() { settingsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < settingsItems.length; i++) { settingsMenuButtons.push({ id: settingsItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
-function setupCosmeticsMenuButtons() { cosmeticsMenuButtons = []; let buttonWidth = isMobile ? 200 : 260; let buttonHeight = isMobile ? 38 : 45; let startY = height * 0.35; let spacing = isMobile ? 50 : 60; for (let i = 0; i < cosmeticsMenuItems.length; i++) { cosmeticsMenuButtons.push({ id: cosmeticsMenuItems[i].id, index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing, w: buttonWidth, h: buttonHeight }); } }
+// REMOVED: function setupCosmeticsMenuButtons() { ... }
 function setupSkillTreeButtons() {
     skillTreeButtons = [];
     let buttonWidth = isMobile ? 150 : 180; let buttonHeight = isMobile ? 35 : 40; let cols = isMobile ? 2 : 3;
@@ -288,7 +295,6 @@ function setupPauseMenuButtons() {
     pauseMenuButtons = []; let buttonWidth = isMobile ? 160 : 200; let buttonHeight = isMobile ? 38 : 45; let startY = height / 2 - buttonHeight * (pauseMenuItems.length / 2.0); let spacing = buttonHeight + (isMobile ? 15 : 20);
     for (let i = 0; i < pauseMenuItems.length; i++) { pauseMenuButtons.push({ id: pauseMenuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing - buttonHeight / 2, w: buttonWidth, h: buttonHeight }); }
 }
-// REMOVED: function setupLeaderboardButtons() { ... }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 function drawShadowedText(label, x, y, size, textColor, shadowColor) {
     textSize(size);
@@ -313,7 +319,11 @@ function saveGameData() {
     try {
         let skillDataToSave = { techFragments: techFragments, skillTreeData: skillTreeData };
         localStorage.setItem('spaceChaseSkillData', JSON.stringify(skillDataToSave));
-        // console.log("Game data (Skills) saved.");
+        // Save cosmetic choices
+        let cosmeticDataToSave = { shipColor: selectedShipColor, bulletStyle: selectedBulletStyle };
+        localStorage.setItem('spaceChaseCosmetics', JSON.stringify(cosmeticDataToSave));
+
+        // console.log("Game data (Skills & Cosmetics) saved.");
     } catch (e) { console.error("Error saving game data to localStorage:", e); }
 }
 function loadGameData() {
@@ -335,9 +345,24 @@ function loadGameData() {
             resetSkillTreeAndFragments();
             // console.log("No skill save data found, resetting skills and fragments.");
         }
+
+        // Load Cosmetic Data
+         let savedCosmeticDataString = localStorage.getItem('spaceChaseCosmetics');
+         if (savedCosmeticDataString) {
+             let savedCosmeticData = JSON.parse(savedCosmeticDataString);
+             selectedShipColor = savedCosmeticData.shipColor || 'Blue';
+             selectedBulletStyle = savedCosmeticData.bulletStyle || 'Rainbow';
+            // console.log("Cosmetic data loaded.");
+         } else {
+            // Keep defaults if nothing saved
+            // console.log("No cosmetic save data found, using defaults.");
+         }
+
     } catch (e) {
         console.error("Error loading game data from localStorage:", e);
         resetSkillTreeAndFragments(); // Reset skills on error
+        selectedShipColor = 'Blue'; // Reset cosmetics on error
+        selectedBulletStyle = 'Rainbow';
     }
 }
 function resetSkillTreeAndFragments() {
@@ -367,7 +392,7 @@ function draw() {
     }
 
     // Spawn Planet Logic
-    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE) {
+    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.SKILL_TREE) {
         let currentTime = millis();
         if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { spawnPlanet(); lastPlanetAppearanceTime = currentTime; }
         if (planetVisible) { planetData.pos.add(planetData.vel); planetData.rotation += planetData.cloudRotationSpeed * 0.01; if (planetData.type === PLANET_TYPE.STORMY) { planetData.lightningTimer--; } let buffer = planetData.size * (planetData.hasRings ? 1.8 : 0.8); if (planetData.pos.x < -buffer || planetData.pos.x > width + buffer || planetData.pos.y < -buffer || planetData.pos.y > height + buffer) { planetVisible = false; } }
@@ -385,7 +410,7 @@ function draw() {
     switch (gameState) {
          case GAME_STATE.START_MENU: displayStartMenu(); break;
          case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break;
-         case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
+         // REMOVED: case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
          case GAME_STATE.SKILL_TREE: displaySkillTree(); break;
          case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseMenu(); } break;
          case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
@@ -394,7 +419,7 @@ function draw() {
      }
 
     // Overlays
-    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU || gameState === GAME_STATE.SKILL_TREE ) { infoMessageTimeout--; } }
+    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.SKILL_TREE ) { infoMessageTimeout--; } }
     if (levelTransitionFlash > 0) { fill(0, 0, 100, levelTransitionFlash * 10); rect(0, 0, width, height); levelTransitionFlash--; }
     pop();
 }
@@ -410,7 +435,6 @@ function displayStartMenu() {
         let char = titleText[i];
         let charWidth = textWidth(char);
         let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10);
-        // Pulse color between white and cyan
         let lerpAmt = (sin(frameCount * 0.05 + i * 0.5) + 1) / 2;
         let charColor = lerpColor(titleColor1, titleColor2, lerpAmt);
         drawShadowedText(char, currentX + charWidth / 2, titleY + yOffset, titleSize, charColor, color(0, 0, 0, 50));
@@ -436,22 +460,7 @@ function displaySettingsMenu() {
     }
     cursor(ARROW);
 }
-function displayCosmeticsMenu() {
-    drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.7);
-    drawShadowedText("Cosmetics", width / 2, height * 0.2, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
-    let menuTextSize = isMobile ? 18 : 22; textAlign(CENTER, CENTER);
-    for (let i = 0; i < cosmeticsMenuButtons.length; i++) {
-        let button = cosmeticsMenuButtons[i]; let setting = cosmeticsMenuItems[i]; let label = setting.label; let currentValue = '';
-        if (setting.id === 'shipColor') { currentValue = `: ${selectedShipColor}`; }
-        else if (setting.id === 'bulletStyle') { currentValue = `: ${selectedBulletStyle}`; }
-        let fullLabel = label + currentValue; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedCosmeticsMenuItem); let isSpecial = (setting.id === 'back');
-        drawStyledUiButton(button, fullLabel, menuTextSize, hover, selected, isSpecial);
-    }
-    let previewY = height * 0.2 + (isMobile ? 60 : 80); let previewSize = isMobile ? 40 : 50;
-    let currentPalette = COLOR_DEFINITIONS[selectedShipColor];
-    if (currentPalette) { push(); translate(width / 2, previewY); fill(currentPalette.body[0], currentPalette.body[1], currentPalette.body[2]); rect(-previewSize / 2, -previewSize / 4, previewSize, previewSize / 2); fill(currentPalette.wing[0], currentPalette.wing[1], currentPalette.wing[2]); triangle(-previewSize / 2, 0, -previewSize * 0.7, previewSize * 0.3, -previewSize * 0.3, previewSize * 0.1); triangle(previewSize / 2, 0, previewSize * 0.7, previewSize * 0.3, previewSize * 0.3, previewSize * 0.1); pop(); }
-    cursor(ARROW);
-}
+// REMOVED: function displayCosmeticsMenu() { ... }
 function displaySkillTree() {
     drawPanelBackground(width * (isMobile ? 0.95 : 0.8), height * (isMobile ? 0.85 : 0.8));
     drawShadowedText("Skill Tree", width / 2, height * 0.12, isMobile ? 36 : 48, uiTextColor, uiTextShadowColor);
@@ -494,7 +503,7 @@ function displayUpgradeShop() {
     drawShadowedText("Upgrade Shop", width / 2, height * 0.1 + (isMobile ? 50 : 65), isMobile ? 26 : 32, uiTextColor, uiTextShadowColor);
     drawShadowedText(`Money: $${money}`, width / 2, height * 0.1 + (isMobile ? 90 : 115), isMobile ? 20 : 26, uiHighlightColor, uiTextShadowColor);
     textAlign(CENTER, CENTER);
-    for (let button of shopButtons) { drawUpgradeShopButton(button); }
+    for (let button of shopButtons) { drawUpgradeShopButton(button); } // This function now handles cosmetic buttons too
 }
 function displayGameOver() {
     drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
@@ -519,9 +528,6 @@ function displayWinScreen() {
     drawShadowedText(restartInstruction, width / 2, height * 0.7, isMobile ? 18 : 22, color(0, 0, pulse), uiTextShadowColor);
     cursor(ARROW);
 }
-// REMOVED: function displayEnterNameScreen() { ... }
-// REMOVED: function displayLeaderboardScreen() { ... }
-
 function drawPanelBackground(panelWidth, panelHeight) {
     let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2;
     fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2.5); rect(panelX, panelY, panelWidth, panelHeight, 10);
@@ -539,17 +545,36 @@ function drawStyledUiButton(button, label, defaultTextSize, hover, selected, isS
     drawButtonText(label, button, defaultTextSize, textCol, shadowCol);
 }
 function drawUpgradeShopButton(button) {
-    let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false; let baseTextColor = uiTextColor;
+    let cost = "?"; let label = ""; let isMaxed = false; let canAfford = false; let currentLevelText = ""; let isUpgradeButton = false; let isCosmeticButton = false; let baseTextColor = uiTextColor;
+
     switch (button.id) {
+        // Existing Upgrades
         case 'fireRate': cost = ship.getUpgradeCost('fireRate'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.fireRateLevel}/${ship.maxUpgradeLevel}`; label = `Fire Rate ${currentLevelText}`; isUpgradeButton = true; break;
         case 'spreadShot': cost = ship.getUpgradeCost('spreadShot'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.spreadShotLevel}/${ship.maxUpgradeLevel}`; label = `Spread Shot ${currentLevelText}`; isUpgradeButton = true; break;
         case 'rearGun': cost = ship.getUpgradeCost('rearGun'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.rearGunLevel}/${ship.maxRearGunLevel}`; label = `Rear Gun ${currentLevelText}`; isUpgradeButton = true; break;
         case 'homingMissiles': cost = ship.getUpgradeCost('homingMissiles'); isMaxed = (cost === "MAX"); if (!isMaxed) canAfford = (money >= cost); currentLevelText = `Lvl ${ship.homingMissilesLevel}/${ship.maxMissileLevel}`; label = `Missiles ${currentLevelText}`; isUpgradeButton = true; break;
+
+        // New Cosmetic Buttons
+        case 'buyShipColor': cost = COST_CYCLE_COLOR; label = `Ship Color: ${selectedShipColor}`; canAfford = (money >= cost); isCosmeticButton = true; break;
+        case 'buyBulletStyle': cost = COST_CYCLE_BULLET; label = `Bullet Style: ${selectedBulletStyle}`; canAfford = (money >= cost); isCosmeticButton = true; break;
+
         case 'nextLevel': label = `Start Level ${currentLevel + 1}`; isMaxed = false; canAfford = true; break;
     }
-    let fullLabel = label; if (button.id !== 'nextLevel') { if (isMaxed) { fullLabel += "\n(MAX)"; } else { fullLabel += `\n($${cost})`; } }
-    let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let isDisabled = (isUpgradeButton && (isMaxed || !canAfford)); let isSpecial = (button.id === 'nextLevel'); let defaultTextSize = isUpgradeButton ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17);
-    if (isMaxed) baseTextColor = color(0, 0, 60); else if (!canAfford) baseTextColor = color(0, 0, 85);
+
+    let fullLabel = label;
+    if (button.id !== 'nextLevel') {
+        if (isMaxed) { fullLabel += "\n(MAX)"; }
+        else { fullLabel += `\n($${cost})`; }
+    }
+
+    let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h);
+    let isDisabled = (isUpgradeButton && (isMaxed || !canAfford)) || (isCosmeticButton && !canAfford);
+    let isSpecial = (button.id === 'nextLevel');
+    let defaultTextSize = (isUpgradeButton || isCosmeticButton) ? (isMobile ? 13 : 15) : (isMobile ? 15 : 17);
+
+    if (isMaxed) baseTextColor = color(0, 0, 60);
+    else if (!canAfford && button.id !== 'nextLevel') baseTextColor = color(0, 0, 85); // Dim if cannot afford (except Next Level)
+
     drawStyledUiButton(button, fullLabel, defaultTextSize, hover, false, isSpecial, isDisabled, baseTextColor);
 }
 
@@ -593,7 +618,7 @@ function runGameLogic() {
         if (currentLevel === MAX_LEVEL) {
             // --- WIN GAME ---
             let fragmentsEarned = floor(points / 300) + 10; if (fragmentsEarned > 0) techFragments += fragmentsEarned;
-            saveGameData(); // Save fragments earned
+            saveGameData(); // Save fragments earned and persistent cosmetics
             gameState = GAME_STATE.WIN_SCREEN; // Go directly to win screen
             infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
             bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
@@ -604,7 +629,7 @@ function runGameLogic() {
              points += 100 * currentLevel; money += 25 * currentLevel;
              gameState = GAME_STATE.UPGRADE_SHOP;
              infoMessage = `Level Complete! +${fragmentsEarned} TF`; infoMessageTimeout = 180;
-             saveGameData();
+             saveGameData(); // Save skill progress and persistent cosmetics
              setupShopButtons(); cursor(ARROW);
              bullets = []; homingMissiles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = [];
              comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
@@ -629,25 +654,23 @@ function runGameLogic() {
             else { enemyShips.push(new BasicEnemy()); }
         }
         if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-        // <<< MODIFIED Power-up Spawning (Removed EMP logic) >>>
+        // <<< MODIFIED Power-up Spawning >>>
         if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) {
-            let type = floor(random(NUM_POWERUP_TYPES)); // Uses the new NUM_POWERUP_TYPES
-            let attemptSpawn = true;
+             let availableTypes = [POWERUP_TYPES.TEMP_SHIELD, POWERUP_TYPES.RAPID_FIRE, POWERUP_TYPES.SCORE_MULT, POWERUP_TYPES.DRONE, POWERUP_TYPES.INVINCIBILITY];
+             let type = random(availableTypes); // Pick randomly from available types
+             let attemptSpawn = true;
 
-            // Reroute the index if it falls on the removed EMP slot (index 2)
-            if (type >= 2) type++; // Shift indices up for Score Mult, Drone, Invincibility
+             // Handle special spawn rates for Invincibility
+             if (type === POWERUP_TYPES.INVINCIBILITY) {
+                 if (random() > INVINCIBILITY_SPAWN_CHANCE) {
+                     attemptSpawn = false; // Don't spawn invincibility this time
+                 }
+             }
 
-            // Handle special spawn rates for Invincibility
-            if (type === POWERUP_TYPES.INVINCIBILITY) {
-                if (random() > INVINCIBILITY_SPAWN_CHANCE) {
-                    attemptSpawn = false; // Don't spawn invincibility this time
-                }
-            }
-
-            // Spawn if allowed
-            if (attemptSpawn) {
-                 powerUps.push(new PowerUp(type));
-            }
+             // Spawn if allowed
+             if (attemptSpawn) {
+                  powerUps.push(new PowerUp(type));
+             }
         }
         // <<< END MODIFIED Power-up Spawning >>>
         if (settingBackgroundEffectsEnabled && random(1) < nebulaSpawnRate && nebulas.length < maxNebulasAllowed) { nebulas.push(new Nebula()); }
@@ -670,7 +693,6 @@ function handlePowerUps() {
             switch (powerUpType) {
                 case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break;
                 case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break;
-                // REMOVED: case POWERUP_TYPES.EMP_BURST: ...
                  case POWERUP_TYPES.SCORE_MULT: ship.scoreMultiplierTimer = 600; ship.scoreMultiplierValue = 2; infoMessage = `SCORE x${ship.scoreMultiplierValue}!`; createParticles(ship.pos.x, ship.pos.y, 30, color(60, 100, 100)); break;
                  case POWERUP_TYPES.DRONE: if (!ship.droneActive) { ship.droneActive = true; ship.drone = new Drone(ship); infoMessage = "DRONE ACTIVATED!"; createParticles(ship.pos.x, ship.pos.y, 30, color(180, 50, 100)); } else { infoMessage = "DRONE ALREADY ACTIVE!"; } break;
                  case POWERUP_TYPES.INVINCIBILITY: ship.invincibilityTimer = 480; infoMessage = "INVINCIBLE!"; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 0, 100)); ship.tempShieldActive = false; ship.shieldCharges = 0; break;
@@ -703,7 +725,7 @@ function handleCollisions() {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
                 if (lives <= 0) {
                      resetSkillTreeAndFragments(); // Reset skills and fragments on Game Over
-                     saveGameData(); // Save reset skills
+                     saveGameData(); // Save reset skills and persistent cosmetics
                      gameState = GAME_STATE.GAME_OVER;
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
                      gameOver = true;
@@ -803,7 +825,7 @@ function displayComboText() {
 
 // --- Game State Control ---
 function resetGame() {
-    ship = new Ship();
+    ship = new Ship(); // Ship color/bullet style are now set based on persistent storage inside setup() -> loadGameData() -> ship constructor
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
     points = 0;
     money = BASE_STARTING_MONEY + skillTreeData.STARTING_MONEY * SKILL_DEFINITIONS.STARTING_MONEY.effectPerLevel;
@@ -829,14 +851,11 @@ function selectMenuItem(index) {
         case 'Start Game': startGame(); break;
         case 'Skills': previousGameState = GAME_STATE.START_MENU; skillTreeReturnState = GAME_STATE.START_MENU; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break;
         case 'Settings': previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break;
-        case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
+        // REMOVED: case 'Cosmetics': ...
     }
 }
 function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } }
-function selectCosmeticsItemAction(index) {
-    let setting = cosmeticsMenuItems[index]; if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; return; }
-    if (setting.type === 'cycle') { if (setting.id === 'shipColor') { let currentIndex = SHIP_COLORS.indexOf(selectedShipColor); let nextIndex = (currentIndex + 1) % SHIP_COLORS.length; selectedShipColor = SHIP_COLORS[nextIndex]; if (ship) { ship.setColors(); } } else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; } }
-}
+// REMOVED: function selectCosmeticsItemAction(index) { ... }
 function handleSkillTreeButtonPress(skillId) {
     if (skillId === 'back') { gameState = skillTreeReturnState; if (gameState === GAME_STATE.PLAYING) { setupPauseMenuButtons(); isPaused = true; cursor(ARROW); } else { selectedMenuItem = 0; cursor(ARROW); } return; }
     let skillDef = SKILL_DEFINITIONS[skillId]; let currentLevel = skillTreeData[skillId];
@@ -852,7 +871,7 @@ function mousePressed() {
     switch (gameState) {
         case GAME_STATE.START_MENU: for (let i = 0; i < startMenuButtons.length; i++) { let button = startMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedMenuItem = i; selectMenuItem(i); return; } } break;
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
-        case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
+        // REMOVED: case GAME_STATE.COSMETICS_MENU: ...
         case GAME_STATE.SKILL_TREE: for (let button of skillTreeButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleSkillTreeButtonPress(button.id); return; } } break;
         case GAME_STATE.PLAYING: if (isPaused) { for (let i = 0; i < pauseMenuButtons.length; i++) { let button = pauseMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedPauseMenuItem = i; handlePauseMenuSelection(i); return; } } } break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
@@ -865,7 +884,7 @@ function keyPressed() {
     if (keyCode === ESCAPE) {
         if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) { selectedPauseMenuItem = 0; setupPauseMenuButtons(); cursor(ARROW); isMobileShooting = false; } else { cursor(); } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); }
-        else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); }
+        // REMOVED: else if (gameState === GAME_STATE.COSMETICS_MENU) { ... }
         else if (gameState === GAME_STATE.UPGRADE_SHOP ) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; isPaused = false; cursor(ARROW); } // Allow ESC from shop
         else if (gameState === GAME_STATE.SKILL_TREE) { handleSkillTreeButtonPress('back'); }
         return false; // Prevent default ESC behavior
@@ -873,7 +892,7 @@ function keyPressed() {
     else if (gameState === GAME_STATE.START_MENU) { if (keyCode === UP_ARROW) { selectedMenuItem = (selectedMenuItem - 1 + menuItems.length) % menuItems.length; } else if (keyCode === DOWN_ARROW) { selectedMenuItem = (selectedMenuItem + 1) % menuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectMenuItem(selectedMenuItem); } }
     else if (gameState === GAME_STATE.PLAYING && isPaused) { if (keyCode === UP_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem - 1 + pauseMenuItems.length) % pauseMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedPauseMenuItem = (selectedPauseMenuItem + 1) % pauseMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { handlePauseMenuSelection(selectedPauseMenuItem); } }
     else if (gameState === GAME_STATE.SETTINGS_MENU) { if (keyCode === UP_ARROW) { selectedSettingsItem = (selectedSettingsItem - 1 + settingsItems.length) % settingsItems.length; } else if (keyCode === DOWN_ARROW) { selectedSettingsItem = (selectedSettingsItem + 1) % settingsItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectSettingsItemAction(selectedSettingsItem); } }
-    else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } }
+    // REMOVED: else if (gameState === GAME_STATE.COSMETICS_MENU) { ... }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
     else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
@@ -904,7 +923,7 @@ function touchStarted() {
     if (!uiButtonTapped && !(gameState === GAME_STATE.PLAYING)) { // Exclude Playing state
         if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
-        else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
+        // REMOVED: else if (gameState === GAME_STATE.COSMETICS_MENU) { ... }
         else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
         else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
@@ -913,13 +932,59 @@ function touchStarted() {
     return false;
 }
 function touchEnded() { if (isMobile && touches.length === 0) { isMobileShooting = false; } return false; }
-function handleShopButtonPress(buttonId) { if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return; if (buttonId === 'nextLevel') { startNextLevel(); } else { let success = ship.attemptUpgrade(buttonId); if (success) { let button = shopButtons.find(b => b.id === buttonId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8); if (buttonId === 'homingMissiles') { ship.currentMissiles = ship.maxMissiles; } } } else { let cost = ship.getUpgradeCost(buttonId); if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; } else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; } } } }
+function handleShopButtonPress(buttonId) {
+    if (gameState !== GAME_STATE.UPGRADE_SHOP || !ship) return;
+
+    if (buttonId === 'nextLevel') {
+        startNextLevel();
+    } else if (buttonId === 'buyShipColor') {
+        if (money >= COST_CYCLE_COLOR) {
+            money -= COST_CYCLE_COLOR;
+            let currentIndex = SHIP_COLORS.indexOf(selectedShipColor);
+            let nextIndex = (currentIndex + 1) % SHIP_COLORS.length;
+            selectedShipColor = SHIP_COLORS[nextIndex];
+            ship.setColors(); // Apply color immediately
+            saveGameData(); // Save the new default selection
+            let button = shopButtons.find(b => b.id === buttonId);
+            if (button) createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(hue(ship.bodyColor), 80, 100), 6, 2.0, 0.8);
+        } else {
+            infoMessage = "Not enough money!"; infoMessageTimeout = 60;
+        }
+    } else if (buttonId === 'buyBulletStyle') {
+        if (money >= COST_CYCLE_BULLET) {
+            money -= COST_CYCLE_BULLET;
+            let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle);
+            let nextIndex = (currentIndex + 1) % BULLET_STYLES.length;
+            selectedBulletStyle = BULLET_STYLES[nextIndex];
+            saveGameData(); // Save the new default selection
+            let button = shopButtons.find(b => b.id === buttonId);
+            if (button) createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(random(360), 80, 100), 6, 2.0, 0.8);
+        } else {
+            infoMessage = "Not enough money!"; infoMessageTimeout = 60;
+        }
+    } else { // Handle regular upgrades
+        let success = ship.attemptUpgrade(buttonId);
+        if (success) {
+            let button = shopButtons.find(b => b.id === buttonId);
+            if(button) {
+                 createParticles(button.x + button.w / 2, button.y + button.h / 2, 20, color(120, 80, 100), 6, 2.0, 0.8);
+                 if (buttonId === 'homingMissiles') {
+                     ship.currentMissiles = ship.maxMissiles;
+                 }
+            }
+        } else {
+            let cost = ship.getUpgradeCost(buttonId);
+            if (cost !== "MAX" && money < cost) { infoMessage = "Not enough money!"; infoMessageTimeout = 60; }
+            else if (cost === "MAX") { infoMessage = "Upgrade Maxed Out!"; infoMessageTimeout = 60; }
+        }
+    }
+}
 function windowResized() {
     resizeCanvas(windowWidth, windowHeight);
     createStarfield(200);
     if (gameState === GAME_STATE.START_MENU) setupMenuButtons();
     if (gameState === GAME_STATE.SETTINGS_MENU) setupSettingsMenuButtons();
-    if (gameState === GAME_STATE.COSMETICS_MENU) setupCosmeticsMenuButtons();
+    // REMOVED: if (gameState === GAME_STATE.COSMETICS_MENU) setupCosmeticsMenuButtons();
     if (gameState === GAME_STATE.SKILL_TREE) setupSkillTreeButtons();
     if (gameState === GAME_STATE.UPGRADE_SHOP) setupShopButtons();
     if (gameState === GAME_STATE.PLAYING && isPaused) setupPauseMenuButtons();
@@ -931,14 +996,14 @@ function windowResized() {
 // ========================== CLASS DEFINITIONS =========================
 // ======================================================================
 
-// Ship Class (No changes needed)
+// Ship Class (No changes needed, color/bullet set via global vars)
 class Ship {
     constructor() {
         this.pos = createVector(width / 2, height - 50); this.vel = createVector(0, 0);
         this.thrust = 0.38; this.touchThrustMultiplier = 1.15; this.friction = 0.975;
         this.size = 30;
         this.bodyColor = null; this.cockpitColor = null; this.wingColor = null; this.detailColor1 = null; this.detailColor2 = null; this.engineColor1 = null; this.engineColor2 = null;
-        this.setColors();
+        this.setColors(); // Applies the loaded or default cosmetic colors
         this.shapeState = 0; this.shootCooldown = 0; this.baseShootDelay = 15; this.shootDelayPerLevel = 2;
         this.shieldCharges = 0; this.shieldVisualRadius = this.size * 1.3; this.invulnerableTimer = 0; this.invulnerabilityDuration = 120; this.hoverOffset = 0; this.rapidFireTimer = 0; this.tempShieldActive = false;
         this.fireRateLevel = 0; this.spreadShotLevel = 0; this.maxUpgradeLevel = 5;
@@ -1018,299 +1083,37 @@ class Drone { constructor(playerShip) { this.ship = playerShip; this.offset = cr
 class BaseEnemy { constructor(x, y, size, health, pointsValue, moneyValue) { this.pos = createVector(x, y); this.vel = createVector(); this.size = size; this.health = health; this.maxHealth = health; this.pointsValue = pointsValue; this.moneyValue = moneyValue; this.hitColor = color(0, 0, 80); this.explosionColor = color(30, 80, 90); } update() { this.pos.add(this.vel); } draw() { push(); translate(this.pos.x, this.pos.y); fill(300, 80, 50); rectMode(CENTER); rect(0, 0, this.size, this.size); pop(); } hits(projectile) { let d = dist(this.pos.x, this.pos.y, projectile.pos.x, projectile.pos.y); return d < this.size / 2 + projectile.size / 2; } hitsShip(playerShip) { let d = dist(this.pos.x, this.pos.y, playerShip.pos.x, playerShip.pos.y); let targetRadius; if (playerShip.invincibilityTimer > 0) targetRadius = playerShip.shieldVisualRadius * 1.2; else if (playerShip.tempShieldActive) targetRadius = playerShip.shieldVisualRadius * 1.1; else if (playerShip.shieldCharges > 0) targetRadius = playerShip.shieldVisualRadius; else targetRadius = playerShip.size * 0.5; return d < this.size * 0.45 + targetRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin || this.pos.y < -margin || this.pos.x < -margin || this.pos.x > width + margin); } takeDamage(amount) { this.health -= amount; return this.health <= 0; } getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } _setDefaultSpawnPosition() { let edge = floor(random(3)); if (edge === 0) { this.pos.x = random(width); this.pos.y = -this.size / 2; } else if (edge === 1) { this.pos.x = width + this.size / 2; this.pos.y = random(height * 0.6); } else { this.pos.x = -this.size / 2; this.pos.y = random(height * 0.6); } } }
 
 class BasicEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 30, 1, 20, 5); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.shootCooldown = random(120, 240); this.shootTimer = this.shootCooldown; this.bulletSpeed = 3.5 + currentLevel * 0.1; if (this.pos.y < 0) { this.vel.set(random(-0.5, 0.5), random(0.8, 1.5)); } else if (this.pos.x > width) { this.vel.set(random(-1.5, -0.8), random(-0.5, 0.5)); } else { this.vel.set(random(0.8, 1.5), random(-0.5, 0.5)); } let speedScale = min(MAX_ENEMY_SPEED_BASIC, 1.0 + (currentLevel - 1) * 0.1); this.vel.mult(speedScale); this.vel.x += random(-0.25, 0.25) * speedScale;
-    // --- NEW VISUALS ---
-    this.bodyColor = color(240, 40, 30); // Dark Blue/Grey
-    this.wingColor = color(230, 30, 50); // Slightly lighter grey/blue
-    this.engineColor = color(180, 90, 100); // Cyan engine
-    this.detailColor = color(0, 0, 70); // Light grey detail
-    this.explosionColor = color(190, 80, 90); // Cyan/blue explosion
-    this.hitColor = this.engineColor;
-    // --- END NEW VISUALS ---
-    }
+    this.bodyColor = color(240, 40, 30); this.wingColor = color(230, 30, 50); this.engineColor = color(180, 90, 100); this.detailColor = color(0, 0, 70); this.explosionColor = color(190, 80, 90); this.hitColor = this.engineColor; }
     update() { super.update(); this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.shoot(); this.shootCooldown = random(max(40, 120 - currentLevel * 5), max(80, 240 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } }
     shoot() { let aimAngle = PI / 2; enemyBullets.push(new EnemyBullet(this.pos.x, this.pos.y + this.size * 0.4, aimAngle, this.bulletSpeed)); }
-    draw() {
-        // --- NEW DRAW LOGIC ---
-        push();
-        translate(this.pos.x, this.pos.y);
-        let s = this.size;
-
-        // Engine Glow
-        let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2);
-        let engineSize = s * 0.4 * enginePulse;
-        noStroke();
-        fill(hue(this.engineColor), saturation(this.engineColor), brightness(this.engineColor), 40 * enginePulse);
-        ellipse(0, s * 0.45, engineSize * 1.5, engineSize * 1.2);
-        fill(this.engineColor);
-        ellipse(0, s * 0.45, engineSize, engineSize * 0.7);
-
-        // Body
-        stroke(this.detailColor);
-        strokeWeight(1);
-        fill(this.bodyColor);
-        rect(-s * 0.3, -s * 0.5, s * 0.6, s, 3); // Main body rectangle
-
-        // Wings
-        fill(this.wingColor);
-        beginShape();
-        vertex(-s * 0.25, -s * 0.1);
-        vertex(-s * 0.6, s * 0.3);
-        vertex(-s * 0.4, s * 0.5);
-        vertex(-s * 0.25, s * 0.3);
-        endShape(CLOSE);
-        beginShape();
-        vertex(s * 0.25, -s * 0.1);
-        vertex(s * 0.6, s * 0.3);
-        vertex(s * 0.4, s * 0.5);
-        vertex(s * 0.25, s * 0.3);
-        endShape(CLOSE);
-
-        // Detail
-        fill(this.detailColor);
-        noStroke();
-        rect(-s*0.1, -s*0.55, s*0.2, s*0.15); // Top detail
-        ellipse(0, s*0.0, s*0.2, s*0.3); // Central circle detail
-
-        pop();
-        // --- END NEW DRAW LOGIC ---
-    }
+    draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; let enginePulse = map(sin(frameCount * 0.2), -1, 1, 0.8, 1.2); let engineSize = s * 0.4 * enginePulse; noStroke(); fill(hue(this.engineColor), saturation(this.engineColor), brightness(this.engineColor), 40 * enginePulse); ellipse(0, s * 0.45, engineSize * 1.5, engineSize * 1.2); fill(this.engineColor); ellipse(0, s * 0.45, engineSize, engineSize * 0.7); stroke(this.detailColor); strokeWeight(1); fill(this.bodyColor); rect(-s * 0.3, -s * 0.5, s * 0.6, s, 3); fill(this.wingColor); beginShape(); vertex(-s * 0.25, -s * 0.1); vertex(-s * 0.6, s * 0.3); vertex(-s * 0.4, s * 0.5); vertex(-s * 0.25, s * 0.3); endShape(CLOSE); beginShape(); vertex(s * 0.25, -s * 0.1); vertex(s * 0.6, s * 0.3); vertex(s * 0.4, s * 0.5); vertex(s * 0.25, s * 0.3); endShape(CLOSE); fill(this.detailColor); noStroke(); rect(-s*0.1, -s*0.55, s*0.2, s*0.15); ellipse(0, s*0.0, s*0.2, s*0.3); pop(); }
     getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 
 class KamikazeEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 24, 1, 15, 3); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); this.pos.y = constrain(this.pos.y, -this.size, height * 0.6); } this.acceleration = 0.09 + currentLevel * 0.006; this.maxSpeed = min(MAX_ENEMY_SPEED_KAMIKAZE, 3.5 + currentLevel * 0.22); this.vel = p5.Vector.random2D().mult(this.maxSpeed * 0.5);
-    // --- NEW VISUALS ---
-    this.bodyColor = color(40, 70, 40); // Dark orange/brown
-    this.spikeColor = color(25, 80, 100); // Bright orange
-    this.glowColor = color(15, 100, 100); // Red/Orange glow
-    this.explosionColor = color(30, 100, 100); // Orange/Yellow explosion
-    this.hitColor = this.spikeColor;
-    this.glowIntensity = 0;
-    // --- END NEW VISUALS ---
-    }
+    this.bodyColor = color(40, 70, 40); this.spikeColor = color(25, 80, 100); this.glowColor = color(15, 100, 100); this.explosionColor = color(30, 100, 100); this.hitColor = this.spikeColor; this.glowIntensity = 0; }
     update() { if (ship && gameState === GAME_STATE.PLAYING && !isPaused) { let direction = p5.Vector.sub(ship.pos, this.pos); let distanceSq = direction.magSq(); direction.normalize(); direction.mult(this.acceleration); this.vel.add(direction); this.vel.limit(this.maxSpeed); this.glowIntensity = map(sqrt(distanceSq), 200, 50, 0, 1, true); } else { this.glowIntensity = 0; } this.pos.add(this.vel); if (frameCount % 4 === 0 && this.vel.magSq() > 1) { let trailColor = lerpColor(this.bodyColor, this.glowColor, 0.5); createParticles(this.pos.x - this.vel.x * 1.5, this.pos.y - this.vel.y * 1.5, 1, trailColor, this.size * 0.15, 0.3, 0.2); } }
-    draw() {
-        // --- NEW DRAW LOGIC ---
-        push();
-        translate(this.pos.x, this.pos.y);
-        rotate(this.vel.heading() + PI / 2);
-        let s = this.size;
-
-        // Glow effect when close
-        if (this.glowIntensity > 0) {
-            let glowPulse = map(sin(frameCount * 0.35), -1, 1, 0.8, 1.2);
-            let glowSize = s * 2.2 * glowPulse * this.glowIntensity;
-            noStroke();
-            fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), 25 * this.glowIntensity * glowPulse);
-            for(let i = glowSize; i > 0; i-= 4) {
-                 ellipse(0, 0, i, i);
-            }
-        }
-
-        // Spikes
-        fill(this.spikeColor);
-        noStroke();
-        let spikeCount = 6;
-        for(let i = 0; i < spikeCount; i++){
-            let angle = TWO_PI / spikeCount * i + frameCount * 0.01; // Slight rotation
-            let spikeLength = s * 0.8;
-            let spikeBase = s * 0.3;
-            triangle(0, -spikeBase*0.5,
-                     cos(angle) * spikeLength, sin(angle) * spikeLength,
-                     0, spikeBase*0.5);
-        }
-
-        // Body
-        fill(this.bodyColor);
-        stroke(0,0,10);
-        strokeWeight(1.5);
-        ellipse(0, 0, s * 0.6, s * 0.6); // Central core
-
-        pop();
-        // --- END NEW DRAW LOGIC ---
-    }
+    draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); let s = this.size; if (this.glowIntensity > 0) { let glowPulse = map(sin(frameCount * 0.35), -1, 1, 0.8, 1.2); let glowSize = s * 2.2 * glowPulse * this.glowIntensity; noStroke(); fill(hue(this.glowColor), saturation(this.glowColor), brightness(this.glowColor), 25 * this.glowIntensity * glowPulse); for(let i = glowSize; i > 0; i-= 4) { ellipse(0, 0, i, i); } } fill(this.spikeColor); noStroke(); let spikeCount = 6; for(let i = 0; i < spikeCount; i++){ let angle = TWO_PI / spikeCount * i + frameCount * 0.01; let spikeLength = s * 0.8; let spikeBase = s * 0.3; triangle(0, -spikeBase*0.5, cos(angle) * spikeLength, sin(angle) * spikeLength, 0, spikeBase*0.5); } fill(this.bodyColor); stroke(0,0,10); strokeWeight(1.5); ellipse(0, 0, s * 0.6, s * 0.6); pop(); }
     getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 
 class TurretEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 38, 3, 50, 10); if (x === undefined || y === undefined) { let edge = random(1) < 0.5 ? -1 : 1; this.pos.x = (edge < 0) ? -this.size : width + this.size; this.pos.y = random(height * 0.1, height * 0.7); this.vel.set(edge * random(-0.3, -0.05), random(-0.05, 0.05)); } else { this.vel.set(random(-0.1, 0.1), random(-0.1, 0.1)); } this.bulletSpeed = 2.5 + currentLevel * 0.05; this.fireMode = floor(random(3)); this.shootCooldown = random(180, 300); this.shootTimer = this.shootCooldown; this.patternTimer = 0; this.patternAngle = random(TWO_PI); this.burstCount = 0;
-    // --- NEW VISUALS ---
-    this.baseColor = color(210, 25, 55); // Dark grey-blue base
-    this.barrelColor = color(0, 0, 30); // Very dark barrel
-    this.lightColor = color(60, 100, 100); // Yellow light
-    this.glowColor = color(210, 40, 80, 40); // Light blue glow
-    this.explosionColor = color(200, 60, 95); // Blue explosion
-    this.hitColor = color(210, 50, 90);
-    this.barrelRotation = 0;
-    // --- END NEW VISUALS ---
-    }
+    this.baseColor = color(210, 25, 55); this.barrelColor = color(0, 0, 30); this.lightColor = color(60, 100, 100); this.glowColor = color(210, 40, 80, 40); this.explosionColor = color(200, 60, 95); this.hitColor = color(210, 50, 90); this.barrelRotation = 0; }
     update() { super.update(); if (this.pos.x < this.size * 1.5 && this.vel.x < 0) this.vel.x *= -0.2; if (this.pos.x > width - this.size * 1.5 && this.vel.x > 0) this.vel.x *= -0.2; if ((this.pos.y < this.size && this.vel.y < 0) || (this.pos.y > height - this.size && this.vel.y > 0)) { this.vel.y *= 0.5; } this.shootTimer--; if (this.shootTimer <= 0 && ship && gameState === GAME_STATE.PLAYING && !isPaused) { this.startShootingPattern(); this.shootCooldown = random(max(100, 220 - currentLevel * 7), max(160, 340 - currentLevel * 10)); this.shootTimer = this.shootCooldown; } this.updateShootingPattern(); let aimAngle = ship ? atan2(ship.pos.y - this.pos.y, ship.pos.x - this.pos.x) : this.barrelRotation; this.barrelRotation = lerpAngle(this.barrelRotation, aimAngle, 0.08); }
     startShootingPattern() { this.fireMode = floor(random(3)); this.patternTimer = 0; this.patternAngle = this.barrelRotation; switch (this.fireMode) { case 0: this.burstCount = 3 + floor(currentLevel / 4); this.patternTimer = 8; break; case 1: this.burstCount = 12 + currentLevel; this.patternTimer = 4; break; case 2: this.burstCount = 4 + floor(currentLevel / 3); this.patternTimer = 0; break; } }
     updateShootingPattern() { if (this.burstCount > 0) { this.patternTimer--; if (this.patternTimer <= 0 && ship && !isPaused) { let spawnX = this.pos.x + cos(this.barrelRotation) * this.size * 0.4; let spawnY = this.pos.y + sin(this.barrelRotation) * this.size * 0.4; switch (this.fireMode) { case 0: enemyBullets.push(new EnemyBullet(spawnX, spawnY, this.barrelRotation, this.bulletSpeed * 1.1)); this.patternTimer = 8; this.burstCount--; break; case 1: enemyBullets.push(new EnemyBullet(spawnX, spawnY, this.patternAngle, this.bulletSpeed * 0.9)); this.patternAngle += PI / (5 + currentLevel * 0.4); this.patternTimer = 4; this.burstCount--; break; case 2: let spreadArc = PI / 3.5 + (currentLevel * PI / 25); for(let i = 0; i < this.burstCount; i++) { let angle = this.barrelRotation + map(i, 0, this.burstCount - 1, -spreadArc / 2, spreadArc / 2); enemyBullets.push(new EnemyBullet(spawnX, spawnY, angle, this.bulletSpeed * 1.05)); } this.burstCount = 0; break; } } } }
-    draw() {
-        // --- NEW DRAW LOGIC ---
-        push();
-        translate(this.pos.x, this.pos.y);
-        let s = this.size;
-
-        // Base structure
-        fill(this.baseColor);
-        stroke(0, 0, 15);
-        strokeWeight(2);
-        let sides = 8; // Octagonal base
-        beginShape();
-        for (let i = 0; i < sides; i++) {
-            let angle = map(i, 0, sides, 0, TWO_PI) + PI / sides;
-            vertex(cos(angle) * s * 0.5, sin(angle) * s * 0.5);
-        }
-        endShape(CLOSE);
-
-        // Rotating Turret Part
-        rotate(this.barrelRotation);
-        fill(hue(this.baseColor), saturation(this.baseColor)*0.8, brightness(this.baseColor)*0.8); // Slightly different color
-        ellipse(0, 0, s * 0.6, s * 0.6);
-
-        // Barrel
-        fill(this.barrelColor);
-        stroke(0, 0, 5);
-        strokeWeight(1);
-        rect(0, -s * 0.1, s * 0.6, s * 0.2, 2); // Barrel shape
-
-        // Light / Indicator
-        let lightPulse = 1.0;
-        let lightAlpha = 50;
-        if (this.shootTimer < 60 || this.burstCount > 0) {
-            lightPulse = map(sin(frameCount * 0.4), -1, 1, 0.6, 1.6);
-            lightAlpha = map(lightPulse, 0.6, 1.6, 60, 100);
-        }
-        fill(hue(this.lightColor), saturation(this.lightColor), brightness(this.lightColor), lightAlpha);
-        noStroke();
-        ellipse(s * 0.3, 0, s * 0.1 * lightPulse, s * 0.1 * lightPulse); // Light at the tip of the barrel
-
-        pop();
-        // --- END NEW DRAW LOGIC ---
-    }
+    draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; fill(this.baseColor); stroke(0, 0, 15); strokeWeight(2); let sides = 8; beginShape(); for (let i = 0; i < sides; i++) { let angle = map(i, 0, sides, 0, TWO_PI) + PI / sides; vertex(cos(angle) * s * 0.5, sin(angle) * s * 0.5); } endShape(CLOSE); rotate(this.barrelRotation); fill(hue(this.baseColor), saturation(this.baseColor)*0.8, brightness(this.baseColor)*0.8); ellipse(0, 0, s * 0.6, s * 0.6); fill(this.barrelColor); stroke(0, 0, 5); strokeWeight(1); rect(0, -s * 0.1, s * 0.6, s * 0.2, 2); let lightPulse = 1.0; let lightAlpha = 50; if (this.shootTimer < 60 || this.burstCount > 0) { lightPulse = map(sin(frameCount * 0.4), -1, 1, 0.6, 1.6); lightAlpha = map(lightPulse, 0.6, 1.6, 60, 100); } fill(hue(this.lightColor), saturation(this.lightColor), brightness(this.lightColor), lightAlpha); noStroke(); ellipse(s * 0.3, 0, s * 0.1 * lightPulse, s * 0.1 * lightPulse); pop(); }
     getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 
 class SwarmerEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 16, 1, 5, 1); if (x === undefined || y === undefined) { this._setDefaultSpawnPosition(); } this.maxSpeed = min(MAX_ENEMY_SPEED_SWARMER, 1.6 + currentLevel * 0.12); this.vel = p5.Vector.random2D().mult(this.maxSpeed); this.turnForce = 0.035 + random(0.025); this.phaseOffset = random(TWO_PI);
-    // --- NEW VISUALS ---
-    this.bodyColor = color(90, 60, 60); // Greenish body
-    this.wingColor = color(100, 40, 80, 60); // Lighter green, semi-transparent wings
-    this.eyeColor = color(0, 0, 100); // White eye
-    this.explosionColor = color(110, 80, 80); // Bright green explosion
-    this.hitColor = color(90, 80, 90);
-    // --- END NEW VISUALS ---
-    }
+    this.bodyColor = color(90, 60, 60); this.wingColor = color(100, 40, 80, 60); this.eyeColor = color(0, 0, 100); this.explosionColor = color(110, 80, 80); this.hitColor = color(90, 80, 90); }
     update() { let targetY = height * 0.7; let targetX = width / 2; if(ship && !isPaused) { targetX = ship.pos.x + random(-width*0.3, width*0.3); targetY = ship.pos.y + random(30, 180); } let desired = createVector(targetX - this.pos.x, targetY - this.pos.y); desired.normalize(); desired.mult(this.maxSpeed); let wave = createVector(desired.y, -desired.x); wave.normalize(); wave.mult(sin(frameCount * 0.07 + this.phaseOffset) * this.maxSpeed * 0.65); desired.add(wave); let steer = p5.Vector.sub(desired, this.vel); steer.limit(this.turnForce); this.vel.add(steer); this.vel.limit(this.maxSpeed); this.pos.add(this.vel); }
-    draw() {
-        // --- NEW DRAW LOGIC ---
-        push();
-        translate(this.pos.x, this.pos.y);
-        rotate(this.vel.heading() + PI / 2);
-        let s = this.size;
-
-        // Wings
-        let wingFlap = sin(frameCount * 0.35 + this.phaseOffset) * 0.3;
-        fill(this.wingColor);
-        noStroke();
-        // Left Wing Pair
-        ellipse(-s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4);
-        ellipse(-s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3);
-        // Right Wing Pair
-        ellipse(s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4);
-        ellipse(s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3);
-
-        // Body Segment
-        fill(this.bodyColor);
-        stroke(0,0,20);
-        strokeWeight(1);
-        ellipse(0, 0, s * 0.8, s * 1.3); // Main body ellipse
-
-        // Head / Eye
-        fill(hue(this.bodyColor), saturation(this.bodyColor)*1.1, brightness(this.bodyColor)*1.1);
-        ellipse(0, -s*0.5, s*0.5, s*0.5); // Head part
-        fill(this.eyeColor);
-        ellipse(0, -s*0.6, s*0.2, s*0.2); // Eye
-
-        pop();
-        // --- END NEW DRAW LOGIC ---
-    }
+    draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.vel.heading() + PI / 2); let s = this.size; let wingFlap = sin(frameCount * 0.35 + this.phaseOffset) * 0.3; fill(this.wingColor); noStroke(); ellipse(-s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4); ellipse(-s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3); ellipse(s * 0.6, 0, s * 0.7, s * 1.1 + wingFlap * s * 0.4); ellipse(s * 0.7, s*0.3, s * 0.5, s * 0.8 - wingFlap * s * 0.3); fill(this.bodyColor); stroke(0,0,20); strokeWeight(1); ellipse(0, 0, s * 0.8, s * 1.3); fill(hue(this.bodyColor), saturation(this.bodyColor)*1.1, brightness(this.bodyColor)*1.1); ellipse(0, -s*0.5, s*0.5, s*0.5); fill(this.eyeColor); ellipse(0, -s*0.6, s*0.2, s*0.2); pop(); }
     getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 
 class LaserEnemy extends BaseEnemy { constructor(x, y) { super(x, y, 35, 4, 60, 12); this.chargeTime = 100 + random(40); this.fireDuration = 150 + random(60); this.cooldownTime = 180 + random(100); this.laserState = 'idle'; this.chargeTimer = 0; this.fireTimer = 0; this.cooldownTimer = this.cooldownTime / 2; this.laserTargetPos = null; this.laserWidth = 10; this.isFiring = false;
-    // --- NEW VISUALS ---
-    this.bodyColor = color(300, 50, 50); // Purple/Magenta body
-    this.emitterColor = color(330, 80, 90); // Brighter pink emitter part
-    this.chargeColor = color(330, 100, 100); // Pink/White charge
-    this.laserColorInner = color(320, 80, 100, 95); // Bright Pink inner beam
-    this.laserColorOuter = color(300, 60, 100, 40); // Purple outer beam
-    this.explosionColor = color(310, 80, 95); // Purple/Pink explosion
-    this.hitColor = color(300, 70, 80);
-    // --- END NEW VISUALS ---
+    this.bodyColor = color(300, 50, 50); this.emitterColor = color(330, 80, 90); this.chargeColor = color(330, 100, 100); this.laserColorInner = color(320, 80, 100, 95); this.laserColorOuter = color(300, 60, 100, 40); this.explosionColor = color(310, 80, 95); this.hitColor = color(300, 70, 80);
     if (x === undefined || y === undefined) { this.pos.x = random(width * 0.1, width * 0.9); this.pos.y = random(height * 0.05, height * 0.2); this.vel.set(random(-MAX_ENEMY_SPEED_LASER, MAX_ENEMY_SPEED_LASER) * (random() < 0.5 ? 1 : -1), 0); } else { this.vel.set(random(-MAX_ENEMY_SPEED_LASER*0.5, MAX_ENEMY_SPEED_LASER*0.5), random(-0.1, 0.1)); } }
     update() { this.pos.add(this.vel); if ((this.pos.x < this.size / 2 && this.vel.x < 0) || (this.pos.x > width - this.size / 2 && this.vel.x > 0)) { this.vel.x *= -1; } this.pos.y += sin(frameCount * 0.02 + this.pos.x * 0.01) * 0.15; this.pos.y = constrain(this.pos.y, this.size/2, height * 0.3); switch (this.laserState) { case 'idle': if (this.cooldownTimer > 0) { this.cooldownTimer--; } else if (ship && !isPaused && gameState === GAME_STATE.PLAYING) { this.laserState = 'charging'; this.chargeTimer = this.chargeTime; } break; case 'charging': this.chargeTimer--; if (this.chargeTimer <= 0 && ship) { this.laserState = 'firing'; this.fireTimer = this.fireDuration; this.laserTargetPos = ship.pos.copy(); this.isFiring = true; } break; case 'firing': this.fireTimer--; if (this.fireTimer <= 0) { this.laserState = 'cooldown'; this.cooldownTimer = this.cooldownTime; this.isFiring = false; this.laserTargetPos = null; } if (this.isFiring && frameCount % 5 === 0) { createParticles(this.pos.x, this.pos.y, 1, this.laserColorInner, 4, 0.5, 0.3); } break; case 'cooldown': this.cooldownTimer--; if (this.cooldownTimer <= 0) { this.laserState = 'idle'; } break; } }
-    draw() {
-        // --- NEW DRAW LOGIC ---
-        push();
-        translate(this.pos.x, this.pos.y);
-        let s = this.size;
-
-        // Main body - crescent shape
-        fill(this.bodyColor);
-        stroke(0, 0, 20);
-        strokeWeight(1.5);
-        beginShape();
-        vertex(-s * 0.5, -s * 0.2);
-        bezierVertex(-s * 0.7, 0, -s * 0.5, s * 0.6);
-        bezierVertex(0, s*0.8, s*0.5, s*0.6);
-        bezierVertex(s * 0.7, 0, s * 0.5, -s * 0.2);
-        bezierVertex(0, -s * 0.7, -s * 0.5, -s * 0.2); // Close the crescent
-        endShape(CLOSE);
-
-        // Emitter / Charging visual
-        let chargeRatio = 0;
-        let emitterSize = s * 0.3;
-        if (this.laserState === 'charging') {
-            chargeRatio = 1.0 - (this.chargeTimer / this.chargeTime);
-            emitterSize = s * 0.3 + s * 0.4 * chargeRatio;
-            let chargeAlpha = map(chargeRatio, 0, 1, 60, 100);
-            let chargeBri = map(sin(frameCount * 0.4 + chargeRatio * PI), -1, 1, 90, 100);
-            fill(hue(this.chargeColor), saturation(this.chargeColor), chargeBri, chargeAlpha);
-            noStroke();
-            ellipse(0, 0, emitterSize, emitterSize);
-        } else if (this.laserState === 'firing') {
-             chargeRatio = 1.0;
-             let firePulse = map(sin(frameCount * 0.6), -1, 1, 0.9, 1.1);
-             emitterSize = s * 0.7 * firePulse;
-             fill(hue(this.chargeColor), 90, 100, 95);
-             noStroke();
-             ellipse(0, 0, emitterSize, emitterSize);
-        }
-         // Static emitter part
-        fill(this.emitterColor);
-        noStroke();
-        ellipse(0, 0, s * 0.3, s * 0.3);
-
-
-        pop();
-
-        // Laser Beam (remains the same)
-        if (this.isFiring && this.laserTargetPos) {
-            let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x);
-            let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + height; // Extend past target
-            let endX = this.pos.x + cos(laserAngle) * beamLength;
-            let endY = this.pos.y + sin(laserAngle) * beamLength;
-
-            // Outer glow
-            let outerWidth = this.laserWidth * map(sin(frameCount * 0.4), -1, 1, 2.0, 3.5);
-            strokeWeight(outerWidth);
-            stroke(hue(this.laserColorOuter), saturation(this.laserColorOuter), brightness(this.laserColorOuter), alpha(this.laserColorOuter) * random(0.8, 1.2));
-            line(this.pos.x, this.pos.y, endX, endY);
-
-            // Inner core
-            let innerWidth = this.laserWidth * map(sin(frameCount * 0.5 + PI/2), -1, 1, 0.8, 1.2);
-            strokeWeight(innerWidth);
-            stroke(hue(this.laserColorInner), saturation(this.laserColorInner), brightness(this.laserColorInner), alpha(this.laserColorInner));
-            line(this.pos.x, this.pos.y, endX, endY);
-        }
-        // --- END NEW DRAW LOGIC ---
-    }
+    draw() { push(); translate(this.pos.x, this.pos.y); let s = this.size; fill(this.bodyColor); stroke(0, 0, 20); strokeWeight(1.5); beginShape(); vertex(-s * 0.5, -s * 0.2); bezierVertex(-s * 0.7, 0, -s * 0.5, s * 0.6); bezierVertex(0, s*0.8, s*0.5, s*0.6); bezierVertex(s * 0.7, 0, s * 0.5, -s * 0.2); bezierVertex(0, -s * 0.7, -s * 0.5, -s * 0.2); endShape(CLOSE); let chargeRatio = 0; let emitterSize = s * 0.3; if (this.laserState === 'charging') { chargeRatio = 1.0 - (this.chargeTimer / this.chargeTime); emitterSize = s * 0.3 + s * 0.4 * chargeRatio; let chargeAlpha = map(chargeRatio, 0, 1, 60, 100); let chargeBri = map(sin(frameCount * 0.4 + chargeRatio * PI), -1, 1, 90, 100); fill(hue(this.chargeColor), saturation(this.chargeColor), chargeBri, chargeAlpha); noStroke(); ellipse(0, 0, emitterSize, emitterSize); } else if (this.laserState === 'firing') { chargeRatio = 1.0; let firePulse = map(sin(frameCount * 0.6), -1, 1, 0.9, 1.1); emitterSize = s * 0.7 * firePulse; fill(hue(this.chargeColor), 90, 100, 95); noStroke(); ellipse(0, 0, emitterSize, emitterSize); } fill(this.emitterColor); noStroke(); ellipse(0, 0, s * 0.3, s * 0.3); pop(); if (this.isFiring && this.laserTargetPos) { let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x); let beamLength = dist(this.pos.x, this.pos.y, this.laserTargetPos.x, this.laserTargetPos.y) + height; let endX = this.pos.x + cos(laserAngle) * beamLength; let endY = this.pos.y + sin(laserAngle) * beamLength; let outerWidth = this.laserWidth * map(sin(frameCount * 0.4), -1, 1, 2.0, 3.5); strokeWeight(outerWidth); stroke(hue(this.laserColorOuter), saturation(this.laserColorOuter), brightness(this.laserColorOuter), alpha(this.laserColorOuter) * random(0.8, 1.2)); line(this.pos.x, this.pos.y, endX, endY); let innerWidth = this.laserWidth * map(sin(frameCount * 0.5 + PI/2), -1, 1, 0.8, 1.2); strokeWeight(innerWidth); stroke(hue(this.laserColorInner), saturation(this.laserColorInner), brightness(this.laserColorInner), alpha(this.laserColorInner)); line(this.pos.x, this.pos.y, endX, endY); } }
     checkLaserHit(playerShip) { if (!this.isFiring || !this.laserTargetPos) return false; let p1 = this.pos; let laserAngle = atan2(this.laserTargetPos.y - this.pos.y, this.laserTargetPos.x - this.pos.x); let beamLength = width * 2; let p2 = createVector(this.pos.x + cos(laserAngle) * beamLength, this.pos.y + sin(laserAngle) * beamLength); let c = playerShip.pos; let r = playerShip.size * 0.5; let laserVec = p5.Vector.sub(p2, p1); let pointVec = p5.Vector.sub(c, p1); let laserLenSq = laserVec.magSq(); let dot = pointVec.dot(laserVec); let t = dot / laserLenSq; t = constrain(t, 0, Infinity); let closestPoint = p5.Vector.add(p1, laserVec.mult(t)); let distToClosest = p5.Vector.dist(c, closestPoint); let hitRadius = r + this.laserWidth / 2; return distToClosest < hitRadius; }
     getExplosionColor() { return this.explosionColor; } getHitColor() { return this.hitColor; } }
 
