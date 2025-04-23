@@ -1,7 +1,8 @@
 
 // --- Features ---
 // ... (previous features) ...
-// - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // MODIFIED
+// - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // RETAINED for WIN condition only
+// - Gradually harder objectives per level // MODIFIED
 // ... (rest of features) ...
 // --------------------------
 
@@ -71,8 +72,8 @@ let selectedPauseMenuItem = 0;
 let leaderboardData = []; // Array of { name: "...", score: ... }
 const MAX_LEADERBOARD_ENTRIES = 10;
 const MIN_LEADERBOARD_SCORE = 100; // Minimum score to qualify for leaderboard
-let nameInputElement = null; // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEW: HTML Input Element
-let currentPlayerScore = 0; // Score of the player needing name entry
+let nameInputElement = null; // HTML Input Element
+let currentPlayerScore = 0; // Score of the player needing name entry (used only on WIN now)
 let leaderboardButtons = []; // Just a back button
 
 // --- Base Ship Stats (for Skill Tree modification) ---
@@ -102,24 +103,26 @@ const MAX_LEVEL = 15;
 
 // --- Mission Objectives ---
 const OBJECTIVE_TYPE = { DESTROY_BASIC: 'destroy_basic', DESTROY_KAMIKAZE: 'destroy_kamikaze', DESTROY_TURRET: 'destroy_turret', DESTROY_SWARMER: 'destroy_swarmer', DESTROY_LASER: 'destroy_laser', DESTROY_ASTEROIDS: 'destroy_asteroids', SURVIVE_TIME: 'survive_time', SCORE_REACH: 'score_reach', COLLECT_POTIONS: 'collect_potions', COLLECT_POWERUPS: 'collect_powerups', PROTECT_FRIENDLY: 'protect_friendly' };
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< MODIFIED OBJECTIVES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 const LEVEL_OBJECTIVES = [
     null, // Level 0 doesn't exist
-    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 5, description: "Destroy Basic Fighters" }, // Level 1
-    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 20, description: "Destroy Asteroids" }, // Level 2
-    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 4000, description: "Reach 4000 Points"}, // Level 3
-    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 60 * 60, description: "Survive for 60 seconds" }, // Level 4
-    { type: OBJECTIVE_TYPE.DESTROY_SWARMER, target: 15, description: "Destroy Swarmers"}, // Level 5
-    { type: OBJECTIVE_TYPE.COLLECT_POWERUPS, target: 3, description: "Collect Power-Ups" }, // Level 6
-    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 8000, description: "Reach 8000 Points"}, // Level 7
-    { type: OBJECTIVE_TYPE.DESTROY_LASER, target: 2, description: "Destroy Laser Emitters" }, // Level 8
-    { type: OBJECTIVE_TYPE.COLLECT_POTIONS, target: 4, description: "Collect Health Potions" }, // Level 9
-    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 90 * 60, description: "Survive for 90 seconds" }, // Level 10
-    { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 15, description: "Destroy Kamikaze Ships" }, // Level 11
-    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 50, description: "Destroy Asteroids" }, // Level 12
-    { type: OBJECTIVE_TYPE.DESTROY_TURRET, target: 6, description: "Destroy Turrets" }, // Level 13
-    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 25000, description: "Reach 25000 Points"}, // Level 14
-    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 120 * 60, description: "Survive the Final Wave (120s)" }, // Level 15 (Final)
+    { type: OBJECTIVE_TYPE.DESTROY_BASIC, target: 5, description: "Destroy Basic Fighters" },   // Level 1
+    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 25, description: "Destroy Asteroids" },    // Level 2 (+5)
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 5000, description: "Reach 5000 Points"},         // Level 3 (+1000)
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 70 * 60, description: "Survive for 70 seconds" }, // Level 4 (+10s)
+    { type: OBJECTIVE_TYPE.DESTROY_SWARMER, target: 20, description: "Destroy Swarmers"},        // Level 5 (+5)
+    { type: OBJECTIVE_TYPE.COLLECT_POWERUPS, target: 4, description: "Collect Power-Ups" },      // Level 6 (+1)
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 12000, description: "Reach 12000 Points"},       // Level 7 (+4000)
+    { type: OBJECTIVE_TYPE.DESTROY_LASER, target: 3, description: "Destroy Laser Emitters" },    // Level 8 (+1)
+    { type: OBJECTIVE_TYPE.COLLECT_POTIONS, target: 5, description: "Collect Health Potions" },   // Level 9 (+1)
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 100 * 60, description: "Survive for 100 seconds" },// Level 10 (+10s)
+    { type: OBJECTIVE_TYPE.DESTROY_KAMIKAZE, target: 20, description: "Destroy Kamikaze Ships" }, // Level 11 (+5)
+    { type: OBJECTIVE_TYPE.DESTROY_ASTEROIDS, target: 60, description: "Destroy Asteroids" },    // Level 12 (+10)
+    { type: OBJECTIVE_TYPE.DESTROY_TURRET, target: 8, description: "Destroy Turrets" },          // Level 13 (+2)
+    { type: OBJECTIVE_TYPE.SCORE_REACH, target: 35000, description: "Reach 35000 Points"},       // Level 14 (+10000)
+    { type: OBJECTIVE_TYPE.SURVIVE_TIME, target: 135 * 60, description: "Survive the Final Wave (135s)" }, // Level 15 (+15s)
 ];
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< END MODIFIED OBJECTIVES <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 let currentObjective = { type: null, target: 0, progress: 0, description: "", startTime: 0 };
 let levelStartTime = 0;
 
@@ -512,8 +515,7 @@ function displayUpgradeShop() {
     for (let button of shopButtons) { drawUpgradeShopButton(button); }
 }
 function displayGameOver() {
-    // Check for high score *before* drawing the standard game over screen
-    // This check is now handled in the transition logic, not directly in draw
+    // Name entry is now only handled on WIN screen if high score
     drawPanelBackground(width * (isMobile ? 0.8 : 0.6), height * 0.5);
     drawShadowedText("GAME OVER", width / 2, height / 3, isMobile ? 52 : 68, color(0, 80, 100), uiTextShadowColor);
     drawShadowedText("Final Points: " + points, width / 2, height / 3 + (isMobile ? 60 : 75), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
@@ -526,7 +528,7 @@ function displayGameOver() {
 }
 function displayWinScreen() {
      // Check for high score *before* drawing the standard win screen
-     // This check is now handled in the transition logic, not directly in draw
+     // This check is now handled in the transition logic (`runGameLogic`), not directly in draw
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6);
     let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; drawShadowedText(char, currentWinX + charWidth / 2, winY, winTextSize, color(h, 95, 100), uiTextShadowColor); currentWinX += charWidth; }
     drawShadowedText("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
@@ -813,17 +815,17 @@ function handleCollisions() {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
                 if (lives <= 0) {
                      resetSkillTreeAndFragments(); // Reset skills and fragments on Game Over
-                     currentPlayerScore = points; // Store final score
-                     saveGameData(); // Save reset skills & potential leaderboard trigger
-                     if(checkHighScore(currentPlayerScore)) { // Check if eligible for leaderboard
-                         gameState = GAME_STATE.ENTER_NAME;
-                         if (nameInputElement) { // Clean up just in case
-                            nameInputElement.remove();
-                            nameInputElement = null;
-                         }
-                     } else {
-                         gameState = GAME_STATE.GAME_OVER; // Proceed to standard game over
+                     currentPlayerScore = points; // Store final score (maybe useful later, but not for name entry)
+                     saveGameData(); // Save reset skills
+
+                     // --- MODIFICATION: Always go to Game Over screen after dying ---
+                     gameState = GAME_STATE.GAME_OVER;
+                     if (nameInputElement) { // Clean up just in case
+                         nameInputElement.remove();
+                         nameInputElement = null;
                      }
+                     // --- END MODIFICATION ---
+
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
                      gameOver = true;
                 } else { ship.setInvulnerable(); }
