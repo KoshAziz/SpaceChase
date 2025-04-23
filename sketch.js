@@ -1,15 +1,28 @@
 
 // --- Features ---
-// ... (previous features) ...
-// - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // RETAINED for WIN condition only
-// - Gradually harder objectives per level
+// - Randomly generated space background with stars, nebulas, planets, black holes
+// - Player ship controlled by keyboard/touch
+// - Multiple enemy types with distinct behaviors (Basic, Kamikaze, Turret, Swarmer, Laser)
+// - Asteroids that split when shot
+// - Various power-ups (Shield, Rapid Fire, Score Multiplier, Drone, Invincibility) // MODIFIED: Removed EMP
+// - Health Potions
+// - Level progression with increasingly difficult objectives and spawning
+// - In-game shop between levels for upgrades (Fire Rate, Spread Shot, Rear Gun, Missiles)
+// - Persistent Skill Tree for passive bonuses (Speed, Lives, Shield Regen, Damage, Money) using Tech Fragments
+// - Visual effects: particles, screen shake, background fx, ship shape evolution
+// - Combo system for skillful play
+// - Customizable ship color and bullet style
+// - Settings menu (Screen Shake, Background FX, Particle Density)
+// - Pause menu
+// - Mobile controls (touch movement/shooting, on-screen buttons)
+// - Win screen upon completing the final level
+// - Game Over screen
 // - Updated Enemy Visuals
 // - Faster Enemy Spawning
 // - Smoother Asteroid Shapes (Less Spiky)
 // - Grey Asteroids
 // - Updated Title Color
-// - Reduced Invincibility Power-up Spawn Rate // NEW
-// ... (rest of features) ...
+// - Reduced Invincibility Power-up Spawn Rate
 // --------------------------
 
 
@@ -28,7 +41,7 @@ let skillTreeReturnState = GAME_STATE.START_MENU; // Tracks where Skill Tree sho
 let isPaused = false;
 
 // --- Menu Variables ---
-let menuItems = ['Start Game', 'Skills', 'Settings', 'Cosmetics']; // REMOVED Leaderboard
+let menuItems = ['Start Game', 'Skills', 'Settings', 'Cosmetics'];
 let selectedMenuItem = 0; let startMenuButtons = [];
 
 // --- Settings Variables and Menu Items ---
@@ -74,8 +87,6 @@ let pauseMenuItems = ['Resume', 'Skills', 'Settings', 'Main Menu'];
 let pauseMenuButtons = [];
 let selectedPauseMenuItem = 0;
 
-// --- Leaderboard Variables (REMOVED) ---
-
 // --- Base Ship Stats (for Skill Tree modification) ---
 const BASE_MAX_SPEED = 9.5;
 const BASE_MAX_LIVES = 3;
@@ -88,10 +99,10 @@ let mobileSettingsButton = { x: 0, y: 0, size: 0, padding: 5 };
 let mobileMissileButton = { x: 0, y: 0, size: 0, padding: 5 };
 
 // Power-Up Types
-const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, EMP_BURST: 2, SCORE_MULT: 3, DRONE: 4, INVINCIBILITY: 5 };
-const NUM_POWERUP_TYPES = 6;
-const INVINCIBILITY_SPAWN_CHANCE = 0.25; // <<<<< NEW: Chance for Invincibility to spawn if selected (25%)
-const EMP_SPAWN_CHANCE = 0.2; // Chance for EMP to spawn if selected
+// REMOVED EMP_BURST(2)
+const POWERUP_TYPES = { TEMP_SHIELD: 0, RAPID_FIRE: 1, SCORE_MULT: 3, DRONE: 4, INVINCIBILITY: 5 };
+const NUM_POWERUP_TYPES = 5; // Reduced count
+const INVINCIBILITY_SPAWN_CHANCE = 0.25;
 
 // Enemy Types
 const ENEMY_TYPES = { BASE: 0, KAMIKAZE: 1, TURRET: 2, SWARMER: 3, LASER: 4 };
@@ -206,7 +217,6 @@ function setup() {
     setupCosmeticsMenuButtons();
     setupSkillTreeButtons();
     setupPauseMenuButtons();
-    // REMOVED: setupLeaderboardButtons();
     calculateMobileActionButtonsPosition();
 }
 
@@ -303,7 +313,6 @@ function saveGameData() {
     try {
         let skillDataToSave = { techFragments: techFragments, skillTreeData: skillTreeData };
         localStorage.setItem('spaceChaseSkillData', JSON.stringify(skillDataToSave));
-        // REMOVED: localStorage.setItem('spaceChaseLeaderboard', JSON.stringify(leaderboardData));
         // console.log("Game data (Skills) saved.");
     } catch (e) { console.error("Error saving game data to localStorage:", e); }
 }
@@ -326,9 +335,6 @@ function loadGameData() {
             resetSkillTreeAndFragments();
             // console.log("No skill save data found, resetting skills and fragments.");
         }
-
-        // REMOVED: Load Leaderboard Data
-
     } catch (e) {
         console.error("Error loading game data from localStorage:", e);
         resetSkillTreeAndFragments(); // Reset skills on error
@@ -361,7 +367,6 @@ function draw() {
     }
 
     // Spawn Planet Logic
-    // REMOVED LEADERBOARD_SCREEN checks
     if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE) {
         let currentTime = millis();
         if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { spawnPlanet(); lastPlanetAppearanceTime = currentTime; }
@@ -382,16 +387,13 @@ function draw() {
          case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break;
          case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
          case GAME_STATE.SKILL_TREE: displaySkillTree(); break;
-         // REMOVED: case GAME_STATE.LEADERBOARD_SCREEN: displayLeaderboardScreen(); break;
          case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseMenu(); } break;
          case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
          case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
          case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break;
-         // REMOVED: case GAME_STATE.ENTER_NAME: displayEnterNameScreen(); break;
      }
 
     // Overlays
-    // REMOVED LEADERBOARD_SCREEN checks
     if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU || gameState === GAME_STATE.SKILL_TREE ) { infoMessageTimeout--; } }
     if (levelTransitionFlash > 0) { fill(0, 0, 100, levelTransitionFlash * 10); rect(0, 0, width, height); levelTransitionFlash--; }
     pop();
@@ -627,24 +629,22 @@ function runGameLogic() {
             else { enemyShips.push(new BasicEnemy()); }
         }
         if (random(1) < potionSpawnRate && potions.length < maxPotionsAllowed) { potions.push(new HealthPotion()); }
-        // <<< MODIFIED Power-up Spawning >>>
+        // <<< MODIFIED Power-up Spawning (Removed EMP logic) >>>
         if (random(1) < powerUpSpawnRate && powerUps.length < maxPowerUpsAllowed) {
-            let type = floor(random(NUM_POWERUP_TYPES));
-            let attemptSpawn = true; // Flag to control if we proceed to push
+            let type = floor(random(NUM_POWERUP_TYPES)); // Uses the new NUM_POWERUP_TYPES
+            let attemptSpawn = true;
 
-            // --- Handle special spawn rates ---
+            // Reroute the index if it falls on the removed EMP slot (index 2)
+            if (type >= 2) type++; // Shift indices up for Score Mult, Drone, Invincibility
+
+            // Handle special spawn rates for Invincibility
             if (type === POWERUP_TYPES.INVINCIBILITY) {
-                if (random() > INVINCIBILITY_SPAWN_CHANCE) { // Use the defined constant
+                if (random() > INVINCIBILITY_SPAWN_CHANCE) {
                     attemptSpawn = false; // Don't spawn invincibility this time
                 }
             }
-            else if (type === POWERUP_TYPES.EMP_BURST) {
-                 if (random() > EMP_SPAWN_CHANCE) { // Use the defined constant
-                     attemptSpawn = false; // Don't spawn EMP this time
-                 }
-            }
 
-            // --- Spawn if allowed ---
+            // Spawn if allowed
             if (attemptSpawn) {
                  powerUps.push(new PowerUp(type));
             }
@@ -670,10 +670,7 @@ function handlePowerUps() {
             switch (powerUpType) {
                 case POWERUP_TYPES.TEMP_SHIELD: ship.tempShieldActive = true; infoMessage = "TEMPORARY SHIELD!"; createParticles(ship.pos.x, ship.pos.y, 20, color(45, 90, 100)); break;
                 case POWERUP_TYPES.RAPID_FIRE: ship.rapidFireTimer = 300; infoMessage = "RAPID FIRE!"; createParticles(ship.pos.x, ship.pos.y, 20, color(120, 90, 100)); break;
-                case POWERUP_TYPES.EMP_BURST: infoMessage = "EMP BURST!"; createParticles(ship.pos.x, ship.pos.y, 60, color(210, 100, 100), 12, 3.5, 1.2);
-                     for (let k = asteroids.length - 1; k >= 0; k--) { createParticles(asteroids[k].pos.x, asteroids[k].pos.y, floor(asteroids[k].size / 3), asteroids[k].color, 3, 1.5); if (currentObjective.type === OBJECTIVE_TYPE.DESTROY_ASTEROIDS) { currentObjective.progress++; } asteroids.splice(k, 1); }
-                     for (let k = enemyShips.length - 1; k >= 0; k--) { let enemy = enemyShips[k]; createParticles(enemy.pos.x, enemy.pos.y, 20, enemy.getExplosionColor()); points += floor((enemy.pointsValue || 0) * 0.3); money += floor((enemy.moneyValue || 0) * 0.3); if (enemy instanceof BasicEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_BASIC) { currentObjective.progress += 0.5; } else if (enemy instanceof KamikazeEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_KAMIKAZE) { currentObjective.progress += 0.5; } else if (enemy instanceof TurretEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_TURRET) { currentObjective.progress += 0.5; } else if (enemy instanceof SwarmerEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_SWARMER) { currentObjective.progress += 0.5; } else if (enemy instanceof LaserEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_LASER) { currentObjective.progress += 0.5; } enemyShips.splice(k, 1); }
-                     enemyBullets = []; break;
+                // REMOVED: case POWERUP_TYPES.EMP_BURST: ...
                  case POWERUP_TYPES.SCORE_MULT: ship.scoreMultiplierTimer = 600; ship.scoreMultiplierValue = 2; infoMessage = `SCORE x${ship.scoreMultiplierValue}!`; createParticles(ship.pos.x, ship.pos.y, 30, color(60, 100, 100)); break;
                  case POWERUP_TYPES.DRONE: if (!ship.droneActive) { ship.droneActive = true; ship.drone = new Drone(ship); infoMessage = "DRONE ACTIVATED!"; createParticles(ship.pos.x, ship.pos.y, 30, color(180, 50, 100)); } else { infoMessage = "DRONE ALREADY ACTIVE!"; } break;
                  case POWERUP_TYPES.INVINCIBILITY: ship.invincibilityTimer = 480; infoMessage = "INVINCIBLE!"; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 0, 100)); ship.tempShieldActive = false; ship.shieldCharges = 0; break;
@@ -865,7 +862,6 @@ function mousePressed() {
 function mouseReleased() { /* No action needed */ }
 
 function keyPressed() {
-    // --- Existing key handling for other states ---
     if (keyCode === ESCAPE) {
         if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) { selectedPauseMenuItem = 0; setupPauseMenuButtons(); cursor(ARROW); isMobileShooting = false; } else { cursor(); } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); }
@@ -927,7 +923,6 @@ function windowResized() {
     if (gameState === GAME_STATE.SKILL_TREE) setupSkillTreeButtons();
     if (gameState === GAME_STATE.UPGRADE_SHOP) setupShopButtons();
     if (gameState === GAME_STATE.PLAYING && isPaused) setupPauseMenuButtons();
-    // REMOVED: if (gameState === GAME_STATE.LEADERBOARD_SCREEN) setupLeaderboardButtons();
     calculateMobileActionButtonsPosition();
 }
 
@@ -1015,7 +1010,8 @@ class Particle { constructor(x, y, particleColor, size = null, speedMult = 1, li
 class Star { constructor() { this.x = random(width); this.y = random(height); this.layer = floor(random(4)); this.size = map(this.layer, 0, 3, 0.4, 2.8); this.speed = map(this.layer, 0, 3, 0.05, 0.6); this.baseBrightness = random(50, 95); this.twinkleSpeed = random(0.03, 0.08); this.twinkleRange = random(0.6, 1.4); this.twinkleOffset = random(TWO_PI); } update() { this.y += this.speed; if (this.y > height + this.size) { this.y = -this.size; this.x = random(width); } } draw() { let twinkleFactor = map(sin(frameCount * this.twinkleSpeed + this.twinkleOffset), -1, 1, 1.0 - this.twinkleRange / 2, 1.0 + this.twinkleRange / 2); let currentBrightness = constrain(this.baseBrightness * twinkleFactor, 30, 100); fill(0, 0, currentBrightness, 90); noStroke(); ellipse(this.x, this.y, this.size, this.size); } }
 class ShootingStar { constructor() { this.startX = random(width); this.startY = random(-50, -10); this.pos = createVector(this.startX, this.startY); let angle = random(PI * 0.3, PI * 0.7); this.speed = random(15, 30); this.vel = p5.Vector.fromAngle(angle).mult(this.speed); this.len = random(50, 150); this.brightness = random(80, 100); this.lifespan = 100; } update() { this.pos.add(this.vel); this.lifespan -= 2; } draw() { if (this.lifespan <= 0) return; let alpha = map(this.lifespan, 0, 100, 0, 100); let tailPos = p5.Vector.sub(this.pos, this.vel.copy().setMag(this.len)); strokeWeight(random(1.5, 3)); stroke(0, 0, this.brightness, alpha); line(this.pos.x, this.pos.y, tailPos.x, tailPos.y); } isDone() { return this.lifespan <= 0 || this.pos.y > height + this.len || this.pos.x < -this.len || this.pos.x > width + this.len; } }
 class HealthPotion { constructor(x, y) { this.pos = createVector(x || random(width * 0.1, width * 0.9), y || -30); this.vel = createVector(0, random(0.5, 1.5)); this.size = 20; this.rotation = 0; this.rotationSpeed = random(-0.015, 0.015); this.pulseOffset = random(TWO_PI); } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let pulseFactor = map(sin(frameCount * 0.15 + this.pulseOffset), -1, 1, 0.95, 1.05); let s = this.size * pulseFactor; let bodyHeight = s * 0.7; let bodyWidth = s * 0.6; let neckHeight = s * 0.3; let neckWidth = s * 0.25; let lipHeight = s * 0.08; let lipWidth = neckWidth * 1.4; let stopperHeight = s * 0.2; let stopperWidth = neckWidth * 1.1; let bodyBottomY = s * 0.4; let neckBottomY = -s * 0.3; let neckTopY = neckBottomY - neckHeight; let glowAlpha = map(pulseFactor, 0.95, 1.05, 35, 75); noStroke(); for (let i = 3; i > 0; i--) { fill(0, 90, 100, glowAlpha / (i * 2)); ellipse(0, 0, s * (1 + i * 0.25), s * (1 + i * 0.25)); } fill(0, 85, 90); noStroke(); ellipse(0, neckBottomY - bodyHeight*0.3, bodyWidth, bodyHeight * 0.7); rect(-neckWidth / 2, neckBottomY, neckWidth, bodyHeight * 0.3); strokeWeight(1.5); stroke(0, 0, 65, 90); fill(0, 0, 100, 18); arc(0, neckBottomY - bodyHeight*0.3, bodyWidth, bodyHeight*0.7, 0, PI, CHORD); line(-bodyWidth/2, neckBottomY, -neckWidth/2, neckBottomY); line(bodyWidth/2, neckBottomY, neckWidth/2, neckBottomY); line(-neckWidth / 2, neckBottomY, -neckWidth / 2, neckTopY); line(neckWidth / 2, neckBottomY, neckWidth / 2, neckTopY); noFill(); ellipse(0, neckTopY, lipWidth, lipHeight * 2); fill(40, 40, 30); stroke(40, 40, 15); strokeWeight(1); arc(0, neckTopY - stopperHeight*0.6, stopperWidth, stopperHeight*0.8, PI, TWO_PI); rect(-stopperWidth/2, neckTopY - stopperHeight*0.6, stopperWidth, stopperHeight*0.6); noStroke(); fill(0, 0, 100, 35); beginShape(); vertex(-bodyWidth * 0.15, neckBottomY - bodyHeight * 0.05); bezierVertex(-bodyWidth * 0.35, neckBottomY - bodyHeight * 0.3, -bodyWidth * 0.3, bodyBottomY * 0.4, -bodyWidth * 0.1, bodyBottomY * 0.6); bezierVertex(-bodyWidth * 0.05, bodyBottomY * 0.3, bodyWidth * 0.0, neckBottomY - bodyHeight * 0.4, -bodyWidth * 0.15, neckBottomY - bodyHeight * 0.05); endShape(CLOSE); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let shipRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); return d < this.size * 0.7 + shipRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
-class PowerUp { constructor(type) { this.type = type; this.pos = createVector(random(width * 0.1, width * 0.9), -30); this.vel = createVector(0, random(0.8, 1.8)); this.size = 22; this.pulseOffset = random(TWO_PI); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.02, 0.02); this.icon = '?'; this.color = color(0, 0, 100); switch (this.type) { case POWERUP_TYPES.TEMP_SHIELD: this.icon = 'S'; this.color = color(45, 90, 100); break; case POWERUP_TYPES.RAPID_FIRE: this.icon = 'R'; this.color = color(120, 90, 100); break; case POWERUP_TYPES.EMP_BURST: this.icon = 'E'; this.color = color(210, 90, 100); break; case POWERUP_TYPES.SCORE_MULT: this.icon = 'x2'; this.color = color(60, 100, 100); break; case POWERUP_TYPES.DRONE: this.icon = 'D'; this.color = color(180, 50, 100); break; case POWERUP_TYPES.INVINCIBILITY: this.icon = 'I'; this.color = color(300, 80, 100); break; } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let pulse = map(sin(frameCount * 0.2 + this.pulseOffset), -1, 1, 0.9, 1.1); let currentSize = this.size * pulse; let iconSize = currentSize * (this.icon === 'x2' ? 0.6 : 0.75); let currentBrightness = brightness(this.color); let glowAlpha = map(pulse, 0.9, 1.1, 40, 90); noStroke(); let glowRadius = currentSize * 0.6; for (let i = 3; i > 0; i--) { let sizeFactor = 1 + i * 0.3; fill(hue(this.color), saturation(this.color), currentBrightness, glowAlpha / (i * 2)); drawHexagon(0, 0, glowRadius * sizeFactor); } strokeWeight(2); stroke(hue(this.color), saturation(this.color) * 1.1, currentBrightness * 1.1, 95); fill(hue(this.color), saturation(this.color) * 0.8, currentBrightness * 0.7); drawHexagon(0, 0, glowRadius); let innerRadius = glowRadius * 0.6; fill(hue(this.color), saturation(this.color) * 0.5, currentBrightness * 0.5, 80); noStroke(); drawHexagon(0, 0, innerRadius); drawShadowedText(this.icon, 0, currentSize * 0.03, iconSize, color(0,0,100), color(0,0,0, 50)); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let shipRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); return d < this.size * 0.7 + shipRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
+class PowerUp { constructor(type) { this.type = type; this.pos = createVector(random(width * 0.1, width * 0.9), -30); this.vel = createVector(0, random(0.8, 1.8)); this.size = 22; this.pulseOffset = random(TWO_PI); this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.02, 0.02); this.icon = '?'; this.color = color(0, 0, 100); switch (this.type) { case POWERUP_TYPES.TEMP_SHIELD: this.icon = 'S'; this.color = color(45, 90, 100); break; case POWERUP_TYPES.RAPID_FIRE: this.icon = 'R'; this.color = color(120, 90, 100); break; // REMOVED: case POWERUP_TYPES.EMP_BURST: ...
+                 case POWERUP_TYPES.SCORE_MULT: this.icon = 'x2'; this.color = color(60, 100, 100); break; case POWERUP_TYPES.DRONE: this.icon = 'D'; this.color = color(180, 50, 100); break; case POWERUP_TYPES.INVINCIBILITY: this.icon = 'I'; this.color = color(300, 80, 100); break; } } update() { this.pos.add(this.vel); this.rotation += this.rotationSpeed; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); let pulse = map(sin(frameCount * 0.2 + this.pulseOffset), -1, 1, 0.9, 1.1); let currentSize = this.size * pulse; let iconSize = currentSize * (this.icon === 'x2' ? 0.6 : 0.75); let currentBrightness = brightness(this.color); let glowAlpha = map(pulse, 0.9, 1.1, 40, 90); noStroke(); let glowRadius = currentSize * 0.6; for (let i = 3; i > 0; i--) { let sizeFactor = 1 + i * 0.3; fill(hue(this.color), saturation(this.color), currentBrightness, glowAlpha / (i * 2)); drawHexagon(0, 0, glowRadius * sizeFactor); } strokeWeight(2); stroke(hue(this.color), saturation(this.color) * 1.1, currentBrightness * 1.1, 95); fill(hue(this.color), saturation(this.color) * 0.8, currentBrightness * 0.7); drawHexagon(0, 0, glowRadius); let innerRadius = glowRadius * 0.6; fill(hue(this.color), saturation(this.color) * 0.5, currentBrightness * 0.5, 80); noStroke(); drawHexagon(0, 0, innerRadius); drawShadowedText(this.icon, 0, currentSize * 0.03, iconSize, color(0,0,100), color(0,0,0, 50)); pop(); } hitsShip(ship) { let d = dist(this.pos.x, this.pos.y, ship.pos.x, ship.pos.y); let shipRadius = ship.invincibilityTimer > 0 ? ship.shieldVisualRadius * 1.2 : ( ship.tempShieldActive ? ship.shieldVisualRadius*1.1 : (ship.shieldCharges > 0 ? ship.shieldVisualRadius : ship.size * 0.5) ); return d < this.size * 0.7 + shipRadius; } isOffscreen() { let margin = this.size * 2; return (this.pos.y > height + margin); } }
 class Drone { constructor(playerShip) { this.ship = playerShip; this.offset = createVector(this.ship.size * 1.8, 0); this.pos = p5.Vector.add(this.ship.pos, this.offset); this.vel = createVector(); this.size = 15; this.color = color(180, 60, 95); this.wingColor = color(180, 40, 70); this.shootCooldown = 0; this.shootDelay = 35; this.lifespan = 900; this.rotation = 0; this.targetAngle = 0; this.lerpFactor = 0.1; } update() { this.lifespan--; let targetPos = p5.Vector.add(this.ship.pos, this.offset.copy().rotate(this.rotation)); this.pos.lerp(targetPos, this.lerpFactor); this.rotation += 0.02; this.shootCooldown--; if (this.shootCooldown <= 0 && !isPaused && gameState === GAME_STATE.PLAYING) { this.shoot(); this.shootCooldown = this.shootDelay; } } shoot() { bullets.push(new Bullet(this.pos.x, this.pos.y, 0, this.ship.bulletDamageMultiplier)); createParticles(this.pos.x, this.pos.y, 2, this.color, 2, 1.2, 0.4); } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation * 2); let s = this.size; fill(this.color); stroke(0, 0, 20); strokeWeight(1); ellipse(0, 0, s, s * 1.2); fill(this.wingColor); triangle(-s * 0.4, -s * 0.2, -s * 1.1, -s * 0.5, -s * 0.8, s * 0.4); triangle(s * 0.4, -s * 0.2, s * 1.1, -s * 0.5, s * 0.8, s * 0.4); fill(0, 0, 100); ellipse(0, -s * 0.3, s * 0.3, s * 0.3); pop(); } isExpired() { return this.lifespan <= 0; } }
 
 // Enemy Classes with Updated Visuals
