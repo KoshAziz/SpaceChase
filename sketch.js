@@ -1,13 +1,27 @@
 
 // --- Features ---
-// ... (previous features) ...
-// - Name Input Screen for High Scores (Uses HTML Input for Mobile Keyboard) // RETAINED for WIN condition only
-// - Gradually harder objectives per level
+// - Randomly generated space background with stars, nebulas, planets, black holes
+// - Player ship controlled by keyboard/touch
+// - Multiple enemy types with distinct behaviors (Basic, Kamikaze, Turret, Swarmer, Laser)
+// - Asteroids that split when shot
+// - Various power-ups (Shield, Rapid Fire, EMP, Score Multiplier, Drone, Invincibility)
+// - Health Potions
+// - Level progression with increasingly difficult objectives and spawning
+// - In-game shop between levels for upgrades (Fire Rate, Spread Shot, Rear Gun, Missiles)
+// - Persistent Skill Tree for passive bonuses (Speed, Lives, Shield Regen, Damage, Money) using Tech Fragments
+// - Visual effects: particles, screen shake, background fx, ship shape evolution
+// - Combo system for skillful play
+// - Customizable ship color and bullet style
+// - Settings menu (Screen Shake, Background FX, Particle Density)
+// - Pause menu
+// - Mobile controls (touch movement/shooting, on-screen buttons)
+// - Win screen upon completing the final level
+// - Game Over screen
 // - Updated Enemy Visuals
 // - Faster Enemy Spawning
 // - Smoother Asteroid Shapes (Less Spiky)
-// - Grey Asteroids // NEW
-// ... (rest of features) ...
+// - Grey Asteroids
+// - Updated Title Color
 // --------------------------
 
 
@@ -19,14 +33,15 @@ let potions = []; let enemyShips = []; let enemyBullets = []; let powerUps = [];
 let backgroundStructures = [];
 
 // Game State Management
-const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, LEADERBOARD_SCREEN: 8, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7, ENTER_NAME: 9 }; // Enum order matters
+// REMOVED LEADERBOARD_SCREEN(8) and ENTER_NAME(9)
+const GAME_STATE = { START_MENU: 0, SETTINGS_MENU: 1, COSMETICS_MENU: 2, SKILL_TREE: 3, PLAYING: 4, GAME_OVER: 5, UPGRADE_SHOP: 6, WIN_SCREEN: 7 }; // Enum order matters
 let gameState = GAME_STATE.START_MENU;
 let previousGameState = GAME_STATE.START_MENU; // Tracks where Settings/Cosmetics should return to
 let skillTreeReturnState = GAME_STATE.START_MENU; // Tracks where Skill Tree should return to (Start Menu or Pause)
 let isPaused = false;
 
 // --- Menu Variables ---
-let menuItems = ['Start Game', 'Skills', 'Leaderboard', 'Settings', 'Cosmetics']; // Added Leaderboard
+let menuItems = ['Start Game', 'Skills', 'Settings', 'Cosmetics']; // REMOVED Leaderboard
 let selectedMenuItem = 0; let startMenuButtons = [];
 
 // --- Settings Variables and Menu Items ---
@@ -72,13 +87,13 @@ let pauseMenuItems = ['Resume', 'Skills', 'Settings', 'Main Menu'];
 let pauseMenuButtons = [];
 let selectedPauseMenuItem = 0;
 
-// --- Leaderboard Variables ---
-let leaderboardData = []; // Array of { name: "...", score: ... }
-const MAX_LEADERBOARD_ENTRIES = 10;
-const MIN_LEADERBOARD_SCORE = 100; // Minimum score to qualify for leaderboard
-let nameInputElement = null; // HTML Input Element
-let currentPlayerScore = 0; // Score of the player needing name entry (used only on WIN now)
-let leaderboardButtons = []; // Just a back button
+// --- Leaderboard Variables (REMOVED) ---
+// let leaderboardData = [];
+// const MAX_LEADERBOARD_ENTRIES = 10;
+// const MIN_LEADERBOARD_SCORE = 100;
+// let nameInputElement = null;
+// let currentPlayerScore = 0;
+// let leaderboardButtons = [];
 
 // --- Base Ship Stats (for Skill Tree modification) ---
 const BASE_MAX_SPEED = 9.5;
@@ -175,7 +190,7 @@ function setup() {
     colorMode(HSB, 360, 100, 100, 100);
     let ua = navigator.userAgent;
     if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) { isMobile = true; }
-    loadGameData(); // Load persistent data (fragments, skills, leaderboard) FIRST
+    loadGameData(); // Load persistent data (fragments, skills) FIRST
     createStarfield(200);
     textAlign(CENTER, CENTER);
     textFont('monospace');
@@ -208,7 +223,7 @@ function setup() {
     setupCosmeticsMenuButtons();
     setupSkillTreeButtons();
     setupPauseMenuButtons();
-    setupLeaderboardButtons(); // Setup leaderboard buttons
+    // REMOVED: setupLeaderboardButtons();
     calculateMobileActionButtonsPosition();
 }
 
@@ -223,7 +238,6 @@ function setDifficultyForLevel(level) {
     let effectiveLevel = min(level, MAX_LEVEL); let mobileFactor = isMobile ? 0.7 : 1.0;
     baseAsteroidSpawnRate = (0.009 + (effectiveLevel - 1) * 0.0015) * mobileFactor;
     currentAsteroidSpawnRate = baseAsteroidSpawnRate;
-    // Adjust baseEnemySpawnRate for faster spawning
     baseEnemySpawnRate = (0.004 + (effectiveLevel - 1) * 0.0007) * mobileFactor; // Increased base and scaling
     basicEnemyWeight = 10;
     kamikazeWeight = (effectiveLevel >= 2) ? 3 + effectiveLevel : 0;
@@ -281,14 +295,7 @@ function setupPauseMenuButtons() {
     pauseMenuButtons = []; let buttonWidth = isMobile ? 160 : 200; let buttonHeight = isMobile ? 38 : 45; let startY = height / 2 - buttonHeight * (pauseMenuItems.length / 2.0); let spacing = buttonHeight + (isMobile ? 15 : 20);
     for (let i = 0; i < pauseMenuItems.length; i++) { pauseMenuButtons.push({ id: pauseMenuItems[i], index: i, x: width / 2 - buttonWidth / 2, y: startY + i * spacing - buttonHeight / 2, w: buttonWidth, h: buttonHeight }); }
 }
-function setupLeaderboardButtons() { // Sets up the back button for the leaderboard screen
-    leaderboardButtons = [];
-    let backButtonWidth = isMobile ? 120 : 150;
-    let backButtonHeight = isMobile ? 35 : 40;
-    let backButtonX = width / 2 - backButtonWidth / 2;
-    let backButtonY = height * 0.85 - backButtonHeight / 2; // Position near bottom
-    leaderboardButtons.push({ id: 'back', x: backButtonX, y: backButtonY, w: backButtonWidth, h: backButtonHeight });
-}
+// REMOVED: function setupLeaderboardButtons() { ... }
 function calculateMobileActionButtonsPosition() { let buttonSize = isMobile ? 50 : 60; let padding = 15; mobileMissileButton.size = buttonSize; mobileMissileButton.padding = padding; mobileMissileButton.x = width - buttonSize - padding; mobileMissileButton.y = height - buttonSize - padding; }
 function drawShadowedText(label, x, y, size, textColor, shadowColor) {
     textSize(size);
@@ -313,8 +320,8 @@ function saveGameData() {
     try {
         let skillDataToSave = { techFragments: techFragments, skillTreeData: skillTreeData };
         localStorage.setItem('spaceChaseSkillData', JSON.stringify(skillDataToSave));
-        localStorage.setItem('spaceChaseLeaderboard', JSON.stringify(leaderboardData));
-        // console.log("Game data (Skills & Leaderboard) saved.");
+        // REMOVED: localStorage.setItem('spaceChaseLeaderboard', JSON.stringify(leaderboardData));
+        // console.log("Game data (Skills) saved.");
     } catch (e) { console.error("Error saving game data to localStorage:", e); }
 }
 function loadGameData() {
@@ -337,23 +344,14 @@ function loadGameData() {
             // console.log("No skill save data found, resetting skills and fragments.");
         }
 
-        // Load Leaderboard Data
-        let savedLeaderboardString = localStorage.getItem('spaceChaseLeaderboard');
-        if (savedLeaderboardString) {
-            leaderboardData = JSON.parse(savedLeaderboardString) || [];
-            // Basic validation/cleanup
-            leaderboardData = leaderboardData.filter(entry => typeof entry === 'object' && entry !== null && typeof entry.name === 'string' && typeof entry.score === 'number');
-            leaderboardData.sort((a, b) => b.score - a.score); // Ensure sorted
-            leaderboardData = leaderboardData.slice(0, MAX_LEADERBOARD_ENTRIES); // Ensure size limit
-            // console.log("Leaderboard data loaded:", leaderboardData.length, "entries");
-        } else {
-            leaderboardData = []; // Initialize empty if none saved
-            // console.log("No leaderboard data found, initializing empty.");
-        }
+        // REMOVED: Load Leaderboard Data
+        // let savedLeaderboardString = localStorage.getItem('spaceChaseLeaderboard');
+        // ... (rest of leaderboard loading logic removed)
+
     } catch (e) {
         console.error("Error loading game data from localStorage:", e);
         resetSkillTreeAndFragments(); // Reset skills on error
-        leaderboardData = []; // Reset leaderboard on error
+        // REMOVED: leaderboardData = []; // Reset leaderboard on error
     }
 }
 function resetSkillTreeAndFragments() {
@@ -362,22 +360,9 @@ function resetSkillTreeAndFragments() {
     // console.log("Skill Tree and Tech Fragments Reset.");
 }
 
-// --- Leaderboard Helper Functions ---
-function checkHighScore(score) {
-    if (score < MIN_LEADERBOARD_SCORE) return false; // Basic threshold check
-    if (leaderboardData.length < MAX_LEADERBOARD_ENTRIES) return true; // Always qualifies if board not full
-    return score > leaderboardData[leaderboardData.length - 1].score; // Qualifies if better than the worst score
-}
-function addScoreToLeaderboard(name, score) {
-    let entryName = name.trim() || "Pilot"; // Default name if empty
-    entryName = entryName.substring(0, 15); // Limit name length
-
-    leaderboardData.push({ name: entryName, score: score });
-    leaderboardData.sort((a, b) => b.score - a.score); // Sort descending by score
-    leaderboardData = leaderboardData.slice(0, MAX_LEADERBOARD_ENTRIES); // Keep only top entries
-    saveGameData(); // Save the updated leaderboard
-    // console.log("Score added to leaderboard:", entryName, score);
-}
+// --- Leaderboard Helper Functions (REMOVED) ---
+// function checkHighScore(score) { ... }
+// function addScoreToLeaderboard(name, score) { ... }
 
 
 // ==================
@@ -398,7 +383,8 @@ function draw() {
     }
 
     // Spawn Planet Logic
-    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE && gameState !== GAME_STATE.LEADERBOARD_SCREEN && gameState !== GAME_STATE.ENTER_NAME) {
+    // REMOVED LEADERBOARD_SCREEN and ENTER_NAME checks
+    if (settingBackgroundEffectsEnabled && gameState !== GAME_STATE.START_MENU && gameState !== GAME_STATE.SETTINGS_MENU && gameState !== GAME_STATE.COSMETICS_MENU && gameState !== GAME_STATE.SKILL_TREE) {
         let currentTime = millis();
         if (!planetVisible && currentTime - lastPlanetAppearanceTime > random(PLANET_MIN_INTERVAL, PLANET_MAX_INTERVAL)) { spawnPlanet(); lastPlanetAppearanceTime = currentTime; }
         if (planetVisible) { planetData.pos.add(planetData.vel); planetData.rotation += planetData.cloudRotationSpeed * 0.01; if (planetData.type === PLANET_TYPE.STORMY) { planetData.lightningTimer--; } let buffer = planetData.size * (planetData.hasRings ? 1.8 : 0.8); if (planetData.pos.x < -buffer || planetData.pos.x > width + buffer || planetData.pos.y < -buffer || planetData.pos.y > height + buffer) { planetVisible = false; } }
@@ -418,16 +404,17 @@ function draw() {
          case GAME_STATE.SETTINGS_MENU: displaySettingsMenu(); break;
          case GAME_STATE.COSMETICS_MENU: displayCosmeticsMenu(); break;
          case GAME_STATE.SKILL_TREE: displaySkillTree(); break;
-         case GAME_STATE.LEADERBOARD_SCREEN: displayLeaderboardScreen(); break; // NEW
+         // REMOVED: case GAME_STATE.LEADERBOARD_SCREEN: displayLeaderboardScreen(); break;
          case GAME_STATE.PLAYING: runGameLogic(); if (isPaused) { displayPauseMenu(); } break;
          case GAME_STATE.UPGRADE_SHOP: displayUpgradeShop(); break;
          case GAME_STATE.GAME_OVER: runGameLogic(); displayGameOver(); break;
          case GAME_STATE.WIN_SCREEN: runGameLogic(); displayWinScreen(); break;
-         case GAME_STATE.ENTER_NAME: displayEnterNameScreen(); break; // NEW
+         // REMOVED: case GAME_STATE.ENTER_NAME: displayEnterNameScreen(); break;
      }
 
     // Overlays
-    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU || gameState === GAME_STATE.SKILL_TREE || gameState === GAME_STATE.LEADERBOARD_SCREEN || gameState === GAME_STATE.ENTER_NAME) { infoMessageTimeout--; } }
+    // REMOVED LEADERBOARD_SCREEN and ENTER_NAME checks
+    if (infoMessageTimeout > 0) { displayInfoMessage(); if ((gameState === GAME_STATE.PLAYING && !isPaused) || gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.START_MENU || gameState === GAME_STATE.COSMETICS_MENU || gameState === GAME_STATE.SKILL_TREE ) { infoMessageTimeout--; } }
     if (levelTransitionFlash > 0) { fill(0, 0, 100, levelTransitionFlash * 10); rect(0, 0, width, height); levelTransitionFlash--; }
     pop();
 }
@@ -437,7 +424,18 @@ function draw() {
 function displayStartMenu() {
     let titleText = "Space-Chase"; let titleSize = isMobile ? 56 : 72; textSize(titleSize); textAlign(CENTER, CENTER); let totalWidth = textWidth(titleText); let startX = width / 2 - totalWidth / 2; let currentX = startX;
     let titleY = height / 4;
-    for (let i = 0; i < titleText.length; i++) { let char = titleText[i]; let charWidth = textWidth(char); let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10); drawShadowedText(char, currentX + charWidth / 2, titleY + yOffset, titleSize, color((frameCount * 4 + i * 25) % 360, 95, 100), color(0, 0, 0, 50)); currentX += charWidth; }
+    let titleColor1 = color(180, 80, 100); // Cyan
+    let titleColor2 = color(0, 0, 100); // White
+    for (let i = 0; i < titleText.length; i++) {
+        let char = titleText[i];
+        let charWidth = textWidth(char);
+        let yOffset = sin(frameCount * 0.1 + i * 0.7) * (isMobile ? 7 : 10);
+        // Pulse color between white and cyan
+        let lerpAmt = (sin(frameCount * 0.05 + i * 0.5) + 1) / 2;
+        let charColor = lerpColor(titleColor1, titleColor2, lerpAmt);
+        drawShadowedText(char, currentX + charWidth / 2, titleY + yOffset, titleSize, charColor, color(0, 0, 0, 50));
+        currentX += charWidth;
+    }
     let menuTextSize = isMobile ? 24 : 30; textAlign(CENTER, CENTER);
     for (let i = 0; i < startMenuButtons.length; i++) {
         let button = startMenuButtons[i]; let label = button.id; let hover = !isMobile && (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h); let selected = (i === selectedMenuItem);
@@ -531,8 +529,7 @@ function displayGameOver() {
     cursor(ARROW);
 }
 function displayWinScreen() {
-     // Check for high score *before* drawing the standard win screen
-     // This check is now handled in the transition logic (`runGameLogic`), not directly in draw
+     // High score check removed here, handled in runGameLogic
     drawPanelBackground(width * (isMobile ? 0.85 : 0.7), height * 0.6);
     let winTextSize = isMobile ? 58 : 72; textSize(winTextSize); textAlign(CENTER, CENTER); let winY = height / 3; let winText = "YOU WIN!"; let totalWinWidth = textWidth(winText); let startWinX = width / 2 - totalWinWidth / 2; let currentWinX = startWinX; for (let i = 0; i < winText.length; i++) { let char = winText[i]; let charWidth = textWidth(char); let h = (frameCount * 4 + i * 30) % 360; drawShadowedText(char, currentWinX + charWidth / 2, winY, winTextSize, color(h, 95, 100), uiTextShadowColor); currentWinX += charWidth; }
     drawShadowedText("Final Points: " + points, width / 2, winY + (isMobile ? 65 : 80), isMobile ? 26 : 34, uiTextColor, uiTextShadowColor);
@@ -544,103 +541,9 @@ function displayWinScreen() {
     drawShadowedText(restartInstruction, width / 2, height * 0.7, isMobile ? 18 : 22, color(0, 0, pulse), uiTextShadowColor);
     cursor(ARROW);
 }
-function displayEnterNameScreen() {
-    drawPanelBackground(width * (isMobile ? 0.9 : 0.7), height * 0.6);
-    drawShadowedText("High Score!", width / 2, height * 0.3, isMobile ? 48 : 56, uiHighlightColor, uiTextShadowColor);
-    drawShadowedText(`Score: ${currentPlayerScore}`, width / 2, height * 0.3 + (isMobile ? 55 : 70), isMobile ? 24 : 30, uiTextColor, uiTextShadowColor);
+// REMOVED: function displayEnterNameScreen() { ... }
+// REMOVED: function displayLeaderboardScreen() { ... }
 
-    let inputY = height * 0.55;
-    let promptText = "Enter Name (max 15):";
-    let promptSize = isMobile ? 18 : 22;
-    drawShadowedText(promptText, width / 2, inputY - promptSize * 2.5, promptSize, uiTextColor, uiTextShadowColor);
-
-    // Manage the HTML input element
-    if (!nameInputElement) {
-        let nameTextSize = isMobile ? 24 : 30;
-        let inputWidth = isMobile ? width * 0.6 : width * 0.4;
-        let inputHeight = nameTextSize * 1.5;
-        let inputX = width / 2 - inputWidth / 2;
-        let inputElementY = inputY - inputHeight / 1.5; // Adjust Y position
-
-        nameInputElement = createInput('');
-        nameInputElement.position(inputX, inputElementY);
-        nameInputElement.size(inputWidth, inputHeight);
-        nameInputElement.attribute('maxlength', '15');
-        nameInputElement.attribute('placeholder', 'Pilot Name'); // Add placeholder
-        // Basic styling (adjust colors as needed)
-        nameInputElement.style('font-family', 'monospace');
-        nameInputElement.style('font-size', `${nameTextSize}px`);
-        nameInputElement.style('color', uiTextColor.toString()); // Use UI text color
-        nameInputElement.style('background-color', 'rgba(10, 20, 30, 0.6)'); // Darker semi-transparent bg
-        nameInputElement.style('border', '1.5px solid ' + uiBorderColor.toString());
-        nameInputElement.style('border-radius', '5px');
-        nameInputElement.style('text-align', 'center');
-        nameInputElement.style('outline', 'none');
-        nameInputElement.style('padding', '5px');
-
-        // Attempt to focus to bring up keyboard on mobile
-        // Use setTimeout to help with timing issues on mobile focus triggering
-        setTimeout(() => {
-             if (nameInputElement && nameInputElement.elt) {
-                 nameInputElement.elt.focus();
-                 // On some mobile devices, explicitly triggering click might also help
-                 // nameInputElement.elt.click();
-             }
-        }, 150); // Slightly longer delay might help sometimes
-    }
-
-    let instructionY = height * 0.7;
-    let instructionSize = isMobile ? 14 : 16;
-    drawShadowedText("Type Name, Press ENTER to Submit", width / 2, instructionY, instructionSize, uiTextColor, uiTextShadowColor);
-    cursor(ARROW); // Keep cursor visible
-}
-function displayLeaderboardScreen() {
-    drawPanelBackground(width * (isMobile ? 0.9 : 0.8), height * 0.8);
-    drawShadowedText("Leaderboard", width / 2, height * 0.15, isMobile ? 42 : 54, uiTextColor, uiTextShadowColor);
-
-    let scoreTextSize = isMobile ? 16 : 20;
-    let nameColX = width * 0.35;
-    let scoreColX = width * 0.65;
-    let startY = height * 0.25;
-    let spacingY = (height * 0.8 - startY - height * 0.15) / (MAX_LEADERBOARD_ENTRIES + 1); // Distribute space
-
-    textAlign(LEFT, CENTER);
-    drawShadowedText("Rank", width * 0.2, startY, scoreTextSize, uiHighlightColor, uiTextShadowColor);
-    drawShadowedText("Name", nameColX, startY, scoreTextSize, uiHighlightColor, uiTextShadowColor);
-    textAlign(RIGHT, CENTER);
-    drawShadowedText("Score", scoreColX + textWidth("Score"), startY, scoreTextSize, uiHighlightColor, uiTextShadowColor);
-
-    if (leaderboardData.length === 0) {
-        textAlign(CENTER, CENTER);
-        drawShadowedText("No scores yet!", width / 2, height / 2, scoreTextSize + 2, uiTextColor, uiTextShadowColor);
-    } else {
-        for (let i = 0; i < leaderboardData.length; i++) {
-            let entry = leaderboardData[i];
-            let rank = i + 1;
-            let y = startY + spacingY * (i + 1);
-
-            // Highlight effect for top scores?
-            let nameColor = uiTextColor;
-            let scoreColor = uiTextColor;
-            if (i === 0) { nameColor = uiHighlightColor; scoreColor = uiHighlightColor; }
-            else if (i < 3) { nameColor = lerpColor(uiHighlightColor, uiTextColor, 0.5); scoreColor = nameColor; }
-
-
-            textAlign(LEFT, CENTER);
-            drawShadowedText(`${rank}.`, width * 0.2, y, scoreTextSize, nameColor, uiTextShadowColor);
-            drawShadowedText(entry.name, nameColX, y, scoreTextSize, nameColor, uiTextShadowColor);
-            textAlign(RIGHT, CENTER);
-            drawShadowedText(entry.score.toString(), scoreColX + textWidth("Score") + 5, y, scoreTextSize, scoreColor, uiTextShadowColor);
-        }
-    }
-
-    // Draw Back Button
-    let backButton = leaderboardButtons[0];
-    let hover = !isMobile && (mouseX > backButton.x && mouseX < backButton.x + backButton.w && mouseY > button.y && mouseY < button.y + backButton.h);
-    drawStyledUiButton(backButton, "Back", scoreTextSize, hover, false, true);
-
-    cursor(ARROW);
-}
 function drawPanelBackground(panelWidth, panelHeight) {
     let panelX = width / 2 - panelWidth / 2; let panelY = height / 2 - panelHeight / 2;
     fill(uiPanelColor); stroke(uiBorderColor); strokeWeight(2.5); rect(panelX, panelY, panelWidth, panelHeight, 10);
@@ -712,17 +615,8 @@ function runGameLogic() {
         if (currentLevel === MAX_LEVEL) {
             // --- WIN GAME ---
             let fragmentsEarned = floor(points / 300) + 10; if (fragmentsEarned > 0) techFragments += fragmentsEarned;
-            currentPlayerScore = points; // Store score for potential leaderboard entry
-            if (checkHighScore(currentPlayerScore)) {
-                gameState = GAME_STATE.ENTER_NAME; // Go to name entry screen
-                if (nameInputElement) { // Clean up just in case
-                    nameInputElement.remove();
-                    nameInputElement = null;
-                }
-            } else {
-                gameState = GAME_STATE.WIN_SCREEN; // Go directly to win screen
-            }
-            saveGameData(); // Save fragments & potential leaderboard change trigger
+            saveGameData(); // Save fragments earned
+            gameState = GAME_STATE.WIN_SCREEN; // Go directly to win screen
             infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
             bullets = []; homingMissiles = []; asteroids = []; particles = []; enemyShips = []; enemyBullets = []; powerUps = []; potions = []; backgroundStructures = []; comboCounter = 0; comboTimer = 0; maxComboReached = 0; showComboText = false; comboTextTimeout = 0;
             return;
@@ -804,7 +698,8 @@ function handleCollisions() {
         if (enemy instanceof BasicEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_BASIC) { currentObjective.progress++; } else if (enemy instanceof KamikazeEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_KAMIKAZE) { currentObjective.progress++; } else if (enemy instanceof TurretEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_TURRET) { currentObjective.progress++; } else if (enemy instanceof SwarmerEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_SWARMER) { currentObjective.progress++; } else if (enemy instanceof LaserEnemy && currentObjective.type === OBJECTIVE_TYPE.DESTROY_LASER) { currentObjective.progress++; }
         createParticles(enemy.pos.x, enemy.pos.y, floor(enemy.size * 1.2), enemy.getExplosionColor(), enemy.size * 0.2, 1.3, 1.0); enemyShips.splice(index, 1);
     };
-    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; let asteroidHit = false; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, floor(random(3, 6)), color(60, 40, 100), 2, 0.8, 0.7); bullets.splice(j, 1); asteroidHit = true; break; } } if (!asteroidHit) { for (let j = homingMissiles.length - 1; j >= 0; j--) { if (asteroids[i] && homingMissiles[j] && asteroids[i].hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 15, homingMissiles[j].color, 5, 1.8, 1.0); homingMissiles.splice(j, 1); asteroidHit = true; break; } } } if (asteroidHit) { let asteroidSizeValue = asteroids[i].size; let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; money += 2; comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } if (currentObjective.type === OBJECTIVE_TYPE.DESTROY_ASTEROIDS) { currentObjective.progress++; } let oldShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; } let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); let sizeBeforeSplice = asteroids[i].size; asteroids.splice(i, 1); if (sizeBeforeSplice > minAsteroidSize * 2) { let newSize = sizeBeforeSplice * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } } }
+    for (let i = asteroids.length - 1; i >= 0; i--) { if (!asteroids[i]) continue; let asteroidHit = false; for (let j = bullets.length - 1; j >= 0; j--) { if (asteroids[i] && bullets[j] && asteroids[i].hits(bullets[j])) { createParticles(bullets[j].pos.x, bullets[j].pos.y, floor(random(3, 6)), color(0, 0, 60), 2, 0.8, 0.7); // Grey impact particles
+         bullets.splice(j, 1); asteroidHit = true; break; } } if (!asteroidHit) { for (let j = homingMissiles.length - 1; j >= 0; j--) { if (asteroids[i] && homingMissiles[j] && asteroids[i].hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 15, homingMissiles[j].color, 5, 1.8, 1.0); homingMissiles.splice(j, 1); asteroidHit = true; break; } } } if (asteroidHit) { let asteroidSizeValue = asteroids[i].size; let pointsToAdd = floor(map(asteroidSizeValue, minAsteroidSize, 80, 5, 15)); if (ship.scoreMultiplierTimer > 0) { pointsToAdd *= ship.scoreMultiplierValue; } points += pointsToAdd; money += 2; comboCounter++; comboTimer = COMBO_TIMEOUT_DURATION; maxComboReached = max(maxComboReached, comboCounter); if (comboCounter >= 2) { showComboText = true; comboTextTimeout = 60; } if (currentObjective.type === OBJECTIVE_TYPE.DESTROY_ASTEROIDS) { currentObjective.progress++; } let oldShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); let newShapeLevel = floor(points / SHAPE_CHANGE_POINTS_THRESHOLD); if (newShapeLevel > oldShapeLevel) { ship.changeShape(newShapeLevel); infoMessage = "SHIP SHAPE EVOLVED!"; infoMessageTimeout = 120; } let asteroidPos = asteroids[i].pos.copy(); let asteroidColor = asteroids[i].color; createParticles(asteroidPos.x, asteroidPos.y, floor(asteroidSizeValue / 2.5), asteroidColor, null, 1.2, 1.1); let sizeBeforeSplice = asteroids[i].size; asteroids.splice(i, 1); if (sizeBeforeSplice > minAsteroidSize * 2) { let newSize = sizeBeforeSplice * 0.6; let splitSpeedMultiplier = random(0.8, 2.0); let vel1 = p5.Vector.random2D().mult(splitSpeedMultiplier); let vel2 = p5.Vector.random2D().mult(splitSpeedMultiplier); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel1)); asteroids.push(new Asteroid(asteroidPos.x, asteroidPos.y, newSize, vel2)); } } }
     for (let i = enemyShips.length - 1; i >= 0; i--) { let enemy = enemyShips[i]; if (!enemy) continue; let enemyDestroyed = false; for (let j = bullets.length - 1; j >= 0; j--) { if (bullets[j] && enemy.hits(bullets[j])) { let damage = bullets[j].damage; createParticles(bullets[j].pos.x, bullets[j].pos.y, 5, color(0,0,100), 2); bullets.splice(j, 1); if (enemy.takeDamage(damage)) { destroyEnemy(enemy, i, 'Bullet'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 3, enemy.getHitColor(), 2); } break; } } if (enemyDestroyed) continue; for (let j = homingMissiles.length - 1; j >= 0; j--) { if (homingMissiles[j] && enemy.hits(homingMissiles[j])) { createParticles(homingMissiles[j].pos.x, homingMissiles[j].pos.y, 20, homingMissiles[j].color, 6, 2.0, 1.2); let missileDamage = homingMissiles[j].damage; homingMissiles.splice(j, 1); if (enemy.takeDamage(missileDamage)) { destroyEnemy(enemy, i, 'HomingMissile'); enemyDestroyed = true; } else { createParticles(enemy.pos.x, enemy.pos.y, 8, enemy.getHitColor(), 4); } break; } } if (enemyDestroyed) continue; }
     if (ship.invulnerableTimer <= 0 && ship.invincibilityTimer <= 0) {
         const takeDamage = (sourceObject, sourceArray, index) => {
@@ -819,13 +714,8 @@ function handleCollisions() {
                 lives--; createParticles(ship.pos.x, ship.pos.y, 40, color(0, 90, 100), 5, 2.2); if (settingScreenShakeEnabled) { screenShakeIntensity = 7; screenShakeDuration = 60; }
                 if (lives <= 0) {
                      resetSkillTreeAndFragments(); // Reset skills and fragments on Game Over
-                     currentPlayerScore = points; // Store final score (maybe useful later, but not for name entry)
                      saveGameData(); // Save reset skills
                      gameState = GAME_STATE.GAME_OVER;
-                     if (nameInputElement) { // Clean up just in case
-                         nameInputElement.remove();
-                         nameInputElement = null;
-                     }
                      infoMessage = ""; infoMessageTimeout = 0; cursor(ARROW);
                      gameOver = true;
                 } else { ship.setInvulnerable(); }
@@ -926,11 +816,9 @@ function displayComboText() {
 function resetGame() {
     ship = new Ship();
     bullets = []; homingMissiles = []; particles = []; asteroids = []; potions = []; enemyShips = []; enemyBullets = []; powerUps = []; nebulas = []; shootingStars = []; backgroundStructures = [];
-    points = 0; currentPlayerScore = 0;
-    if (nameInputElement) { // Remove input element if exists
-        nameInputElement.remove();
-        nameInputElement = null;
-    }
+    points = 0;
+    // REMOVED: currentPlayerScore = 0;
+    // REMOVED: if (nameInputElement) { ... }
     money = BASE_STARTING_MONEY + skillTreeData.STARTING_MONEY * SKILL_DEFINITIONS.STARTING_MONEY.effectPerLevel;
     lives = BASE_MAX_LIVES + skillTreeData.MAX_LIVES * SKILL_DEFINITIONS.MAX_LIVES.effectPerLevel;
     currentLevel = 1;
@@ -950,47 +838,32 @@ function startNextLevel() {
     levelTransitionFlash = 15; spawnInitialAsteroids(); gameState = GAME_STATE.PLAYING; cursor();
 }
 function selectMenuItem(index) {
-    // Clean up name input if moving away from Enter Name state (though unlikely path)
-    if (nameInputElement) {
-        nameInputElement.remove();
-        nameInputElement = null;
-    }
+    // REMOVED: Clean up name input
     switch (menuItems[index]) {
         case 'Start Game': startGame(); break;
         case 'Skills': previousGameState = GAME_STATE.START_MENU; skillTreeReturnState = GAME_STATE.START_MENU; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break;
-        case 'Leaderboard': previousGameState = GAME_STATE.START_MENU; gameState = GAME_STATE.LEADERBOARD_SCREEN; setupLeaderboardButtons(); break; // Go to leaderboard
+        // REMOVED: case 'Leaderboard': ...
         case 'Settings': previousGameState = gameState; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break;
         case 'Cosmetics': previousGameState = gameState; gameState = GAME_STATE.COSMETICS_MENU; selectedCosmeticsMenuItem = 0; break;
     }
 }
-function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } }
+function selectSettingsItemAction(index) { let setting = settingsItems[index]; switch (setting.id) { case 'screenShake': settingScreenShakeEnabled = !settingScreenShakeEnabled; break; case 'backgroundFx': settingBackgroundEffectsEnabled = !settingBackgroundEffectsEnabled; if (!settingBackgroundEffectsEnabled) { nebulas = []; shootingStars = []; planetVisible = false; backgroundStructures = []; } break; case 'particleDensity': let currentDensityIndex = setting.options.indexOf(settingParticleDensity); let nextDensityIndex = (currentDensityIndex + 1) % setting.options.length; settingParticleDensity = setting.options[nextDensityIndex]; break; case 'back': gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; setupPauseMenuButtons(); break; } }
 function selectCosmeticsItemAction(index) {
-    let setting = cosmeticsMenuItems[index]; if (setting.id === 'back') { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; return; }
+    let setting = cosmeticsMenuItems[index]; if (setting.id === 'back') { gameState = previousGameState; if(previousGameState === GAME_STATE.PLAYING && isPaused) { cursor(ARROW); } else if (previousGameState === GAME_STATE.PLAYING && !isPaused) { cursor(); } else { cursor(ARROW); } selectedMenuItem = 0; return; }
     if (setting.type === 'cycle') { if (setting.id === 'shipColor') { let currentIndex = SHIP_COLORS.indexOf(selectedShipColor); let nextIndex = (currentIndex + 1) % SHIP_COLORS.length; selectedShipColor = SHIP_COLORS[nextIndex]; if (ship) { ship.setColors(); } } else if (setting.id === 'bulletStyle') { let currentIndex = BULLET_STYLES.indexOf(selectedBulletStyle); let nextIndex = (currentIndex + 1) % BULLET_STYLES.length; selectedBulletStyle = BULLET_STYLES[nextIndex]; } }
 }
 function handleSkillTreeButtonPress(skillId) {
-    if (skillId === 'back') { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = skillTreeReturnState; if (gameState === GAME_STATE.PLAYING) { setupPauseMenuButtons(); isPaused = true; cursor(ARROW); } else { selectedMenuItem = 0; cursor(ARROW); } return; }
+    if (skillId === 'back') { gameState = skillTreeReturnState; if (gameState === GAME_STATE.PLAYING) { setupPauseMenuButtons(); isPaused = true; cursor(ARROW); } else { selectedMenuItem = 0; cursor(ARROW); } return; }
     let skillDef = SKILL_DEFINITIONS[skillId]; let currentLevel = skillTreeData[skillId];
     if (currentLevel < skillDef.maxLevel) { let cost = skillDef.costPerLevel[currentLevel]; if (techFragments >= cost) { techFragments -= cost; skillTreeData[skillId]++; saveGameData(); let button = skillTreeButtons.find(b => b.id === skillId); if(button) { createParticles(button.x + button.w / 2, button.y + button.h / 2, 25, color(120, 70, 100), 5, 1.5, 0.7); } } else { infoMessage = "Not enough Tech Fragments!"; infoMessageTimeout = 60; } } else { infoMessage = "Skill Maxed Out!"; infoMessageTimeout = 60; }
 }
 function handlePauseMenuSelection(index) {
-     let selection = pauseMenuItems[index]; switch(selection) { case 'Resume': isPaused = false; cursor(); break; case 'Skills': skillTreeReturnState = GAME_STATE.PLAYING; previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; case 'Settings': previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break; case 'Main Menu': if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} isPaused = false; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; cursor(ARROW); break; }
+     let selection = pauseMenuItems[index]; switch(selection) { case 'Resume': isPaused = false; cursor(); break; case 'Skills': skillTreeReturnState = GAME_STATE.PLAYING; previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SKILL_TREE; setupSkillTreeButtons(); break; case 'Settings': previousGameState = GAME_STATE.PLAYING; gameState = GAME_STATE.SETTINGS_MENU; selectedSettingsItem = 0; break; case 'Main Menu': isPaused = false; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; cursor(ARROW); break; }
 }
 
 // --- Input Handling ---
 function mousePressed() {
-    // If the name input exists and the click is outside it, potentially remove focus
-    if (nameInputElement && nameInputElement.elt && document.activeElement === nameInputElement.elt) {
-        // Check if click is outside the input element bounds
-        let inp = nameInputElement.elt;
-        let rect = inp.getBoundingClientRect();
-        if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
-            // inp.blur(); // Optionally remove focus, but might hide keyboard undesirably
-        } else {
-             // Click was inside input, let it proceed
-             return;
-        }
-    }
+    // REMOVED: Check for click outside input element
 
     if (isMobile && gameState === GAME_STATE.PLAYING && !isPaused) { let setBtn = mobileSettingsButton; if (mouseX > setBtn.x && mouseX < setBtn.x + setBtn.size && mouseY > setBtn.y && mouseY < setBtn.y + setBtn.size) { isPaused = true; selectedPauseMenuItem = 0; setupPauseMenuButtons(); isMobileShooting = false; cursor(ARROW); return; } }
     switch (gameState) {
@@ -998,47 +871,25 @@ function mousePressed() {
         case GAME_STATE.SETTINGS_MENU: for (let i = 0; i < settingsMenuButtons.length; i++) { let button = settingsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedSettingsItem = i; selectSettingsItemAction(i); return; } } break;
         case GAME_STATE.COSMETICS_MENU: for (let i = 0; i < cosmeticsMenuButtons.length; i++) { let button = cosmeticsMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedCosmeticsMenuItem = i; selectCosmeticsItemAction(i); return; } } break;
         case GAME_STATE.SKILL_TREE: for (let button of skillTreeButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleSkillTreeButtonPress(button.id); return; } } break;
-        case GAME_STATE.LEADERBOARD_SCREEN: for (let button of leaderboardButtons) { if (button.id === 'back' && mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; return; } } break;
+        // REMOVED: case GAME_STATE.LEADERBOARD_SCREEN: ...
         case GAME_STATE.PLAYING: if (isPaused) { for (let i = 0; i < pauseMenuButtons.length; i++) { let button = pauseMenuButtons[i]; if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { selectedPauseMenuItem = i; handlePauseMenuSelection(i); return; } } } break;
         case GAME_STATE.UPGRADE_SHOP: for (let button of shopButtons) { if (mouseX > button.x && mouseX < button.x + button.w && mouseY > button.y && mouseY < button.y + button.h) { handleShopButtonPress(button.id); break; } } break;
-        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
-        case GAME_STATE.ENTER_NAME: /* Input handles its own clicks/focus */ break;
+        case GAME_STATE.GAME_OVER: case GAME_STATE.WIN_SCREEN: previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; break;
+        // REMOVED: case GAME_STATE.ENTER_NAME: ...
     }
 }
 function mouseReleased() { /* No action needed */ }
 
 function keyPressed() {
-    if (gameState === GAME_STATE.ENTER_NAME) {
-        if (keyCode === ENTER || keyCode === RETURN) {
-            if (nameInputElement) {
-                let name = nameInputElement.value();
-                addScoreToLeaderboard(name, currentPlayerScore);
-                nameInputElement.remove(); // Remove the input element
-                nameInputElement = null;
-                gameState = GAME_STATE.LEADERBOARD_SCREEN; // Show leaderboard after submitting
-                setupLeaderboardButtons();
-                currentPlayerScore = 0;
-            }
-        }
-        // Let the input field handle other keys (Backspace, letters, etc.)
-        // We return true to allow default behavior for the input field.
-        return true; // Allow default behavior like typing in the input
-    }
+    // REMOVED: if (gameState === GAME_STATE.ENTER_NAME) { ... }
 
     // --- Existing key handling for other states ---
     if (keyCode === ESCAPE) {
-         if (nameInputElement) { // If ESC is pressed while input is active, go back to menu
-             nameInputElement.remove();
-             nameInputElement = null;
-             gameState = GAME_STATE.START_MENU; // Or previous state? Start menu is safer.
-             selectedMenuItem = 0;
-             cursor(ARROW);
-             return false; // Prevent default ESC behavior if any
-         }
+         // REMOVED: Check for nameInputElement
         if (gameState === GAME_STATE.PLAYING) { isPaused = !isPaused; if (isPaused) { selectedPauseMenuItem = 0; setupPauseMenuButtons(); cursor(ARROW); isMobileShooting = false; } else { cursor(); } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { selectSettingsItemAction(settingsItems.findIndex(item => item.id === 'back')); }
         else if (gameState === GAME_STATE.COSMETICS_MENU) { selectCosmeticsItemAction(cosmeticsMenuItems.findIndex(item => item.id === 'back')); }
-        else if (gameState === GAME_STATE.UPGRADE_SHOP || gameState === GAME_STATE.LEADERBOARD_SCREEN) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; isPaused = false; cursor(ARROW); } // Allow ESC from shop/leaderboard
+        else if (gameState === GAME_STATE.UPGRADE_SHOP /* REMOVED: || gameState === GAME_STATE.LEADERBOARD_SCREEN */) { gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; isPaused = false; cursor(ARROW); } // Allow ESC from shop
         else if (gameState === GAME_STATE.SKILL_TREE) { handleSkillTreeButtonPress('back'); }
         return false; // Prevent default ESC behavior
     }
@@ -1048,8 +899,8 @@ function keyPressed() {
     else if (gameState === GAME_STATE.COSMETICS_MENU) { if (keyCode === UP_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem - 1 + cosmeticsMenuItems.length) % cosmeticsMenuItems.length; } else if (keyCode === DOWN_ARROW) { selectedCosmeticsMenuItem = (selectedCosmeticsMenuItem + 1) % cosmeticsMenuItems.length; } else if (keyCode === ENTER || keyCode === RETURN) { selectCosmeticsItemAction(selectedCosmeticsMenuItem); } }
     else if (gameState === GAME_STATE.PLAYING && !isPaused && ship) { if (keyCode === 32) { if (!spacebarHeld) { spacebarHeld = true; } return false; } if (keyCode === 77) { ship.fireMissile(); return false; } }
     else if (gameState === GAME_STATE.UPGRADE_SHOP) { if (keyCode === ENTER || keyCode === RETURN) { handleShopButtonPress('nextLevel'); } }
-    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
-    else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } } // Allow Enter to go back too
+    else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (keyCode === ENTER || keyCode === RETURN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; } }
+    // REMOVED: else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { ... }
 
     // Prevent default browser action for arrow keys, space, enter etc. if not in name entry
     if ([UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW, 32, ENTER, RETURN].includes(keyCode)) {
@@ -1062,20 +913,7 @@ function keyReleased() { if (keyCode === 32) { spacebarHeld = false; } }
 function touchStarted() {
     if (!isMobile || touches.length === 0) return false;
 
-    // If the name input exists and the touch is outside it, potentially remove focus
-     if (nameInputElement && nameInputElement.elt && document.activeElement === nameInputElement.elt) {
-        let inp = nameInputElement.elt;
-        let rect = inp.getBoundingClientRect();
-        // Convert touch coords if needed (p5 uses canvas coords, rect uses viewport)
-        let touchX = touches[0].x;
-        let touchY = touches[0].y;
-        if (touchX < rect.left || touchX > rect.right || touchY < rect.top || touchY > rect.bottom) {
-             // inp.blur(); // Optional: remove focus, might hide keyboard
-        } else {
-              // Touch was inside input, let it proceed
-             return false; // Prevent p5 from processing touch further
-        }
-     }
+    // REMOVED: Check for touch outside input element
 
     let uiButtonTapped = false;
     for (let i = 0; i < touches.length; i++) {
@@ -1086,19 +924,19 @@ function touchStarted() {
             else if (ship.homingMissilesLevel > 0 && touchX > misBtn.x && touchX < misBtn.x + misBtn.size && touchY > misBtn.y && touchY < misBtn.y + misBtn.size) { ship.fireMissile(); uiButtonTapped = true; }
         } else if (gameState === GAME_STATE.PLAYING && isPaused) {
             for (let j = 0; j < pauseMenuButtons.length; j++) { let button = pauseMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedPauseMenuItem = j; handlePauseMenuSelection(j); uiButtonTapped = true; break; } } if (uiButtonTapped) break;
-        } else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { // Handle Leaderboard back button tap
-             for (let button of leaderboardButtons) { if (button.id === 'back' && touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; break; } } if (uiButtonTapped) break;
         }
+        // REMOVED: else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { ... }
     }
     let touchX = touches[0].x; let touchY = touches[0].y;
-    if (!uiButtonTapped && !(gameState === GAME_STATE.PLAYING || gameState === GAME_STATE.ENTER_NAME)) { // Exclude Playing and Enter Name states from generic button checks here
+    // REMOVED: ENTER_NAME check
+    if (!uiButtonTapped && !(gameState === GAME_STATE.PLAYING)) { // Exclude Playing state from generic button checks here
         if (gameState === GAME_STATE.START_MENU) { for (let j = 0; j < startMenuButtons.length; j++) { let button = startMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedMenuItem = j; selectMenuItem(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.SETTINGS_MENU) { for (let j = 0; j < settingsMenuButtons.length; j++) { let button = settingsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedSettingsItem = j; selectSettingsItemAction(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.COSMETICS_MENU) { for (let j = 0; j < cosmeticsMenuButtons.length; j++) { let button = cosmeticsMenuButtons[j]; if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { selectedCosmeticsMenuItem = j; selectCosmeticsItemAction(j); uiButtonTapped = true; break; } } }
         else if (gameState === GAME_STATE.SKILL_TREE) { for (let button of skillTreeButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleSkillTreeButtonPress(button.id); uiButtonTapped = true; break;} } }
-        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { if (nameInputElement) { nameInputElement.remove(); nameInputElement = null;} previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
+        else if (gameState === GAME_STATE.GAME_OVER || gameState === GAME_STATE.WIN_SCREEN) { previousGameState = gameState; gameState = GAME_STATE.START_MENU; selectedMenuItem = 0; uiButtonTapped = true; }
         else if (gameState === GAME_STATE.UPGRADE_SHOP) { for (let button of shopButtons) { if (touchX > button.x && touchX < button.x + button.w && touchY > button.y && touchY < button.y + button.h) { handleShopButtonPress(button.id); uiButtonTapped = true; break; } } }
-        else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { /* Back button handled above */ }
+        // REMOVED: else if (gameState === GAME_STATE.LEADERBOARD_SCREEN) { ... }
     }
     if (gameState === GAME_STATE.PLAYING && !isPaused && !uiButtonTapped) { isMobileShooting = true; }
     return false;
@@ -1114,19 +952,9 @@ function windowResized() {
     if (gameState === GAME_STATE.SKILL_TREE) setupSkillTreeButtons();
     if (gameState === GAME_STATE.UPGRADE_SHOP) setupShopButtons();
     if (gameState === GAME_STATE.PLAYING && isPaused) setupPauseMenuButtons();
-    if (gameState === GAME_STATE.LEADERBOARD_SCREEN) setupLeaderboardButtons();
+    // REMOVED: if (gameState === GAME_STATE.LEADERBOARD_SCREEN) setupLeaderboardButtons();
     calculateMobileActionButtonsPosition();
-    // Reposition input element if it exists and window is resized
-     if (nameInputElement) {
-        let nameTextSize = isMobile ? 24 : 30;
-        let inputWidth = isMobile ? width * 0.6 : width * 0.4;
-        let inputHeight = nameTextSize * 1.5;
-        let inputX = width / 2 - inputWidth / 2;
-        let inputY = height * 0.55; // Recalculate base Y
-        let inputElementY = inputY - inputHeight / 1.5;
-        nameInputElement.position(inputX, inputElementY);
-        nameInputElement.size(inputWidth, inputHeight);
-    }
+    // REMOVED: Reposition input element
 }
 
 
@@ -1195,8 +1023,9 @@ class Asteroid { constructor(x, y, size, vel) { this.size = size || random(30, 8
     // --- END MODIFICATION ---
     this.rotation = random(TWO_PI); this.rotationSpeed = random(-0.04, 0.04); this.rotationAccel = 0.0001; this.vertices = []; let numVertices = floor(random(12, 22)); // Slightly more vertices for potentially smoother look
     for (let i = 0; i < numVertices; i++) { let angleOffset = map(i, 0, numVertices, 0, TWO_PI);
-        // Reduced random offset for smoother shape
+        // --- MODIFIED: Reduced random offset for smoother shape ---
         let r = this.size / 2 + random(-this.size * 0.15, this.size * 0.1); // Reduced range for less spikiness
+        // --- END MODIFICATION ---
         let v = p5.Vector.fromAngle(angleOffset); v.mult(r); this.vertices.push(v); } this.craters = []; let numCraters = floor(random(2, 7)); for (let i = 0; i < numCraters; i++) { let angle = random(TWO_PI); let radius = random(this.size * 0.1, this.size * 0.4); let craterSize = random(this.size * 0.1, this.size * 0.3); let craterPos = p5.Vector.fromAngle(angle).mult(radius); this.craters.push({ pos: craterPos, size: craterSize }); } } update() { this.pos.add(this.vel); this.rotationSpeed += random(-this.rotationAccel, this.rotationAccel); this.rotationSpeed = constrain(this.rotationSpeed, -0.06, 0.06); this.rotation += this.rotationSpeed; let buffer = this.size; if (this.pos.x < -buffer) this.pos.x = width + buffer; if (this.pos.x > width + buffer) this.pos.x = -buffer; if (this.pos.y < -buffer) this.pos.y = height + buffer; if (this.pos.y > height + buffer) this.pos.y = -buffer; } draw() { push(); translate(this.pos.x, this.pos.y); rotate(this.rotation); noStroke(); let mainBri = brightness(this.color); let mainSat = saturation(this.color); let mainHue = hue(this.color); // Hue/Sat will be 0, only brightness matters
     let gradSteps = 10; let bodyRadius = this.size / 2; for (let i = 0; i < gradSteps; i++) { let inter = i / gradSteps; let y = lerp(-bodyRadius, bodyRadius, inter); let h = lerp(0, bodyRadius * 2, inter); let w = sqrt(max(0, bodyRadius*bodyRadius - y*y)) * 2; let bri = lerp(mainBri * 1.4, mainBri * 0.5, inter); fill(mainHue, mainSat, bri); ellipse(0, y, w*0.95, h / gradSteps * 1.2); } beginShape(); fill(this.color); // Fill the main shape
     // Use curveVertex for a potentially smoother outline
