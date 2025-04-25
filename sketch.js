@@ -1,4 +1,3 @@
-
 // --- Features ---
 // - Randomly generated space background with stars, nebulas, planets, black holes
 // - Player ship controlled by keyboard/touch
